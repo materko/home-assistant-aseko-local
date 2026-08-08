@@ -609,12 +609,13 @@ class AsekoDecoder:
         per pump routing, so an exact-value comparison misses every SALT unit.
         Testing the single 0x10 bit is consistent across all observed values.
 
-        NET reports 0xFF for the whole byte (feature absent) and OXY reports
-        0x03; both are excluded, since 0xFF would otherwise decode as "timer"
-        and 0x03 as "nonstop" without either being meaningful.
+        NET reports 0xFF for the whole byte (feature absent), OXY reports 0x03
+        and 0x00 means the byte was never populated; all three are excluded,
+        since 0xFF would otherwise decode as "timer" and 0x03 / 0x00 as
+        "nonstop" without any of them being meaningful.
         """
         value = data[37]
-        if value in (0xFF, 0x03):
+        if value in (0x00, 0x03, 0xFF):
             return
         unit.filtration_nonstop24 = not (value & 0x10)
 

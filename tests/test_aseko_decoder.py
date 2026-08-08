@@ -1238,15 +1238,16 @@ def test_water_level_decoded_for_oxy_and_salt() -> None:
 
 
 def test_filtration_nonstop24_none_for_sentinel_values() -> None:
-    """byte[37] = 0xFF (NET) and 0x03 (OXY) carry no filtration mode.
+    """byte[37] = 0xFF (NET), 0x03 (OXY) and 0x00 carry no filtration mode.
 
-    Both are excluded explicitly: 0xFF has bit 0x10 set and would otherwise
-    decode as "timer", 0x03 has it clear and would decode as "nonstop",
-    without either being meaningful.
+    All three are excluded explicitly: 0xFF has bit 0x10 set and would
+    otherwise decode as "timer", while 0x03 and 0x00 have it clear and would
+    decode as "nonstop", without any of them being meaningful.
     """
     for device_byte, real_byte37 in (
         (0x09, 0xFF),  # NET — 0xFF always
         (0x05, 0x03),  # OXY — third-pump config byte
+        (0x0E, 0x00),  # byte never populated — "not set", not "nonstop"
     ):
         data = _make_base_bytes()
         data[4] = device_byte

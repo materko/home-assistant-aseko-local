@@ -623,11 +623,10 @@ async def test_async_setup_profi_clf_redox(hass) -> None:
     # though the frame carries a real value. -1 entity compared to the PR #120
     # baseline.
     #
-    # +1 filtration_nonstop24 sensor: byte[37] = 0x00 in this fixture has bit
-    # 0x10 clear, so it now decodes as "nonstop". NOTE: 0x00 is a synthetic
-    # test value, not a captured one — see the open question about whether
-    # 0x00 should be excluded alongside 0xFF and 0x03.
-    assert len(added_entities) == 42
+    # No filtration_nonstop24 sensor: byte[37] = 0x00 in this fixture, which the
+    # decoder excludes alongside 0xFF and 0x03. The bit 0x10 rule would read it
+    # as "nonstop", but an all-zero byte means "never populated", not a mode.
+    assert len(added_entities) == 41
     assert any(
         getattr(e.entity_description, "key", None) == "free_chlorine"
         for e in added_entities
