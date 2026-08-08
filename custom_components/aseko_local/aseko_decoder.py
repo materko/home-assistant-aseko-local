@@ -241,7 +241,16 @@ class AsekoDecoder:
 
     @staticmethod
     def _max_filling_time_from_bytes(data: bytes) -> int | None:
-        """Decode max_filling_time (bytes 94-95) as a 2-byte big-endian minute value.
+        """Decode max_filling_time (bytes 76-77) as 2-byte big-endian seconds.
+
+        The value is transmitted in seconds and converted to whole minutes,
+        matching the neighbouring delay_after_startup (bytes 74-75) and
+        delay_after_dose (bytes 106-107), which use the same encoding.
+
+        Verified on an ASIN AQUA Salt unit, firmware v7, by changing the
+        setting in the Aseko Live app and re-reading the frame:
+            0x0708 = 1800 s = 30 min  → app showed 30 min
+            0x0B04 = 2820 s = 47 min  → app showed 47 min
 
         Returns None for the 0xFFFF sentinel (device does not implement the
         feature) so that downstream consumers see ``None`` instead of ``65535``.
@@ -251,7 +260,7 @@ class AsekoDecoder:
         value = int.from_bytes(data, "big")
         if value == 0xFFFF:
             return None
-        return value
+        return value // 60
 
     @staticmethod
     def _time(data: bytes) -> time | None:
@@ -585,18 +594,29 @@ class AsekoDecoder:
     def _fill_filtration_mode(unit: AsekoDevice, data: bytes) -> None:
         """Decode filtration mode (byte [37]) for all device types.
 
-        byte [37]:
-          0x43 = nonstop 24 h active   (confirmed: HOME ✅)
-          0x53 = timer mode active     (confirmed: HOME ✅, issue #110 ✅)
-          0x47 / 0x57 = transitional edit state → leave as None
-          other values → None (SALT uses 0xb7/0xb3/0x37/0x13 for pump routing;
-                               OXY uses 0x03; NET = 0xFF always → all give None)
+        byte [37], bit 0x10 is the "timer active" flag:
+          bit clear → nonstop 24 h active
+          bit set   → timer mode active
+
+        Known values:
+          0x43 = nonstop 24 h   (confirmed: HOME ✅)
+          0x53 = timer mode     (confirmed: HOME ✅, issue #110 ✅)
+          0xC3 = nonstop 24 h   (confirmed: SALT ✅, firmware v7)
+          0xD3 = timer mode     (confirmed: SALT ✅, same unit, toggled live)
+          0xb7 / 0xb3 / 0x37 / 0x13 = timer mode (all have bit 0x10 set)
+
+        The upper nibble carries unrelated flags that differ per device type and
+        per pump routing, so an exact-value comparison misses every SALT unit.
+        Testing the single 0x10 bit is consistent across all observed values.
+
+        NET reports 0xFF for the whole byte (feature absent) and OXY reports
+        0x03; both are excluded, since 0xFF would otherwise decode as "timer"
+        and 0x03 as "nonstop" without either being meaningful.
         """
-        if data[37] == 0x43:
-            unit.filtration_nonstop24 = True
-        elif data[37] == 0x53:
-            unit.filtration_nonstop24 = False
-        # all other values (including 0xFF, 0x03, 0x37, 0xb7 …) → leave as None
+        value = data[37]
+        if value in (0xFF, 0x03):
+            return
+        unit.filtration_nonstop24 = not (value & 0x10)
 
     @staticmethod
     def _fill_consumable_data(unit: AsekoDevice, data: bytes) -> None:
@@ -673,19 +693,21 @@ class AsekoDecoder:
                 else None
             ),
             pool_volume=int.from_bytes(data[92:94], "big"),
-            # max_filling_time is stored in minutes (verified against Aseko Live
-            # app for serial 110071590: raw bytes 94:95 = 0x003c = 60, app shows
-            # 60 min). The earlier "× 30 seconds" interpretation was wrong.
-            # See water_level_backwash_analysis.md and home_device_analysis.md
-            # (Bug 1, the 30 s hypothesis from DomSchCoding #100 was rejected by
-            # the live app screenshot).
+            # max_filling_time lives in bytes 76-77 as big-endian SECONDS, not
+            # in bytes 94-95. Byte 95 is flowrate_ph_minus (ml/min) — see the
+            # annotated diagnostics table, which already lists both meanings for
+            # that byte. The previous verification on serial 110071590 matched
+            # only because that unit happened to have a 60 ml/min pH- pump and a
+            # 60 min filling limit at the same time.
+            #
+            # Confirmed on an ASIN AQUA Salt (v7): bytes 94-95 stayed at
+            # 0x003c while the app setting was changed from 30 to 47 min, and
+            # bytes 76-77 tracked it exactly (0x0708 → 0x0B04).
             #
             # Gated on WATER_LEVEL_TYPES: NET (Aqua NET) and PROFI have no filling
-            # valve, so bytes 94-95 either carry unrelated data or are 0xFFFF.
-            # A bare int.from_bytes(..., "big") would otherwise turn 0xFFFF into
-            # 65535 — fix that by normalising to None on 0xFFFF as well.
+            # valve, so the field either carries unrelated data or is 0xFFFF.
             max_filling_time=(
-                AsekoDecoder._max_filling_time_from_bytes(data[94:96])
+                AsekoDecoder._max_filling_time_from_bytes(data[76:78])
                 if has_water_level
                 else None
             ),
