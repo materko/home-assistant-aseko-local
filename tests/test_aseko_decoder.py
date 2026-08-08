@@ -52,11 +52,11 @@ def _make_base_bytes(size: int = 120) -> bytearray:
     data[70] = 30  # backwash_time min
     data[71] = 2  # backwash_duration (20)
     data[74:76] = (120).to_bytes(2, "big")  # delay_after_startup
+    data[76:78] = (3600).to_bytes(2, "big")  # max_filling_time = 3600 s = 60 min
     data[92:94] = (5000).to_bytes(2, "big")  # pool_volume
-    data[95] = 10  # flowrate_chlor
-    data[94:96] = (60).to_bytes(2, "big")  # max_filling_time
+    data[95] = 60  # flowrate_ph_minus
     data[97] = 20  # flowrate_ph_plus
-    data[99] = 255  # flowrate_ph_minus (not measured)
+    data[99] = 255  # flowrate_chlor (not measured)
     data[101] = 40  # flowrate_floc
     data[106:108] = (30).to_bytes(2, "big")  # delay_after_dose
     return data
@@ -121,7 +121,7 @@ def test_decode_home() -> None:
     assert device.filtration_pump_running is True
     assert device.water_flow_to_probes is True
     assert device.pool_volume == 5000
-    assert device.max_filling_time == 60  # raw = minutes directly (verified Issue #110)
+    assert device.max_filling_time == 60  # bytes 76-77 = 3600 s -> 60 min
     assert device.delay_after_startup == 120
     assert device.delay_after_dose == 30
     assert device.start1 == time(8, 0)
@@ -385,34 +385,55 @@ def test_decode_net_no_backwash_with_garbage_bytes() -> None:
 
 
 def test_max_filling_time_unspecified_sentinel() -> None:
-    """Issue #129: 0xFFFF in bytes 94-95 must decode to None, not 65535.
+    """Issue #129: 0xFFFF in bytes 76-77 must decode to None, not 65535.
 
-    Pre-fix behaviour: a bare ``int.from_bytes(data[94:96], "big")`` returned
-    65535 for the 0xFFFF sentinel, surfacing a nonsensical "max filling time
-    = 65535 min" sensor on devices that do not implement filling (NET, PROFI).
+    Pre-fix behaviour: a bare ``int.from_bytes(...)`` returned 65535 for the
+    0xFFFF sentinel, surfacing a nonsensical "max filling time = 65535 min"
+    sensor on devices that do not implement filling (NET, PROFI).
     """
     data = _make_base_bytes()  # default SALT — has max_filling_time
     data[4] = 0x09  # but flip to NET
-    data[94:96] = bytes([0xFF, 0xFF])  # UNSPECIFIED sentinel
+    data[76:78] = bytes([0xFF, 0xFF])  # UNSPECIFIED sentinel
     device = AsekoDecoder.decode(bytes(data))
     assert device.device_type == AsekoDeviceType.NET
     assert device.max_filling_time is None
 
 
 def test_max_filling_time_real_value_home() -> None:
-    """Sanity check: on a HOME device, a real value still decodes correctly.
+    """Sanity check: on a HOME device, a real value decodes correctly.
 
-    This guards against an accidental regression where the new
-    _max_filling_time_from_bytes() helper breaks the verified
-    "60 min from 0x003c" mapping (Issue #110).
+    Reproduces the values read off an ASIN AQUA Salt (firmware v7) while
+    changing the setting in the Aseko Live app, which is what pinned the
+    field to bytes 76-77 in the first place.
     """
     data = _make_base_bytes()
     data[4] = 0x02  # UNIT_TYPE_HOME_CLF — any HOME subtype works
     data[6:12] = bytes([24, 6, 15, 12, 34, 56])
-    data[94:96] = (60).to_bytes(2, "big")  # 60 min
+
+    data[76:78] = bytes([0x07, 0x08])  # 1800 s — app showed 30 min
+    assert AsekoDecoder.decode(bytes(data)).max_filling_time == 30
+
+    data[76:78] = bytes([0x0B, 0x04])  # 2820 s — app showed 47 min
     device = AsekoDecoder.decode(bytes(data))
     assert device.device_type == AsekoDeviceType.HOME
+    assert device.max_filling_time == 47
+
+
+def test_max_filling_time_not_read_from_flowrate_byte() -> None:
+    """Regression guard: bytes 94-95 must not influence max_filling_time.
+
+    Byte 95 is flowrate_ph_minus (ml/min). The old decoder read bytes 94-95,
+    which matched the app only on serial 110071590, where the pH- pump ran at
+    60 ml/min and the filling limit happened to be 60 min at the same time.
+    """
+    data = _make_base_bytes()
+    data[4] = 0x02  # UNIT_TYPE_HOME_CLF
+    data[76:78] = (3600).to_bytes(2, "big")  # 60 min
+    data[94:96] = (99).to_bytes(2, "big")  # decoy in the old location
+
+    device = AsekoDecoder.decode(bytes(data))
     assert device.max_filling_time == 60
+    assert device.flowrate_ph_minus == 99
 
 
 def test_decode_issue_17() -> None:
@@ -955,7 +976,13 @@ def test_decode_home_clf_real_frame() -> None:
     assert device.backwash_duration == 120
     # Pool parameters
     assert device.pool_volume == 60
-    assert device.max_filling_time == 60  # raw = minutes directly (verified Issue #110)
+    # max_filling_time is deliberately not asserted for this frame. The old
+    # value (60) was read from bytes 94-95, which is byte 95 = flowrate_ph_minus
+    # — asserted as 60 a few lines below, from the very same byte. The "60 min"
+    # was carried over from Issue #110 and never checked against the app for
+    # this serial. Bytes 76-77 hold 0x2a30 = 10800 s = 180 min, which is
+    # plausible but likewise unconfirmed for a HOME unit; the byte position was
+    # verified on SALT only. Left open until a HOME owner confirms it.
     assert device.delay_after_startup == 480
     assert device.delay_after_dose == 240
     # Flowrates
@@ -1210,19 +1237,16 @@ def test_water_level_decoded_for_oxy_and_salt() -> None:
         assert device.water_level_high_alarm == 15, f"byte[4]={device_byte:#x}"
 
 
-def test_filtration_nonstop24_none_for_non_home() -> None:
-    """filtration_nonstop24 is None for NET, OXY, SALT when byte[37] has non-mode values.
+def test_filtration_nonstop24_none_for_sentinel_values() -> None:
+    """byte[37] = 0xFF (NET) and 0x03 (OXY) carry no filtration mode.
 
-    Real-world byte[37] values for these devices:
-      NET = 0xFF (always UNSPECIFIED)
-      OXY = 0x03 (third-pump config, not filtration flag)
-      SALT = 0xb7, 0xb3, 0x37, 0x13 (algicide/floc routing)
-    None of those are 0x43 (nonstop) or 0x53 (timer), so filtration_nonstop24 stays None.
+    Both are excluded explicitly: 0xFF has bit 0x10 set and would otherwise
+    decode as "timer", 0x03 has it clear and would decode as "nonstop",
+    without either being meaningful.
     """
     for device_byte, real_byte37 in (
         (0x09, 0xFF),  # NET — 0xFF always
         (0x05, 0x03),  # OXY — third-pump config byte
-        (0x0E, 0xB7),  # SALT — algicide routing
     ):
         data = _make_base_bytes()
         data[4] = device_byte
@@ -1231,6 +1255,54 @@ def test_filtration_nonstop24_none_for_non_home() -> None:
         device = AsekoDecoder.decode(bytes(data))
         assert device.filtration_nonstop24 is None, (
             f"byte[4]={device_byte:#x}, byte[37]={real_byte37:#x}"
+        )
+
+
+def test_filtration_nonstop24_salt_real_values() -> None:
+    """SALT byte[37] values decode via bit 0x10, not via exact comparison.
+
+    0xC3/0xD3 were captured on an ASIN AQUA Salt (firmware v7) by toggling
+    the mode in the Aseko Live app and re-reading the frame.
+
+    0xb7/0xb3/0x37/0x13 are values reported by other SALT users. They were
+    previously dismissed as pump routing and decoded to None; all four have
+    bit 0x10 set, i.e. those units were running a timer.
+    """
+    data = _make_base_bytes()
+    data[4] = 0x0E  # SALT
+
+    data[37] = 0xC3
+    assert AsekoDecoder.decode(bytes(data)).filtration_nonstop24 is True
+
+    data[37] = 0xD3
+    assert AsekoDecoder.decode(bytes(data)).filtration_nonstop24 is False
+
+    for byte37 in (0xB7, 0xB3, 0x37, 0x13):
+        data[37] = byte37
+        assert AsekoDecoder.decode(bytes(data)).filtration_nonstop24 is False, (
+            f"byte[37]={byte37:#x} has bit 0x10 set and must decode as timer"
+        )
+
+
+def test_filtration_nonstop24_ignores_upper_nibble() -> None:
+    """Only bit 0x10 decides the mode; the other bits are unrelated flags.
+
+    Byte 37 is already treated as a bitfield elsewhere in the decoder —
+    FILTRATION_PERIOD2_ENABLED_MASK (0x20) is read from the same byte.
+    """
+    data = _make_base_bytes()
+    data[4] = 0x0E  # SALT
+
+    for byte37 in (0x43, 0xC3, 0x63, 0x47):
+        data[37] = byte37
+        assert AsekoDecoder.decode(bytes(data)).filtration_nonstop24 is True, (
+            f"byte[37]={byte37:#x} has bit 0x10 clear and must decode as nonstop"
+        )
+
+    for byte37 in (0x53, 0xD3, 0x73, 0x57):
+        data[37] = byte37
+        assert AsekoDecoder.decode(bytes(data)).filtration_nonstop24 is False, (
+            f"byte[37]={byte37:#x} has bit 0x10 set and must decode as timer"
         )
 
 
@@ -1271,7 +1343,7 @@ def test_alarms_decoded_for_all_device_types() -> None:
 
 
 def test_home_filtration_nonstop24() -> None:
-    """byte[37] filtration mode: 0x43 = nonstop, 0x53 = timer, others = None."""
+    """byte[37] filtration mode on HOME: bit 0x10 clear = nonstop, set = timer."""
     data = _make_home_bytes()
 
     data[37] = 0x43  # nonstop 24 h
@@ -1280,11 +1352,14 @@ def test_home_filtration_nonstop24() -> None:
     data[37] = 0x53  # timer mode
     assert AsekoDecoder.decode(bytes(data)).filtration_nonstop24 is False
 
-    data[37] = 0x47  # transitional edit state → None
-    assert AsekoDecoder.decode(bytes(data)).filtration_nonstop24 is None
+    # 0x47 / 0x57 were previously documented as a transitional edit state and
+    # decoded to None. They differ from 0x43 / 0x53 only in bit 0x04, so under
+    # the bitfield reading the mode is still recoverable.
+    data[37] = 0x47
+    assert AsekoDecoder.decode(bytes(data)).filtration_nonstop24 is True
 
-    data[37] = 0x57  # transitional edit state → None
-    assert AsekoDecoder.decode(bytes(data)).filtration_nonstop24 is None
+    data[37] = 0x57
+    assert AsekoDecoder.decode(bytes(data)).filtration_nonstop24 is False
 
 
 def test_home_alarm_bitmask_byte13() -> None:
@@ -1334,19 +1409,25 @@ def test_home_byte12_not_an_alarm_byte() -> None:
 
 
 def test_home_max_filling_time() -> None:
-    """max_filling_time is stored in minutes (raw value × 1).
+    """max_filling_time is transmitted in seconds and exposed in whole minutes.
 
-    Confirmed against the Aseko Live app for serial 110071590:
-        raw bytes 94:95 = 0x003c = 60
-        app shows "Max filling time 60 min"
-    Earlier interpretation as "raw × 30 seconds = 1800 s = 30 min"
-    was rejected by the live app screenshot from mannekung (Issue #110).
+    Same encoding as the neighbouring delay_after_startup (bytes 74-75) and
+    delay_after_dose (bytes 106-107).
     """
     data = _make_home_bytes()
-    data[94:96] = (60).to_bytes(2, "big")  # raw = 60
+    data[76:78] = (3600).to_bytes(2, "big")  # 3600 s
 
     device = AsekoDecoder.decode(bytes(data))
-    assert device.max_filling_time == 60  # raw value = minutes directly
+    assert device.max_filling_time == 60
+
+
+def test_home_max_filling_time_truncates_to_whole_minutes() -> None:
+    """Values that are not a whole number of minutes are truncated, not rounded."""
+    data = _make_home_bytes()
+    data[76:78] = (3659).to_bytes(2, "big")  # 60 min 59 s
+
+    device = AsekoDecoder.decode(bytes(data))
+    assert device.max_filling_time == 60
 
 
 # ── Backwash relay state (Issue #100) ────────────────────────────────────────
@@ -1551,6 +1632,11 @@ def test_home_issue_110_frame() -> None:
     assert device.water_level_filling_off == 13  # byte[104]
     assert device.water_level_high_alarm == 15  # byte[105]
     assert device.pool_volume == 20  # bytes[92:94] = 0x0014
-    assert (
-        device.max_filling_time == 60
-    )  # raw = minutes directly (verified Issue #110 app)
+    # max_filling_time is deliberately not asserted here: segment 2 of this
+    # frame is a zero placeholder (the issue only ever included segments 1
+    # and 3), so bytes 76-77 are not real data. The old "60 min" for this
+    # serial came from bytes 94-95 = 0x003c, which is flowrate_ph_minus — the
+    # unit ran a 60 ml/min pH- pump and a 60 min filling limit at the same
+    # time, which is why the wrong offset looked correct.
+    assert device.max_filling_time == 0  # 0x0000 from the placeholder segment
+    assert device.flowrate_ph_minus == 60  # bytes 94-95 = 0x003c
