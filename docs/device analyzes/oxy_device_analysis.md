@@ -85,7 +85,21 @@ Checksum bytes (39, 79, 119) and timestamp second (byte[11]) change as expected.
 | `[69:71]` | `0c 1e` | Backwash time = 12:30 | |
 | `[71]` | `0x0a` | Backwash duration = 100 s | ×10 |
 | `[72]` | `0x0f` = 15 | Required Algicide = **15 ml/m³/d** | ✓ Confirmed 2026-04-11 (Winnetoux) |
-| `[73]` | `0x28` = 40 s | Delay after startup | |
+| `[73]` | `0x28` = 40 | Unknown | ⛔ **not** delay after startup — see note below |
+| `[74:76]` | `00 f0` | Delay after startup = **240 s = 4 min** | Big-endian seconds |
+| `[76:78]` | `0e 10` | **max_filling_time = 3600 s = 60 min** | Big-endian seconds |
+
+**Correction — byte[73] is not `delay_after_startup`.** This table previously listed
+`[73] = 0x28 = 40 s` as the delay after startup. The decoder reads `delay_after_startup`
+from **bytes[74:76]** as big-endian seconds, and the HOME frame confirms that reading
+against the app (`01e0` = 480 s = 8 min, app shows 8 min). Byte 73 is `0x28` in the HOME
+frame *and* in all three OXY frames — a constant, not a per-device setting. Its meaning is
+still unknown.
+
+`max_filling_time` at bytes[76:78] is `0x0e10` = 3600 s = exactly 60 min in all three OXY
+frames in the repo. ⚠️ The value is not confirmed against an app screenshot for OXY; the
+offset and encoding are (see the HOME analysis for the full derivation and the live
+SALT proof).
 
 ## Byte Map – Sub-frame 3 (flow rates)
 
@@ -185,6 +199,16 @@ On OXY, `0x03` has neither `0x80` nor `0x10` set — the SALT routing logic does
 
 **Implementation**: for `AsekoDeviceType.OXY`, do not apply the `ALGICIDE_CONFIGURED` byte[37]
 routing. Both flowrate_algicide and flowrate_floc are read from their own dedicated bytes.
+
+### Interaction with `filtration_nonstop24`
+
+`byte[37]` is also where the filtration mode lives on HOME and SALT (bit `0x10` = timer
+active). On OXY the byte means something else entirely, so `0x03` is treated as an
+**excluded sentinel** and `filtration_nonstop24` stays `None`.
+
+This matters because `0x03` has bit `0x10` clear, which under a naive bit test would decode
+as "NONSTOP 24H" on every OXY device. The exclusion is explicit in the decoder alongside
+`0x00` (never populated) and `0xFF` (NET).
 
 ---
 

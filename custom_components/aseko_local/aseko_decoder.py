@@ -76,7 +76,7 @@ BACKWASH_TYPES = frozenset(
 
 # Device types that have a water-level probe + filling-valve output and
 # therefore expose the water_level live value plus the four threshold setpoints
-# (bytes 27, 102-105) and the max_filling_time (bytes 94-95).
+# (bytes 27, 102-105) and the max_filling_time (bytes 76-77).
 # NET (Aqua NET) and PROFI do not have a filling valve → skip the whole group.
 # Mirrors the existing _fill_home_water_level_data() NET early-return.
 WATER_LEVEL_TYPES = frozenset(
