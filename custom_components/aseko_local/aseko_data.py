@@ -53,6 +53,29 @@ class AsekoBackwashTrigger(Enum):
     MANUAL = "manual"
 
 
+class AsekoBackwashSource(Enum):
+    """Where a reported backwash timestamp came from.
+
+    OBSERVED — the integration watched the backwash valve run a full cycle.
+    MANUAL — the user entered it via ``aseko_local.set_last_scheduled_backwash``,
+        typically to seed the schedule phase instead of waiting for the next
+        real cycle.
+    CALCULATED_FROM_OBSERVED / CALCULATED_FROM_MANUAL — a projection, carrying
+        which of the two it was projected from.  ``next_scheduled_backwash`` is
+        only ever as trustworthy as the timestamp it was calculated from, and
+        saying so is the point of this enum.
+
+    An observed cycle always supersedes a manual entry: once the integration
+    has actually seen a scheduled backwash, the seed has served its purpose
+    and the source flips back to OBSERVED.
+    """
+
+    OBSERVED = "observed"
+    MANUAL = "manual"
+    CALCULATED_FROM_OBSERVED = "calculated_from_observed"
+    CALCULATED_FROM_MANUAL = "calculated_from_manual"
+
+
 class AsekoThirdPumpSlot:
     """Semantics of byte[37] differ by device type.
 
@@ -296,11 +319,17 @@ class AsekoDevice:
     #                             scheduled cycle has been observed: a manual
     #                             backwash does not reveal the schedule phase,
     #                             and an unscheduled one cannot be predicted.
+    #
+    # The two *_source fields say where the value came from, and are exposed as
+    # a "source" state attribute so a seeded value is never mistaken for a
+    # measured one.  See AsekoBackwashSource.
     last_backwash: datetime | None = None
     last_scheduled_backwash: datetime | None = None
+    last_scheduled_backwash_source: AsekoBackwashSource | None = None
     last_manual_backwash: datetime | None = None
     last_backwash_trigger: AsekoBackwashTrigger | None = None
     next_scheduled_backwash: datetime | None = None
+    next_scheduled_backwash_source: AsekoBackwashSource | None = None
 
     # Server-side receive timestamp – set by the coordinator on every incoming frame.
     # Independent of the device clock (which can be wrong or missing on some models).

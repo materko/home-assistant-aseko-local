@@ -56,7 +56,7 @@ from typing import TYPE_CHECKING
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 
-from .aseko_data import AsekoBackwashTrigger
+from .aseko_data import AsekoBackwashSource, AsekoBackwashTrigger
 
 if TYPE_CHECKING:
     from .aseko_data import AsekoDevice
@@ -122,6 +122,11 @@ class BackwashTracker:
         self._last_manual_backwash: datetime | None = None
         self._last_trigger: AsekoBackwashTrigger | None = None
 
+        # Where _last_scheduled_backwash came from: OBSERVED (we watched the
+        # valve run) or MANUAL (the user seeded it).  Drives the "source"
+        # attribute on both the last- and next-scheduled sensors.
+        self._last_scheduled_source: AsekoBackwashSource | None = None
+
     @property
     def serial_number(self) -> int:
         """Return the device serial number this tracker belongs to."""
@@ -136,6 +141,48 @@ class BackwashTracker:
     def last_scheduled_backwash(self) -> datetime | None:
         """Return the most recent backwash that ran on the unit's schedule."""
         return self._last_scheduled_backwash
+
+    @property
+    def last_scheduled_source(self) -> AsekoBackwashSource | None:
+        """Return where ``last_scheduled_backwash`` came from, or None if unset."""
+        return self._last_scheduled_source
+
+    @property
+    def next_scheduled_source(self) -> AsekoBackwashSource | None:
+        """Return the provenance of the ``next_scheduled_backwash`` projection.
+
+        A projection is only as good as the timestamp it starts from, so this
+        mirrors ``last_scheduled_source`` into its CALCULATED_FROM_* form.
+        """
+        if self._last_scheduled_source is AsekoBackwashSource.OBSERVED:
+            return AsekoBackwashSource.CALCULATED_FROM_OBSERVED
+        if self._last_scheduled_source is AsekoBackwashSource.MANUAL:
+            return AsekoBackwashSource.CALCULATED_FROM_MANUAL
+        return None
+
+    def set_last_scheduled_backwash(self, moment: datetime) -> None:
+        """Record a user-supplied timestamp for the last scheduled backwash.
+
+        Lets the schedule projection start working immediately instead of
+        waiting out a whole interval for the next real cycle.  The value is
+        marked MANUAL and persisted, and ``next_scheduled_backwash`` is
+        projected from it and marked CALCULATED_FROM_MANUAL.
+
+        A later *observed* scheduled cycle overwrites this and flips the source
+        back to OBSERVED — the seed is a stand-in until the real thing shows
+        up, never something that outranks it.
+
+        ``last_backwash`` is deliberately left alone: it means "we watched this
+        happen", and a typed-in date has not been watched.
+        """
+        self._last_scheduled_backwash = moment
+        self._last_scheduled_source = AsekoBackwashSource.MANUAL
+        _LOGGER.info(
+            "Last scheduled backwash for serial=%s set manually to %s",
+            self._serial,
+            moment.isoformat(),
+        )
+        self._hass.async_create_task(self.async_save())
 
     @property
     def last_manual_backwash(self) -> datetime | None:
@@ -172,6 +219,21 @@ class BackwashTracker:
                     trigger,
                 )
 
+        source = data.get("last_scheduled_source")
+        if source is not None:
+            try:
+                self._last_scheduled_source = AsekoBackwashSource(source)
+            except ValueError:
+                _LOGGER.warning(
+                    "Could not parse stored last_scheduled_source for serial=%s: %r",
+                    self._serial,
+                    source,
+                )
+        elif self._last_scheduled_backwash is not None:
+            # Written before provenance was tracked.  Anything already in the
+            # store got there by observation — manual entry did not exist yet.
+            self._last_scheduled_source = AsekoBackwashSource.OBSERVED
+
     def _parse_stored_datetime(self, data: dict, key: str) -> datetime | None:
         """Return a stored ISO timestamp as a datetime, or None if absent/invalid."""
         raw = data.get(key)
@@ -186,15 +248,29 @@ class BackwashTracker:
             return None
 
     async def async_save(self) -> None:
-        """Persist the current state to storage.  No-op if no event recorded yet."""
-        if self._last_backwash is None:
+        """Persist the current state to storage.  No-op if nothing is recorded.
+
+        The check covers ``last_scheduled_backwash`` as well as
+        ``last_backwash``: a manually seeded schedule is the one case where
+        there is something worth saving before any cycle has been observed.
+        """
+        if self._last_backwash is None and self._last_scheduled_backwash is None:
             return
         await self._store.async_save(
             {
-                "last_backwash": self._last_backwash.isoformat(),
+                "last_backwash": (
+                    self._last_backwash.isoformat()
+                    if self._last_backwash is not None
+                    else None
+                ),
                 "last_scheduled_backwash": (
                     self._last_scheduled_backwash.isoformat()
                     if self._last_scheduled_backwash is not None
+                    else None
+                ),
+                "last_scheduled_source": (
+                    self._last_scheduled_source.value
+                    if self._last_scheduled_source is not None
                     else None
                 ),
                 "last_manual_backwash": (
@@ -280,7 +356,10 @@ class BackwashTracker:
         self._last_backwash = recorded_at
         self._last_trigger = trigger
         if trigger is AsekoBackwashTrigger.SCHEDULED:
+            # An observed cycle always wins over a manual seed, whatever the
+            # seeded timestamp was: the seed only ever stood in for this.
             self._last_scheduled_backwash = recorded_at
+            self._last_scheduled_source = AsekoBackwashSource.OBSERVED
         else:
             self._last_manual_backwash = recorded_at
 

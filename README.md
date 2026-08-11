@@ -264,6 +264,39 @@ The tolerance absorbs drift between the unit's clock and Home Assistant's, plus 
 
 > **Upgrading:** `sensor.next_backwash` was renamed to `sensor.next_scheduled_backwash`. The integration rewrites the entity registry on startup, so the entity keeps its `entity_id`, its recorded history and any automation or dashboard pointing at it — only the displayed name changes.
 
+### Seeding the schedule by hand
+
+Because the device never transmits its history, `next_scheduled_backwash` stays unknown until the integration has watched a whole scheduled cycle — up to a full interval of waiting. The `aseko_local.set_last_scheduled_backwash` service skips that wait:
+
+```yaml
+action: aseko_local.set_last_scheduled_backwash
+data:
+  timestamp: "2026-08-01 12:30:00"
+  # serial_number: 110071590   # optional; omit to set every backwash-capable device
+```
+
+The timestamp must be in the past. Both affected sensors then carry a `source`
+attribute saying where the value came from:
+
+| Sensor | `source` | Meaning |
+|---|---|---|
+| `last_scheduled_backwash` | `observed` | The integration watched this cycle run |
+| | `manual` | You entered it |
+| `next_scheduled_backwash` | `calculated_from_observed` | Projected from a cycle that was watched |
+| | `calculated_from_manual` | Projected from the value you entered |
+
+**An observed cycle always supersedes a seeded one.** The moment a real
+scheduled backwash is detected, `last_scheduled_backwash` switches to the
+observed timestamp and both sources flip to the `observed` variants — the seed
+is a stand-in until the real thing turns up, never something that outranks it.
+This holds even when the seeded timestamp is the later of the two.
+
+Seeding deliberately does **not** touch `sensor.last_backwash`: that one means
+"the integration watched this happen", and a typed-in date has not been
+watched. It also does not touch `last_manual_backwash`, which tracks *observed*
+cycles that were started by hand — a different thing from a manually entered
+date.
+
 ### Known ways the estimate gets it wrong
 
 * A cycle you start **by hand near the scheduled time** is reported as scheduled.

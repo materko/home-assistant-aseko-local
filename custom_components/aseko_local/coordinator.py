@@ -2,7 +2,7 @@
 
 import logging
 from collections.abc import Callable
-from datetime import timedelta
+from datetime import datetime, timedelta
 from types import CoroutineType
 from typing import Any
 
@@ -163,12 +163,58 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         tracker = self._backwash_trackers[serial]
         now = dt_util.now()
         tracker.update(device, now)
+        self._publish_backwash(device, tracker, now)
 
+    @staticmethod
+    def _publish_backwash(
+        device: AsekoDevice, tracker: BackwashTracker, now: datetime
+    ) -> None:
+        """Copy the tracker's state onto the device object the entities read."""
         device.last_backwash = tracker.last_backwash
         device.last_scheduled_backwash = tracker.last_scheduled_backwash
+        device.last_scheduled_backwash_source = tracker.last_scheduled_source
         device.last_manual_backwash = tracker.last_manual_backwash
         device.last_backwash_trigger = tracker.last_trigger
         device.next_scheduled_backwash = tracker.next_scheduled_backwash(device, now)
+        device.next_scheduled_backwash_source = (
+            tracker.next_scheduled_source
+            if device.next_scheduled_backwash is not None
+            else None
+        )
+
+    def set_last_scheduled_backwash(
+        self, moment: datetime, serial_number: int | None = None
+    ) -> bool:
+        """Seed the last scheduled backwash for one device, or for all of them.
+
+        Backs the ``aseko_local.set_last_scheduled_backwash`` service.  Returns
+        True if at least one tracker was updated, so the service can tell the
+        user when a serial number matched nothing.
+
+        The stored device objects are updated in place and listeners notified,
+        so the sensors reflect the new value straight away instead of waiting
+        for the next frame.
+        """
+        if serial_number is not None:
+            trackers = {
+                serial: tracker
+                for serial, tracker in self._backwash_trackers.items()
+                if serial == serial_number
+            }
+        else:
+            trackers = dict(self._backwash_trackers)
+
+        if not trackers:
+            return False
+
+        for serial, tracker in trackers.items():
+            tracker.set_last_scheduled_backwash(moment)
+            device = self.get_device(serial)
+            if device is not None:
+                self._publish_backwash(device, tracker, dt_util.now())
+
+        self.async_update_listeners()
+        return True
 
     def async_add_new_device_listener(
         self, listener: Callable[[AsekoDevice], None]

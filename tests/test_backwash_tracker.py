@@ -12,7 +12,10 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 
-from custom_components.aseko_local.aseko_data import AsekoBackwashTrigger
+from custom_components.aseko_local.aseko_data import (
+    AsekoBackwashSource,
+    AsekoBackwashTrigger,
+)
 from custom_components.aseko_local.backwash_tracker import (
     BackwashTracker,
     MAX_FRAME_GAP,
@@ -458,3 +461,131 @@ async def test_async_save_persists_classification():
     assert saved["last_scheduled_backwash"] == (T0 + timedelta(seconds=45)).isoformat()
     assert saved["last_manual_backwash"] is None
     assert saved["last_trigger"] == "scheduled"
+
+
+# ── manual seeding and provenance ───────────────────────────────────────────
+
+
+def test_manual_seed_marks_source_and_drives_projection():
+    """A seeded date starts the projection and is labelled as manual."""
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    device = _scheduled_device(False)
+
+    seeded = T0 - timedelta(days=1)
+    tracker.set_last_scheduled_backwash(seeded)
+
+    assert tracker.last_scheduled_backwash == seeded
+    assert tracker.last_scheduled_source is AsekoBackwashSource.MANUAL
+    assert tracker.next_scheduled_source is AsekoBackwashSource.CALCULATED_FROM_MANUAL
+    # Seeded 2026-06-13 21:00, interval 3 days -> 2026-06-16 21:00.
+    assert tracker.next_scheduled_backwash(device, T0) == datetime(
+        2026, 6, 16, 21, 0, 0, tzinfo=timezone.utc
+    )
+
+
+def test_manual_seed_does_not_touch_observed_last_backwash():
+    """last_backwash means "we watched this happen" — typing a date does not."""
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+
+    tracker.set_last_scheduled_backwash(T0 - timedelta(days=1))
+
+    assert tracker.last_backwash is None
+    assert tracker.last_manual_backwash is None
+    assert tracker.last_trigger is None
+
+
+def test_observed_scheduled_cycle_supersedes_manual_seed():
+    """Once a real scheduled cycle is detected, the seed is replaced."""
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+
+    tracker.set_last_scheduled_backwash(T0 - timedelta(days=1))
+    assert tracker.last_scheduled_source is AsekoBackwashSource.MANUAL
+
+    _run_cycle(tracker, T0)
+
+    assert tracker.last_scheduled_backwash == T0 + timedelta(seconds=45)
+    assert tracker.last_scheduled_source is AsekoBackwashSource.OBSERVED
+    assert tracker.next_scheduled_source is AsekoBackwashSource.CALCULATED_FROM_OBSERVED
+
+
+def test_observed_cycle_supersedes_a_newer_manual_seed():
+    """The seed loses even when its timestamp is later than the observation.
+
+    The seed only ever stood in for a real cycle; once we have one, guessing
+    is over.
+    """
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+
+    tracker.set_last_scheduled_backwash(T0 + timedelta(days=5))
+    _run_cycle(tracker, T0)
+
+    assert tracker.last_scheduled_backwash == T0 + timedelta(seconds=45)
+    assert tracker.last_scheduled_source is AsekoBackwashSource.OBSERVED
+
+
+def test_observed_manual_cycle_leaves_the_seed_alone():
+    """A detected *manual* backwash says nothing about the schedule phase."""
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+
+    seeded = T0 - timedelta(days=1)
+    tracker.set_last_scheduled_backwash(seeded)
+    _run_cycle(tracker, T0 + timedelta(hours=3))  # far from backwash_time
+
+    assert tracker.last_trigger is AsekoBackwashTrigger.MANUAL
+    assert tracker.last_scheduled_backwash == seeded
+    assert tracker.last_scheduled_source is AsekoBackwashSource.MANUAL
+
+
+def test_no_source_while_nothing_is_known():
+    """No value, no provenance — the attribute stays absent rather than lying."""
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+
+    assert tracker.last_scheduled_source is None
+    assert tracker.next_scheduled_source is None
+
+
+async def test_manual_seed_is_persisted_before_any_observation():
+    """async_save must not bail out just because last_backwash is still None."""
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    tracker._store.async_save = AsyncMock()  # type: ignore[method-assign]
+
+    seeded = T0 - timedelta(days=1)
+    tracker.set_last_scheduled_backwash(seeded)
+    await tracker.async_save()
+
+    saved = tracker._store.async_save.call_args.args[0]  # type: ignore[attr-defined]
+    assert saved["last_backwash"] is None
+    assert saved["last_scheduled_backwash"] == seeded.isoformat()
+    assert saved["last_scheduled_source"] == "manual"
+
+
+async def test_async_load_restores_manual_source():
+    """A seeded value survives a restart still marked as manual."""
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    tracker._store.async_load = AsyncMock(  # type: ignore[method-assign]
+        return_value={
+            "last_scheduled_backwash": T0.isoformat(),
+            "last_scheduled_source": "manual",
+        }
+    )
+
+    await tracker.async_load()
+
+    assert tracker.last_scheduled_backwash == T0
+    assert tracker.last_scheduled_source is AsekoBackwashSource.MANUAL
+
+
+async def test_async_load_treats_sourceless_stored_value_as_observed():
+    """Stores written before provenance existed can only hold observed values."""
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    tracker._store.async_load = AsyncMock(  # type: ignore[method-assign]
+        return_value={
+            "last_backwash": T0.isoformat(),
+            "last_scheduled_backwash": T0.isoformat(),
+        }
+    )
+
+    await tracker.async_load()
+
+    assert tracker.last_scheduled_source is AsekoBackwashSource.OBSERVED
+    assert tracker.next_scheduled_source is AsekoBackwashSource.CALCULATED_FROM_OBSERVED
