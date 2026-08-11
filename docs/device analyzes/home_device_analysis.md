@@ -95,8 +95,7 @@ All masks marked **uncertain** — confirmed only from their absence (byte[29]=0
 | 72      | `00`     | 0       | required_algicide             | **0 ml/m³/day** ✓ | 0 ml/m³/day    | ✓ (fixed) |
 | 73      | `28`     | 40      | Unknown                       | —              | —                 | ?      |
 | 74–75   | `01e0`   | 480     | delay_after_startup (s)       | **480 s = 8 min** | 8 min          | ✓      |
-| 76      | `2a`     | 42      | Unknown                       | —              | —                 | ?      |
-| 77      | `30`     | 48      | Unknown                       | —              | —                 | ?      |
+| 76–77   | `2a30`   | 10800   | **max_filling_time (big-endian s)** | **10800 s = 180 min** | — (not captured) | ✓ (offset) |
 | 78      | `a0`     | 160     | Unknown                       | —              | —                 | ?      |
 | 79      | `d8`     | 216     | Unknown                       | —              | —                 | ?      |
 
@@ -111,7 +110,8 @@ All masks marked **uncertain** — confirmed only from their absence (byte[29]=0
 | 85      | `02`     | 2       | Segment marker               | Segment 3      | —                 | ✓      |
 | 86–91   | `1a 04 1c 08 1b 07` | — | Timestamp (repeated)      | 2026-04-28 08:27:07 | —            | ✓      |
 | 92–93   | `003c`   | 60      | pool_volume (big-endian)     | **60 m³**      | 60 m³             | ✓      |
-| 94–95   | `003c`   | 60      | max_filling_time (big-endian) | **60 min**    | —                 | ✓      |
+| 94      | `00`     | 0       | Unknown                      | —              | —                 | ?      |
+| 95      | `3c`     | 60      | **flowrate_ph_minus**        | **60 ml/min**  | —                 | ✓      |
 | 96      | `00`     | 0       | Unknown                      | —              | —                 | ?      |
 | 97      | `3c`     | 60      | flowrate_ph_plus? (unconf.)  | —              | —                 | ?      |
 | 98      | `00`     | 0       | Unknown                      | —              | —                 | ?      |
@@ -132,7 +132,41 @@ All masks marked **uncertain** — confirmed only from their absence (byte[29]=0
 | 117     | `bc`     | 188     | Unknown                      | —              | —                 | ?      |
 | 118–119 | `0271`   | 625     | Unknown (checksum?)          | —              | —                 | ?      |
 
-Note on **bytes 94–95**: `max_filling_time` reads bytes[94:96] as a big-endian 16-bit value = `0x003c` = 60. `flowrate_ph_minus` independently reads byte[95] = `0x3c` = 60. They overlap but coincidentally produce the same result because the high byte (94) is 0x00. If byte[94] ever becomes non-zero the max_filling_time would be inflated; however for HOME this is expected to fit in one byte (max ~255 min).
+### ✅ Resolved: `max_filling_time` is **not** in bytes 94–95
+
+Earlier revisions of this document placed `max_filling_time` at bytes[94:96] and noted
+that it overlapped `flowrate_ph_minus` at byte[95], with both reading `0x003c` = 60. The
+note said only a frame with a non-zero byte[94] could prove or disprove the assumption.
+
+**That assumption was wrong.** The field lives in **bytes 76–77** as big-endian *seconds*,
+matching the encoding of its neighbours `delay_after_startup` (74–75) and
+`delay_after_dose` (106–107). Bytes 94–95 were never the filling time — byte 95 is
+`flowrate_ph_minus` and byte 94 is still unidentified.
+
+The old offset looked correct only because this unit runs a **60 ml/min pH− pump** and had
+a **60 min filling limit** at the same time, so `0x003c` satisfied both readings. The same
+coincidence appears in every OXY frame in the repo (`byte[95]` = 60 ml/min, byte[94] = 0),
+which is why it survived review for so long.
+
+**Evidence, this frame:**
+
+| Bytes | Hex | Value | Field |
+|---|---|---|---|
+| 74–75 | `01e0` | 480 s = **8 min** | `delay_after_startup` — ✓ app shows 8 min |
+| 76–77 | `2a30` | 10800 s = **180 min** | `max_filling_time` — whole minutes, 3 h |
+| 106–107 | `00f0` | 240 s = **4 min** | `delay_after_dose` — ✓ app shows 4 min |
+
+All three are big-endian seconds that divide evenly into whole minutes. Bytes 74–75 and
+106–107 are independently confirmed against the Aseko Live app on this device, which fixes
+the encoding; 76–77 sits between them and follows the same pattern.
+
+**Direct proof** came from an ASIN AQUA Salt unit (firmware v7): changing the setting in
+the Aseko Live app from 30 to 47 min left bytes 94–95 pinned at `0x003c` while bytes 76–77
+tracked the change exactly (`0x0708` = 1800 s → `0x0B04` = 2820 s).
+
+⚠️ The **180 min** value for this HOME unit is *not* confirmed against an app screenshot —
+the original capture did not include the filling-time page. What is confirmed is the
+offset and the encoding; the value follows from them.
 
 ---
 
@@ -231,17 +265,48 @@ As a downstream effect, `_fill_consumable_data` short-circuited `algicide_pump_r
 
 **Context**: The frame was captured while the pool had an error (likely too little water). The filtration pump was stopped and byte[29] = 0x00, consistent with an active alarm suppressing normal operation.
 
-**Resolution (Issue #110)**: `byte[37]` encodes the filtration mode flag:
+**Resolution (Issue #110)**: `byte[37]` encodes the filtration mode flag.
 
-| byte[37] | Meaning |
-|---|---|
-| `0x43` | FILTRATION NONSTOP 24H active |
-| `0x53` | Timer mode active |
-| `0x47` / `0x57` | Transitional / edit state — leave as `None` |
+**Superseded**: the original resolution compared `byte[37]` against `0x43` / `0x53`
+exactly. That works on HOME and nowhere else — see the updated rule below.
+
+**Current rule**: `byte[37]` is a **bitfield**, and bit `0x10` is the *timer active* flag:
+
+- bit `0x10` clear → NONSTOP 24H
+- bit `0x10` set → timer mode
+
+| byte[37] | bit `0x10` | Mode | Evidence |
+|---|---|---|---|
+| `0x43` | clear | NONSTOP 24H | HOME, this frame |
+| `0x53` | set | Timer | HOME, issue #110 |
+| `0xC3` | clear | NONSTOP 24H | SALT fw v7, captured live |
+| `0xD3` | set | Timer | SALT fw v7, same unit, toggled in the app |
+| `0xb7` `0xb3` `0x37` `0x13` | set | Timer | reported by other SALT users |
+| `0x47` / `0x57` | clear / set | NONSTOP 24H / Timer | see note below |
+
+The upper nibble carries unrelated flags that differ per device type and per pump routing,
+which is why exact-value comparison missed every SALT unit. Bit `0x20` in the same byte is
+already used elsewhere as the period-2 enable mask, so treating this byte as a bitfield is
+consistent with existing decoding.
+
+`0x00`, `0x03` (OXY) and `0xFF` (NET) are **excluded sentinels** and decode to `None`. An
+all-zero byte has bit `0x10` clear and would otherwise be reported as NONSTOP 24H, but a
+byte that was never populated carries no mode at all.
+
+**Change of behaviour for `0x47` / `0x57`**: this table previously listed them as a
+transitional/edit state to be left as `None`. They differ from `0x43` / `0x53` only in bit
+`0x04`, so under the bitfield reading the mode is still recoverable and they now decode.
+No captured frame contains either value — the entry was a hypothesis, and it is covered by
+a regression test rather than by field evidence.
 
 **⚠️ Note on the issue #110 evidence**: The diagnostics frame is from **2026-05-23 17:09** (after mannekung changed the filtration schedule to NONSTOP 24H on **2026-05-09**), but `byte[37]` still reads `0x53` (timer). The screenshot from the same user shows the "Suche" indicator (search mode) in the bottom-right corner, which may explain the mismatch — the device might be reporting a transient or special mode rather than the user-configured setting. **Until a frame is captured with a known NONSTOP 24H state and no special UI mode, treat `0x43` as "consistent with NONSTOP 24H" rather than "confirmed NONSTOP 24H active".**
 
-`filtration_nonstop24` is now decoded for **all device types** (HOME, SALT, OXY, NET). Non-HOME real-world values for byte[37] are never `0x43`/`0x53` (SALT uses it for algicide routing, OXY uses `0x03`, NET always `0xFF`), so `filtration_nonstop24` stays `None` for those devices today.
+`filtration_nonstop24` is decoded for **all device types**. This paragraph previously
+claimed that non-HOME units never produce a value, because their `byte[37]` is never
+exactly `0x43`/`0x53`. That was a consequence of the exact-comparison bug, not of the
+hardware: under the bit `0x10` rule **SALT units now decode**, and the values other SALT
+users reported (`0xb7` `0xb3` `0x37` `0x13`) all turn out to mean *timer*. OXY (`0x03`) and
+NET (`0xFF`) remain `None`, now by explicit sentinel rather than by accident.
 
 ---
 
@@ -300,10 +365,10 @@ if unit.device_type == AsekoDeviceType.HOME:
 | # | Status | Description |
 |---|--------|-------------|
 | 3 | Pending | `required_water_temperature` vs app "---" — need normal-operation frame (heating is disabled on this device; only a frame from a pool with heating enabled can confirm byte[55]) |
-| 4 | ✅ Resolved | Filtration NONSTOP 24H flag byte — confirmed as `byte[37] == 0x43` (Issue #110) |
+| 4 | ✅ Resolved | Filtration NONSTOP 24H flag byte — `byte[37]` bit `0x10` is the timer flag (clear = nonstop). Supersedes the earlier exact match on `byte[37] == 0x43`, which missed every SALT unit. |
 | 5 | ✅ Resolved | `flowrate_algicide` byte position — confirmed as `byte[103]` on HOME (Issue #115) |
 | 6 | New | `byte[29]` bit masks for HOME pumps remain **unconfirmed** — see §"Actuator byte[29] — HOME masks (uncertain)" above. The masks in `ACTUATOR_MASKS[HOME]` are placeholders matching OXY/NET. Capturing frames with a single HOME pump running (e.g. algicide only) would pin down the per-pump bit. Until then, both `algicide_pump_running` and `floc_pump_running` may report incorrectly on HOME when the corresponding pump is active. |
-| 7 | New | `max_filling_time` overlap with `flowrate_ph_minus` (both use byte[95]) — see note in Segment 3 below. If byte[94] ever becomes non-zero, `max_filling_time` is inflated. Only a frame with a non-zero byte[94] would prove or disprove the assumption. |
+| 7 | ✅ Resolved | `max_filling_time` was never in bytes 94–95. It is **bytes 76–77**, big-endian seconds; byte[95] is `flowrate_ph_minus` and byte[94] is unidentified. The old offset matched only because this unit had a 60 ml/min pH− pump and a 60 min filling limit simultaneously. Proven by toggling the setting in the Aseko Live app on a SALT unit (fw v7) and re-reading the frame. See §"Resolved: `max_filling_time` is not in bytes 94–95". |
 | 8 | New | `heating_active` binary sensor (byte[29] bit 0x04) — added for [Issue #115](https://github.com/hopkins-tk/home-assistant-aseko-local/issues/115) "Entities for heating are not there" request. Mapping is the same as JS-DE-Tech's `relay_byte` bit 2. **Live confirmation pending** — needs a frame captured while the heat pump / electric heater is actually running. Currently it cannot be distinguished from the unconfirmed HOME pump-bit masks. |
 
 ---

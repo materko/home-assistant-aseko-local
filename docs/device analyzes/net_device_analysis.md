@@ -200,3 +200,5 @@ AsekoDeviceType.NET: AsekoActuatorMasks(
 | byte[29] other bits on NET? | ⏳ Only `0x01` and `0x02` confirmed — no further pump outputs known |
 | ph_plus pump on NET? | ⏳ NET hardware may not have pH+ pump — not confirmed |
 | byte[37] = `0xFF` always on NET? | ✅ Confirmed — `0xFF` (UNSPECIFIED) in all captured frames → `filtration_nonstop24 = None` |
+| Is `filtration_nonstop24` still `None` after the byte[37] bit `0x10` rule? | ✅ Yes — `0xFF` is an explicit excluded sentinel. Previously it was `None` only because `0xFF` happened not to equal `0x43`/`0x53`; now the exclusion is deliberate. Without it, `0xFF` has bit `0x10` set and would report "timer mode" on every NET unit. |
+| `max_filling_time` on NET? | ✅ Not decoded — NET has no filling valve, so it is excluded via `WATER_LEVEL_TYPES` together with the water-level threshold setpoints. The field lives in bytes 76–77 on units that do have one (see the HOME and SALT analyses); this document never claimed bytes 94–95, and byte[95] = `flowrate_ph−` below is correct. |

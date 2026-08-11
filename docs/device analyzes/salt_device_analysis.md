@@ -128,6 +128,36 @@ full XOR analysis.
 Bit 2 (`0x04`) appears related to dosage encoding. The full semantics of all bits are not
 confirmed.
 
+### Bit `0x10` – Filtration timer flag ✅ confirmed on SALT
+
+`byte[37]` bit `0x10` is the **filtration timer active** flag, shared with HOME:
+
+- bit clear → **NONSTOP 24H**
+- bit set → **timer mode**
+
+Confirmed on an ASIN AQUA Salt unit (firmware v7) by toggling the mode in the Aseko Live
+app and re-reading the frame:
+
+| byte[37] | bit `0x10` | Mode | Source |
+|---|---|---|---|
+| `0xC3` | clear | NONSTOP 24H | captured live |
+| `0xD3` | set | Timer | same unit, toggled in the app |
+| `0xb7` `0xb3` `0x37` `0x13` | set | Timer | values reported by other SALT users |
+
+**This changes the interpretation of the values in the routing table above.** `0xb7`,
+`0xb3`, `0x37` and `0x13` were previously recorded only as algicide/flocculant routing
+values; all four also have bit `0x10` set, i.e. those units were running a **timer**, not
+nonstop filtration. The two readings are independent — bit 7 selects the chemical, bit
+`0x10` reports the filtration mode.
+
+Before this was understood, `filtration_nonstop24` compared `byte[37]` against `0x43`/`0x53`
+exactly, which are HOME-only values. **Every SALT unit decoded to `None`.** Bit `0x20` in
+the same byte is already used as the period-2 enable mask, so a bitfield reading is
+consistent with how the byte is treated elsewhere.
+
+⚠️ Bit `0x10` is confirmed on SALT and HOME only. On OXY (`0x03`) and NET (`0xFF`) the byte
+carries something else and is excluded by sentinel, together with `0x00`.
+
 ---
 
 ## Byte Map – Sub-frame 2 (config / setpoints)
@@ -145,6 +175,13 @@ confirmed.
 | `[68]` | Backwash every N days | `0` = disabled |
 | `[69:71]` | Backwash time | HH:MM |
 | `[71]` | Backwash duration | ×10 seconds |
+| `[74:76]` | Delay after startup | Big-endian seconds |
+| `[76:78]` | **max_filling_time** | Big-endian seconds → whole minutes; `0xFFFF` = not implemented |
+
+**Note on `[76:78]`** — this is the offset that was proven on a SALT unit (fw v7): changing
+the max filling time in the Aseko Live app from 30 to 47 min moved these bytes from
+`0x0708` (1800 s) to `0x0B04` (2820 s), while bytes 94–95 stayed pinned at `0x003c`. The
+decoder previously read the field from bytes 94–95, where byte 95 is `flowrate_ph_minus`.
 
 ---
 

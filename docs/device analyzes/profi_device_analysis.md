@@ -260,6 +260,17 @@ treats `byte[101]` as a shared slot routed by `byte[37]`. With the test fixture'
 accident**. The PROFI branch in `_fill_flowrate_data` should be split out into its own
 early-return (like OXY and HOME) once the correct byte positions are confirmed.
 
+**`byte[37] = 0x00` and `filtration_nonstop24`**: the same fixture value also feeds the
+filtration-mode decoder, where `byte[37]` bit `0x10` is the timer-active flag. `0x00` has
+that bit clear and would decode as "NONSTOP 24H" on this fixture, which is meaningless — a
+byte that was never populated carries no filtration mode. `0x00` is therefore an **excluded
+sentinel** alongside `0x03` (OXY) and `0xFF` (NET), and PROFI produces no
+`filtration_nonstop24` sensor from this fixture.
+
+⚠️ This is a statement about the **synthetic fixture**, not about real PROFI hardware. No
+captured PROFI frame exists, so what a real unit puts in `byte[37]` — and whether PROFI
+uses bit `0x10` the way HOME and SALT do — is unknown.
+
 **Byte positions assumed but unconfirmed**:
 
 | Field | Byte | Status |

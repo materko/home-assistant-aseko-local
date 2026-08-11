@@ -110,10 +110,9 @@ def _make_salt_clf_bytes() -> bytearray:
     data[70] = 30  # backwash_time min
     data[71] = 2  # backwash_duration (20)
     data[74:76] = (120).to_bytes(2, "big")  # delay_after_startup
+    data[76:78] = (3600).to_bytes(2, "big")  # max_filling_time = 3600 s = 60 min
     data[92:94] = (5000).to_bytes(2, "big")  # pool_volume
-    data[94:96] = (60).to_bytes(
-        2, "big"
-    )  # max_filling_time (byte 95 = 60 = flowrate_ph_minus)
+    data[95] = 60  # flowrate_ph_minus
     data[97] = 20  # flowrate_ph_plus
     data[99] = 255  # flowrate_chlor: 0xFF = SALT has no chlorine pump
     data[101] = 255  # flowrate_floc: 0xFF = SALT has no flocculant pump
@@ -161,11 +160,11 @@ def _make_net_clf_bytes() -> bytearray:
     data[69:71] = (65535).to_bytes(2, "big")  # backwash_time / HEX: 0xffff
     data[71] = 255  # backwash_duration / HEX: 0xff
     data[74:76] = (65535).to_bytes(2, "big")  # delay_after_startup / HEX: 0xffff
+    data[76:78] = (3600).to_bytes(2, "big")  # max_filling_time / HEX: 0x0e10
     data[92:94] = (1).to_bytes(2, "big")  # pool_volume / HEX: 0x0001
-    data[94:96] = (60).to_bytes(2, "big")  # max_filling_time / HEX: 0x003c
-    data[95] = 60  # flowrate_chlor / HEX: 0x3c
+    data[95] = 60  # flowrate_ph_minus / HEX: 0x3c
     data[97] = 255  # flowrate_ph_plus / HEX: 0xff
-    data[99] = 60  # flowrate_ph_minus / HEX: 0x3c
+    data[99] = 60  # flowrate_chlor / HEX: 0x3c
     data[101] = 255  # flowrate_floc / HEX: 0xff
     data[106:108] = (120).to_bytes(2, "big")  # delay_after_dose / HEX: 0x0078
     return data
@@ -208,11 +207,11 @@ def _make_profi_clf_redox_bytes() -> bytearray:
     data[70] = 30  # backwash_time min
     data[71] = 2  # backwash_duration (20)
     data[74:76] = (120).to_bytes(2, "big")  # delay_after_startup
+    data[76:78] = (3600).to_bytes(2, "big")  # max_filling_time = 3600 s = 60 min
     data[92:94] = (5000).to_bytes(2, "big")  # pool_volume
-    data[95] = 10  # flowrate_chlor
-    data[94:96] = (60).to_bytes(2, "big")  # max_filling_time
+    data[95] = 60  # flowrate_ph_minus
     data[97] = 20  # flowrate_ph_plus
-    data[99] = 255  # flowrate_ph_minus (not measured)
+    data[99] = 255  # flowrate_chlor (not measured)
     data[101] = 60  # flowrate_floc (PROFI has flocculant pump configured)
     data[106:108] = (30).to_bytes(2, "big")  # delay_after_dose
     return data
@@ -404,12 +403,15 @@ async def test_async_setup_salt_clf(hass) -> None:
     # (water_flow, electrolyzer_active, filtration, ph_minus)
     # + 2 consumption (ph_minus canister + total) + 1 connection_status
     # + 3 new backwash config sensors (every_n_days, time, duration)
-    # + 4 backwash history sensors (last_backwash, last_scheduled_backwash,
-    #   last_manual_backwash, next_scheduled_backwash; last_scheduled_backwash
-    #   is a datetime entity, counted by that platform instead)
+    # + 3 backwash history sensors (last_backwash, last_manual_backwash,
+    #   next_scheduled_backwash; last_scheduled_backwash is a datetime entity,
+    #   counted by that platform instead)
     # + 1 new backwash_active binary sensor
     # + 1 new heating_active binary sensor
-    assert len(added_entities) == 40
+    # + 1 filtration_nonstop24 sensor: byte[37] = 0xB3 has bit 0x10 set, so this
+    #   SALT unit is now decoded as "timer mode". The old exact-value check
+    #   against 0x43/0x53 left it as None and created no entity.
+    assert len(added_entities) == 41
     assert any(
         getattr(e.entity_description, "key", None) != "water_flow_to_probes"
         for e in added_entities
@@ -641,17 +643,16 @@ async def test_async_setup_profi_clf_redox(hass) -> None:
     # + 4 alarm binary sensors (ph_too_many_doses, orp_too_many_doses,
     #   no_flow_to_probes, rapid_ph_change)
     # + 3 new backwash config sensors (every_n_days, time, duration)
-    # + 4 backwash history sensors (last_backwash, last_scheduled_backwash,
-    #   last_manual_backwash, next_scheduled_backwash; last_scheduled_backwash
-    #   is a datetime entity, counted by that platform instead)
-    # + 1 max_filling_time sensor (data[94:96])
+    # + 3 backwash history sensors (last_backwash, last_manual_backwash,
+    #   next_scheduled_backwash; last_scheduled_backwash is a datetime entity,
+    #   counted by that platform instead)
+    # + 1 max_filling_time sensor (data[76:78])
     #
     # Regular sensors (16): free_chlorine, required_free_chlorine,
     #   free_chlorine_mv, ph, required_ph, rx, water_temp, required_water_temp,
     #   flowrate_ph_minus, flowrate_floc,
     #   backwash_every_n_days, backwash_time, backwash_duration,
-    #   last_backwash, last_scheduled_backwash, last_manual_backwash,
-    #   next_scheduled_backwash
+    #   last_backwash, last_manual_backwash, next_scheduled_backwash
     # Binary sensors (6): water_flow_to_probes, pump_running, cl_pump_running,
     #   ph_minus_pump_running, floc_pump_running, water_filling_active
     # Heating-related (1 binary): heating_active
@@ -669,8 +670,12 @@ async def test_async_setup_profi_clf_redox(hass) -> None:
     #
     # Issue #129: PROFI has no filling valve (it has 5+ independent pump ports
     # but no documented filling input), so max_filling_time is suppressed even
-    # though bytes 94-95 carry a real value. -1 entity compared to the PR #120
+    # though the frame carries a real value. -1 entity compared to the PR #120
     # baseline.
+    #
+    # No filtration_nonstop24 sensor: byte[37] = 0x00 in this fixture, which the
+    # decoder excludes alongside 0xFF and 0x03. The bit 0x10 rule would read it
+    # as "nonstop", but an all-zero byte means "never populated", not a mode.
     assert len(added_entities) == 42
     assert any(
         getattr(e.entity_description, "key", None) == "free_chlorine"

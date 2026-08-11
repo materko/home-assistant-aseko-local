@@ -255,7 +255,7 @@ class AsekoDevice:
     backwash_active: bool | None = None
 
     pool_volume: int | None = None  # byte 92 & 93
-    max_filling_time: int | None = None  # byte 94
+    max_filling_time: int | None = None  # bytes 76-77 (seconds -> minutes)
 
     air_temperature: float | None = None
 
@@ -270,7 +270,7 @@ class AsekoDevice:
     water_filling_active: bool | None = None
 
     # Filtration mode — byte [37]
-    # True = nonstop 24 h (0x43), False = timer (0x53), None = transitional/unknown
+    # True = nonstop 24 h (byte 37 bit 0x10 clear), False = timer (bit set)
     filtration_nonstop24: bool | None = None
 
     # Alarm/error bitmasks — bytes [12] (HOME dosing warnings) and [13]
