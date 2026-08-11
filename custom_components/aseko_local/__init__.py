@@ -32,7 +32,12 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.BUTTON, Platform.SENSOR]
+PLATFORMS: list[Platform] = [
+    Platform.BINARY_SENSOR,
+    Platform.BUTTON,
+    Platform.DATETIME,
+    Platform.SENSOR,
+]
 
 _MIRRORS: dict[str, AsekoCloudMirror] = {}
 _SERVERS: dict[str, AsekoDeviceServer] = {}

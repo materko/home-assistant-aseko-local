@@ -279,13 +279,14 @@ async def test_async_setup_salt_redox(hass) -> None:
     # (water_flow, electrolyzer_active, filtration, ph_minus)
     # + 2 consumption (ph_minus canister + total) + 1 connection_status
     # + 3 new backwash config sensors (every_n_days, time, duration)
-    # + 4 backwash history sensors (last_backwash, last_scheduled_backwash,
-    #   last_manual_backwash, next_scheduled_backwash) — created for every
-    #   device with a backwash valve even though they read "unknown" until a
-    #   cycle is seen
+    # + 3 backwash history sensors (last_backwash, last_manual_backwash,
+    #   next_scheduled_backwash) — created for every device with a backwash
+    #   valve even though they read "unknown" until a cycle is seen.
+    #   last_scheduled_backwash is a datetime entity, not a sensor, so it is
+    #   not in this platform's count.
     # + 1 new backwash_active binary sensor
     # + 1 new heating_active binary sensor
-    assert len(added_entities) == 40
+    assert len(added_entities) == 39
     # Nothing has been observed yet, so the history is unknown rather than
     # guessed from the schedule.
     backwash_history = {
@@ -294,12 +295,11 @@ async def test_async_setup_salt_redox(hass) -> None:
         if getattr(e.entity_description, "key", None)
         in {
             "last_backwash",
-            "last_scheduled_backwash",
             "last_manual_backwash",
             "next_scheduled_backwash",
         }
     }
-    assert len(backwash_history) == 4
+    assert len(backwash_history) == 3
     assert all(value is None for value in backwash_history.values())
     assert any(
         getattr(e.entity_description, "key", None) != "water_flow_to_probes"
@@ -405,10 +405,11 @@ async def test_async_setup_salt_clf(hass) -> None:
     # + 2 consumption (ph_minus canister + total) + 1 connection_status
     # + 3 new backwash config sensors (every_n_days, time, duration)
     # + 4 backwash history sensors (last_backwash, last_scheduled_backwash,
-    #   last_manual_backwash, next_scheduled_backwash)
+    #   last_manual_backwash, next_scheduled_backwash; last_scheduled_backwash
+    #   is a datetime entity, counted by that platform instead)
     # + 1 new backwash_active binary sensor
     # + 1 new heating_active binary sensor
-    assert len(added_entities) == 41
+    assert len(added_entities) == 40
     assert any(
         getattr(e.entity_description, "key", None) != "water_flow_to_probes"
         for e in added_entities
@@ -641,7 +642,8 @@ async def test_async_setup_profi_clf_redox(hass) -> None:
     #   no_flow_to_probes, rapid_ph_change)
     # + 3 new backwash config sensors (every_n_days, time, duration)
     # + 4 backwash history sensors (last_backwash, last_scheduled_backwash,
-    #   last_manual_backwash, next_scheduled_backwash)
+    #   last_manual_backwash, next_scheduled_backwash; last_scheduled_backwash
+    #   is a datetime entity, counted by that platform instead)
     # + 1 max_filling_time sensor (data[94:96])
     #
     # Regular sensors (16): free_chlorine, required_free_chlorine,
@@ -669,7 +671,7 @@ async def test_async_setup_profi_clf_redox(hass) -> None:
     # but no documented filling input), so max_filling_time is suppressed even
     # though bytes 94-95 carry a real value. -1 entity compared to the PR #120
     # baseline.
-    assert len(added_entities) == 43
+    assert len(added_entities) == 42
     assert any(
         getattr(e.entity_description, "key", None) == "free_chlorine"
         for e in added_entities

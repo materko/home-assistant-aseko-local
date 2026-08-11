@@ -35,6 +35,11 @@
     }
   },
   "entity": {
+    "datetime": {
+      "last_scheduled_backwash": {
+        "name": "Last scheduled backwash"
+      }
+    },
     "binary_sensor": {
       "electrolyzer_active": {
         "name": "Electrolyzer active"
@@ -200,9 +205,6 @@
       },
       "last_backwash": {
         "name": "Last backwash"
-      },
-      "last_scheduled_backwash": {
-        "name": "Last scheduled backwash (estimated)"
       },
       "last_manual_backwash": {
         "name": "Last manual backwash (estimated)"

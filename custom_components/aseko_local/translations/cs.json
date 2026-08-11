@@ -35,6 +35,11 @@
     }
   },
   "entity": {
+    "datetime": {
+      "last_scheduled_backwash": {
+        "name": "Poslední plánované zpětné proplachování"
+      }
+    },
     "binary_sensor": {
       "electrolyzer_active": {
         "name": "Elektrolyzér aktivní"
@@ -200,9 +205,6 @@
       },
       "last_backwash": {
         "name": "Poslední zpětné proplachování"
-      },
-      "last_scheduled_backwash": {
-        "name": "Poslední plánované zpětné proplachování (odhad)"
       },
       "last_manual_backwash": {
         "name": "Poslední ruční zpětné proplachování (odhad)"

@@ -599,3 +599,76 @@ async def test_async_load_treats_sourceless_stored_value_as_observed():
     await tracker.async_load()
 
     assert tracker.last_scheduled_source is AsekoBackwashSource.OBSERVED
+
+
+# ── backfilling an old store ────────────────────────────────────────────────
+
+
+def test_backfill_classifies_a_pre_split_record_as_scheduled():
+    """A store holding only last_backwash gets classified on the first frame.
+
+    Stores written before the scheduled/manual split existed would otherwise
+    leave both new sensors empty until the next real cycle, up to a whole
+    interval away — even though the schedule needed to classify the stored
+    value arrives in every frame.
+    """
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    tracker._last_backwash = T0  # type: ignore[attr-defined]
+
+    tracker.update(_scheduled_device(False), T0 + timedelta(minutes=5))
+
+    assert tracker.last_scheduled_backwash == T0
+    assert tracker.last_scheduled_source is AsekoBackwashSource.OBSERVED
+    assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
+    assert tracker.last_manual_backwash is None
+
+
+def test_backfill_classifies_a_pre_split_record_as_manual():
+    """Same, for a stored cycle that did not run at the scheduled time."""
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    off_schedule = T0 + timedelta(hours=4)
+    tracker._last_backwash = off_schedule  # type: ignore[attr-defined]
+
+    tracker.update(_scheduled_device(False), off_schedule + timedelta(minutes=5))
+
+    assert tracker.last_manual_backwash == off_schedule
+    assert tracker.last_trigger is AsekoBackwashTrigger.MANUAL
+    assert tracker.last_scheduled_backwash is None
+
+
+def test_backfill_waits_for_a_frame_that_carries_the_schedule():
+    """Without backwash_time there is nothing to classify against — retry later."""
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    tracker._last_backwash = T0  # type: ignore[attr-defined]
+
+    tracker.update(_device(False), T0 + timedelta(minutes=5))
+    assert tracker.last_scheduled_backwash is None
+    assert tracker.last_manual_backwash is None
+
+    tracker.update(_scheduled_device(False), T0 + timedelta(minutes=10))
+    assert tracker.last_scheduled_backwash == T0
+
+
+def test_backfill_does_not_touch_an_already_split_store():
+    """Once either bucket is filled the record is current — leave it alone."""
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    seeded = T0 - timedelta(days=3)
+    tracker._last_backwash = T0  # type: ignore[attr-defined]
+    tracker.set_last_scheduled_backwash(seeded)
+
+    tracker.update(_scheduled_device(False), T0 + timedelta(minutes=5))
+
+    assert tracker.last_scheduled_backwash == seeded
+    assert tracker.last_scheduled_source is AsekoBackwashSource.MANUAL
+
+
+def test_backfill_is_a_no_op_on_an_empty_store():
+    """Nothing stored, nothing to classify."""
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+
+    tracker.update(_scheduled_device(False), T0)
+
+    assert tracker.last_backwash is None
+    assert tracker.last_scheduled_backwash is None
+    assert tracker.last_manual_backwash is None
+    assert tracker.last_trigger is None

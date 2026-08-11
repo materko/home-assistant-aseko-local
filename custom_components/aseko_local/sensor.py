@@ -28,7 +28,6 @@ from homeassistant.helpers.typing import StateType
 from . import AsekoLocalConfigEntry
 from .aseko_data import (
     ACTUATOR_MASKS,
-    AsekoBackwashSource,
     AsekoDevice,
     AsekoElectrolyzerDirection,
 )
@@ -57,10 +56,6 @@ class AsekoSensorEntityDescription(SensorEntityDescription):
     # entities would never be created.  Set this to decide presence from
     # something other than the current value.
     supported_fn: Callable[[AsekoDevice], bool] | None = None
-    # Extra state attributes for this sensor.  Used by last_scheduled_backwash
-    # to publish where its value came from, so a manually seeded timestamp is
-    # never mistaken for one the integration measured.
-    attributes_fn: Callable[[AsekoDevice], dict[str, str]] | None = None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -219,17 +214,6 @@ def _has_backwash(device: AsekoDevice) -> bool:
     currently open.  See ``AsekoDecoder._fill_backwash_active`` and Issue #129.
     """
     return device.backwash_active is not None
-
-
-def _source_attributes(source: AsekoBackwashSource | None) -> dict[str, str]:
-    """Publish a backwash timestamp's provenance as a ``source`` attribute.
-
-    Omitted entirely while the value is unknown — an attribute describing
-    where a non-existent value came from is just noise.
-    """
-    if source is None:
-        return {}
-    return {"source": source.value}
 
 
 SENSORS: list[AsekoSensorEntityDescription] = [
@@ -633,17 +617,9 @@ SENSORS: list[AsekoSensorEntityDescription] = [
         value_fn=lambda device: device.last_backwash,
         supported_fn=_has_backwash,
     ),
-    AsekoSensorEntityDescription(
-        key="last_scheduled_backwash",
-        translation_key="last_scheduled_backwash",
-        device_class=SensorDeviceClass.TIMESTAMP,
-        icon="mdi:calendar-clock",
-        value_fn=lambda device: device.last_scheduled_backwash,
-        supported_fn=_has_backwash,
-        attributes_fn=lambda device: _source_attributes(
-            device.last_scheduled_backwash_source
-        ),
-    ),
+    # last_scheduled_backwash is not here: it is a writable datetime entity
+    # (see datetime.py) so it can be set from the UI in one click, rather than
+    # a read-only sensor plus a helper and a script to feed it.
     AsekoSensorEntityDescription(
         key="last_manual_backwash",
         translation_key="last_manual_backwash",
@@ -916,13 +892,6 @@ class AsekoLocalSensorEntity(AsekoLocalEntity, SensorEntity):
             val,
         )
         return val
-
-    @property
-    def extra_state_attributes(self) -> dict[str, str] | None:
-        """Return the sensor's extra attributes, if its description defines any."""
-        if self.entity_description.attributes_fn is None:
-            return None
-        return self.entity_description.attributes_fn(self.device)
 
 
 class AsekoConnectionStatusSensorEntity(AsekoLocalSensorEntity):

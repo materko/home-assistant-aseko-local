@@ -285,6 +285,8 @@ class BackwashTracker:
             # NET or unknown — nothing to track.
             return
 
+        self._backfill_split(device)
+
         # Step 1: detect a connection-loss gap and clear the in-progress
         # window.  We do this *before* the "relay on" branch below so the
         # subsequent "is None → start new window" code path can see the
@@ -314,6 +316,51 @@ class BackwashTracker:
         if self._relay_on_since is not None:
             self._record_window(device, self._relay_on_since, now)
             self._relay_on_since = None
+
+    def _backfill_split(self, device: "AsekoDevice") -> None:
+        """Classify a stored ``last_backwash`` that predates the split, once.
+
+        Stores written before the scheduled/manual split existed hold only
+        ``last_backwash``.  That cycle *was* one or the other, and the schedule
+        needed to tell which is in every frame — so rather than leave both new
+        sensors empty until the next cycle (up to a full interval away), work
+        it out from the timestamp we already have.
+
+        Runs from ``update`` rather than ``async_load`` because the schedule
+        comes from the frame, not from storage.  It is a no-op once either
+        bucket is filled, so a later real cycle is never second-guessed.
+        """
+        if self._last_backwash is None:
+            return
+        if (
+            self._last_scheduled_backwash is not None
+            or self._last_manual_backwash is not None
+        ):
+            return
+        if device.backwash_time is None:
+            # No schedule in this frame — try again on the next one.
+            return
+
+        # The stored value is the midpoint of the relay window, while
+        # classification wants its start.  The offset is half a cycle (~50 s on
+        # a 100 s backwash), an order of magnitude inside the tolerance, so the
+        # midpoint stands in for the start without changing any verdict.
+        trigger = self._classify(device, self._last_backwash)
+        if trigger is AsekoBackwashTrigger.SCHEDULED:
+            self._last_scheduled_backwash = self._last_backwash
+            self._last_scheduled_source = AsekoBackwashSource.OBSERVED
+        else:
+            self._last_manual_backwash = self._last_backwash
+        if self._last_trigger is None:
+            self._last_trigger = trigger
+
+        _LOGGER.info(
+            "Classified pre-existing backwash record for serial=%s as %s (%s)",
+            self._serial,
+            trigger.value,
+            self._last_backwash.isoformat(),
+        )
+        self._hass.async_create_task(self.async_save())
 
     def _record_window(
         self, device: "AsekoDevice", started_at: datetime, ended_at: datetime

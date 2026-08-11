@@ -35,6 +35,11 @@
         }
     },
     "entity": {
+        "datetime": {
+            "last_scheduled_backwash": {
+                "name": "Dernier contre-lavage programmé"
+            }
+        },
         "binary_sensor": {
             "electrolyzer_active": {
                 "name": "Électrolyseur actif"
@@ -214,9 +219,6 @@
             },
             "last_backwash": {
                 "name": "Dernière contre-lavage"
-            },
-            "last_scheduled_backwash": {
-                "name": "Dernier contre-lavage programmé (estimé)"
             },
             "last_manual_backwash": {
                 "name": "Dernier contre-lavage manuel (estimé)"

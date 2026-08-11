@@ -245,9 +245,9 @@ History, recorded live and persisted across restarts. **These are not all equall
 | Entity | Description | Confidence |
 |---|---|---|
 | `sensor.last_backwash` | Last cycle, whatever started it. **Unknown** until one is seen | **Observed** — it happened |
-| `sensor.last_scheduled_backwash` | Last cycle that looked like the unit's own scheduled run | Estimated |
+| `datetime.last_scheduled_backwash` | Last cycle that looked like the unit's own scheduled run — **and settable**, see below | Estimated |
 | `sensor.last_manual_backwash` | Last cycle that did not | Estimated |
-| `sensor.next_scheduled_backwash` | Projected next automatic cycle. **Unknown** until a scheduled cycle has been observed | Estimated |
+| `sensor.next_scheduled_backwash` | Projected next automatic cycle. **Unknown** until a scheduled cycle is known | Estimated |
 
 ### Observed vs. estimated
 
@@ -266,7 +266,11 @@ The tolerance absorbs drift between the unit's clock and Home Assistant's, plus 
 
 ### Seeding the schedule by hand
 
-Because the device never transmits its history, `next_scheduled_backwash` stays unknown until the integration has watched a whole scheduled cycle — up to a full interval of waiting. The `aseko_local.set_last_scheduled_backwash` service skips that wait:
+Because the device never transmits its history, `next_scheduled_backwash` stays unknown until the integration has watched a whole scheduled cycle — up to a full interval of waiting.
+
+To skip that wait, **click `datetime.last_scheduled_backwash` and pick the date** in the dialog. That is why it is a `datetime` entity rather than a read-only sensor: no helper, no script, no confirm button.
+
+The same thing from an automation:
 
 ```yaml
 action: aseko_local.set_last_scheduled_backwash
@@ -275,8 +279,8 @@ data:
   # serial_number: 110071590   # optional; omit to set every backwash-capable device
 ```
 
-The timestamp must be in the past. `sensor.last_scheduled_backwash` then
-carries a `source` attribute saying where its value came from:
+The timestamp must be in the past. `datetime.last_scheduled_backwash` carries a
+`source` attribute saying where its value came from:
 
 | `source` | Meaning |
 |---|---|
@@ -302,6 +306,16 @@ Seeding deliberately does **not** touch `sensor.last_backwash`: that one means
 watched. It also does not touch `last_manual_backwash`, which tracks *observed*
 cycles that were started by hand — a different thing from a manually entered
 date.
+
+### Upgrading from a store that predates the split
+
+`last_scheduled_backwash` and `last_manual_backwash` are newer than
+`last_backwash`, so an existing install has a stored cycle but no record of
+which kind it was. Rather than leave both empty until the next cycle — up to a
+whole interval away — the integration classifies that stored timestamp against
+the schedule on the first frame after the upgrade, and fills in whichever of
+the two it belongs to. It only ever does this while both are empty, so a real
+cycle is never second-guessed.
 
 ### Known ways the estimate gets it wrong
 
