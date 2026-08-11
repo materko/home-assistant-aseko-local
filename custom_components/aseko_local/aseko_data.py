@@ -60,9 +60,10 @@ class AsekoBackwashSource(Enum):
     MANUAL — the user entered it via ``aseko_local.set_last_scheduled_backwash``,
         to seed the schedule phase instead of waiting for the next real cycle.
 
-    Whichever timestamp is the most recent wins, regardless of source: a cycle
-    we just watched normally supersedes a seeded date, but a seeded date that
-    is still the later of the two stands.
+    Last write wins, and the timestamps themselves are never compared.  A
+    manual entry replaces whatever is stored, because whoever types a date in
+    has a reason to.  A scheduled cycle detected afterwards replaces that in
+    turn, because the guess it stood in for has now actually been seen.
 
     ``next_scheduled_backwash`` carries no source of its own — it is always
     projected from ``last_scheduled_backwash``, so its provenance is that

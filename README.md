@@ -286,15 +286,16 @@ carries a `source` attribute saying where its value came from:
 `next_scheduled_backwash` has no `source` of its own — it is always projected
 from `last_scheduled_backwash`, so that sensor's `source` covers both.
 
-**The most recent timestamp wins, whatever it came from.** A cycle the
-integration has just watched is normally newer than a seeded date, so it takes
-over and the source flips to `observed`. But if the seeded date is still the
-later of the two — say a delayed frame replays an older cycle — the seeded
-value stands.
+**The last write wins, and the stored timestamps are never compared.**
 
-Entering a date by hand always applies, even when it moves the timestamp
-backwards: that is you correcting the record, not a stale observation. Only
-detection defers to the newer value.
+* Entering a date always applies, whatever it is and whatever was there
+  before — if you are typing it in, you have a reason to.
+* A scheduled cycle detected *after* that entry replaces it, and the source
+  flips back to `observed`. The value you entered stood in for a real cycle
+  until one turned up; one has.
+
+So a seed is only ever overtaken by an actual observation, never by an older
+record, and you can always take control back by entering a date again.
 
 Seeding deliberately does **not** touch `sensor.last_backwash`: that one means
 "the integration watched this happen", and a typed-in date has not been

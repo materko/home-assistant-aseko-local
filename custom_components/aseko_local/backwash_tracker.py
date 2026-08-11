@@ -155,11 +155,12 @@ class BackwashTracker:
         marked MANUAL and persisted, and ``next_scheduled_backwash`` is
         projected from it.
 
-        An explicit entry always applies, even when it moves the timestamp
-        backwards — the user is correcting the record and knows better than we
-        do.  Detection is the side that defers: an observed cycle only takes
-        over if it is *newer* than what is stored (see ``_record_window``), so
-        a seeded date that is still the most recent one is not thrown away.
+        Last write wins, and the stored timestamps are never compared: an entry
+        always applies, even when it moves the record backwards, because
+        somebody typing a date in is correcting it on purpose.  Symmetrically,
+        a scheduled cycle detected *after* this entry replaces it (see
+        ``_record_window``) — by then the guess has been overtaken by the real
+        thing.
 
         ``last_backwash`` is deliberately left alone: it means "we watched this
         happen", and a typed-in date has not been watched.
@@ -345,16 +346,12 @@ class BackwashTracker:
         self._last_backwash = recorded_at
         self._last_trigger = trigger
         if trigger is AsekoBackwashTrigger.SCHEDULED:
-            # Newest date wins, whatever it came from.  A cycle we just watched
-            # is normally the newest, so it takes over from a seeded value —
-            # but if the user seeded a *later* date than this cycle, theirs is
-            # the better answer and stands.
-            if (
-                self._last_scheduled_backwash is None
-                or recorded_at > self._last_scheduled_backwash
-            ):
-                self._last_scheduled_backwash = recorded_at
-                self._last_scheduled_source = AsekoBackwashSource.OBSERVED
+            # Last write wins: this cycle was detected after whatever is
+            # stored, so it is the more current answer — including when it
+            # replaces a manual seed with an earlier timestamp.  The seed
+            # covered the gap until a real cycle showed up; it has.
+            self._last_scheduled_backwash = recorded_at
+            self._last_scheduled_source = AsekoBackwashSource.OBSERVED
         else:
             self._last_manual_backwash = recorded_at
 

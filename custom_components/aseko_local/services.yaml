@@ -7,9 +7,9 @@ set_last_scheduled_backwash:
     transmits its backwash history, so this has to be entered by hand.
 
     The value is marked as manually entered (source: manual) on the
-    "last scheduled backwash" sensor. The most recent timestamp wins: a
-    detected cycle replaces this once it is newer, and a date entered here
-    always applies, even if it moves the record backwards.
+    "last scheduled backwash" sensor. The last write wins: a date entered here
+    always applies, whatever was stored before, and a scheduled cycle detected
+    afterwards replaces it in turn.
   fields:
     timestamp:
       name: Last scheduled backwash

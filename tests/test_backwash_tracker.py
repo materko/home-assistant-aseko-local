@@ -493,8 +493,8 @@ def test_manual_seed_does_not_touch_observed_last_backwash():
     assert tracker.last_trigger is None
 
 
-def test_newer_observed_cycle_supersedes_an_older_seed():
-    """A cycle we just watched is newer than the seed, so it takes over."""
+def test_cycle_detected_after_a_seed_supersedes_it():
+    """The seed stood in for a real cycle; once one is detected, it takes over."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
     tracker.set_last_scheduled_backwash(T0 - timedelta(days=1))
@@ -506,28 +506,23 @@ def test_newer_observed_cycle_supersedes_an_older_seed():
     assert tracker.last_scheduled_source is AsekoBackwashSource.OBSERVED
 
 
-def test_older_observed_cycle_does_not_supersede_a_newer_seed():
-    """Newest date wins, whatever it came from.
+def test_cycle_detected_after_a_later_dated_seed_still_supersedes_it():
+    """Last write wins — the stored timestamps are never compared.
 
-    Replaying an older cycle (a late frame, a reconnect) must not drag the
-    schedule backwards past a more recent date the user entered.
+    Even a seed dated after the detected cycle gives way, because the cycle
+    was recorded later and is the more current answer.
     """
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
-    seeded = T0 + timedelta(days=5)
-    tracker.set_last_scheduled_backwash(seeded)
+    tracker.set_last_scheduled_backwash(T0 + timedelta(days=5))
     _run_cycle(tracker, T0)
 
-    assert tracker.last_scheduled_backwash == seeded
-    assert tracker.last_scheduled_source is AsekoBackwashSource.MANUAL
+    assert tracker.last_scheduled_backwash == T0 + timedelta(seconds=45)
+    assert tracker.last_scheduled_source is AsekoBackwashSource.OBSERVED
 
 
-def test_manual_seed_applies_even_when_it_moves_backwards():
-    """An explicit entry is a correction, so it always lands.
-
-    Only *detection* defers to the newer timestamp; the user overriding the
-    record on purpose is not something to second-guess.
-    """
+def test_manual_seed_overrides_an_observed_value():
+    """A manual entry replaces a detected one — the user has a reason."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
     _run_cycle(tracker, T0)
