@@ -215,8 +215,14 @@
       "last_backwash": {
         "name": "Letzte Rückspülung"
       },
-      "next_backwash": {
-        "name": "Nächste Rückspülung"
+      "last_scheduled_backwash": {
+        "name": "Letzte geplante Rückspülung (geschätzt)"
+      },
+      "last_manual_backwash": {
+        "name": "Letzte manuelle Rückspülung (geschätzt)"
+      },
+      "next_scheduled_backwash": {
+        "name": "Nächste geplante Rückspülung (geschätzt)"
       },
       "backwash_every_n_days": {
         "name": "Rückspülintervall"

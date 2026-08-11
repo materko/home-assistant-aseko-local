@@ -201,8 +201,14 @@
       "last_backwash": {
         "name": "Poslední zpětné proplachování"
       },
-      "next_backwash": {
-        "name": "Príští zpětné proplachování"
+      "last_scheduled_backwash": {
+        "name": "Poslední plánované zpětné proplachování (odhad)"
+      },
+      "last_manual_backwash": {
+        "name": "Poslední ruční zpětné proplachování (odhad)"
+      },
+      "next_scheduled_backwash": {
+        "name": "Příští plánované zpětné proplachování (odhad)"
       },
       "backwash_every_n_days": {
         "name": "Interval zpětného proplachování"

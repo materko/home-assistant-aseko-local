@@ -227,16 +227,51 @@ If your sensor is mounted at a different height than the Aseko factory default (
 
 This mirrors the same pattern used for canister volume in the previous section and works for any device that exposes `sensor.<device>_water_level` (HOME, SALT, OXY). Devices without a water-level sensor (e.g. NET) will simply not have these entities.
 
-## Backwash schedule (ASIN Aqua Home, Salt)
+## Backwash (ASIN Aqua Home, Salt, Oxygen, Profi)
 
-Devices with a configured backwash schedule expose:
+The device transmits its backwash **configuration** and the live state of the backwash valve, but never its history — it does not report when the last cycle ran. The integration therefore watches the valve itself and builds the history from what it observes.
+
+Configuration read straight from the frame:
 
 | Entity | Description |
 |---|---|
-| `sensor.backwash_every_n_days` | Interval in days (`0` = disabled) |
+| `sensor.backwash_every_n_days` | Interval in days (`0` = automatic backwash disabled) |
 | `sensor.backwash_time` | Scheduled start time (HH:MM) |
 | `sensor.backwash_duration` | Duration in seconds |
-| `sensor.last_backwash` | Last backwash — schedule-derived until a real backwash cycle is observed, then the live/persistent value is used |
-| `sensor.next_backwash` | Next scheduled slot |
+| `binary_sensor.backwash_active` | Valve is open right now |
 
-> **Note:** `last_backwash` is initially derived from the configured schedule and frame timestamp. Once the integration observes a real backwash cycle (the backwash relay stays on for at least 60 seconds), it records and persists that timestamp and uses it instead. This survives Home Assistant restarts.
+History, recorded live and persisted across restarts. **These are not all equally reliable** — see below:
+
+| Entity | Description | Confidence |
+|---|---|---|
+| `sensor.last_backwash` | Last cycle, whatever started it. **Unknown** until one is seen | **Observed** — it happened |
+| `sensor.last_scheduled_backwash` | Last cycle that looked like the unit's own scheduled run | Estimated |
+| `sensor.last_manual_backwash` | Last cycle that did not | Estimated |
+| `sensor.next_scheduled_backwash` | Projected next automatic cycle. **Unknown** until a scheduled cycle has been observed | Estimated |
+
+### Observed vs. estimated
+
+A cycle is **recorded** when the backwash valve stays open for at least 60 seconds — short activations (menu navigation, output test mode) are ignored. That part is a direct observation: `sensor.last_backwash` means the valve really did run a full cycle.
+
+The device does **not** report *why* the valve opened. So the split into scheduled and manual is a guess based on the only signal available — the time the valve opened:
+
+* within **±15 minutes** of `backwash_time`, on a unit whose schedule is enabled → **scheduled**;
+* anything else, including any cycle on a unit with `backwash_every_n_days = 0` → **manual**.
+
+The tolerance absorbs drift between the unit's clock and Home Assistant's, plus up to one transmit interval (~30 s) of lag before the frame reports the valve as open.
+
+`next_scheduled_backwash` is projected from the last **scheduled** cycle: that timestamp plus the configured interval, snapped to `backwash_time`, and stepped forward if cycles were missed while Home Assistant was down. A manual backwash deliberately does not move it — starting one by hand does not tell us (nor, on the unit, change) the schedule phase. Since it builds on the classification, it inherits any error in it.
+
+> **Upgrading:** `sensor.next_backwash` was renamed to `sensor.next_scheduled_backwash`. The integration rewrites the entity registry on startup, so the entity keeps its `entity_id`, its recorded history and any automation or dashboard pointing at it — only the displayed name changes.
+
+### Known ways the estimate gets it wrong
+
+* A cycle you start **by hand near the scheduled time** is reported as scheduled.
+* Only the **time of day** is checked, not the day itself. A manual cycle at exactly `backwash_time` on a day the interval does not fall on still counts as scheduled. (Checking the day would require knowing the schedule phase — which is exactly what this is trying to establish — and would break whenever you change the interval.)
+* If the unit's **clock drifts** more than 15 minutes from Home Assistant's, its own scheduled cycles are reported as manual.
+* A cycle the unit runs on its own **for some other reason** (e.g. after a fault) is reported as manual.
+* Classification uses the schedule **as it was at the time of the cycle** and is never revisited — changing `backwash_time` later does not reclassify history.
+
+If a cycle looks misclassified, the integration's diagnostics download carries `last_backwash_trigger` alongside the raw frame, so you can see what it decided and open an issue.
+
+> **Note:** all four history sensors read "unknown" on a fresh install and stay that way until the integration actually sees a cycle. This is intentional. Earlier versions derived `last_backwash` from the schedule, which showed a confident timestamp for a backwash that may never have happened.

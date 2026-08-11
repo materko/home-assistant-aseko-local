@@ -36,6 +36,23 @@ class AsekoElectrolyzerDirection(Enum):
     WAITING = "waiting"
 
 
+class AsekoBackwashTrigger(Enum):
+    """What started the most recently observed backwash cycle.
+
+    SCHEDULED — the cycle started within the tolerance window around the
+        configured ``backwash_time`` on a device whose backwash schedule is
+        enabled, so the unit ran it on its own.
+    MANUAL — anything else: the cycle started outside that window, or the
+        schedule is disabled/unconfigured, so a human started it.
+
+    The device does not transmit *why* the valve opened, so this is derived
+    from the observed start time.  See ``backwash_tracker.py``.
+    """
+
+    SCHEDULED = "scheduled"
+    MANUAL = "manual"
+
+
 class AsekoThirdPumpSlot:
     """Semantics of byte[37] differ by device type.
 
@@ -249,15 +266,41 @@ class AsekoDevice:
     delay_after_dose: int | None = None  # byte 107 & 108 ? (seconds)
     delay_after_startup: int | None = None  # byte 74 & 75 (seconds)
 
-    # Computed backwash schedule (derived from backwash_time + backwash_every_n_days + timestamp).
-    # last_backwash = most recent daily occurrence of backwash_time at or before
-    #                  the frame timestamp.  After the first detected backwash
-    #                  cycle, the BackwashTracker in coordinator.py overrides
-    #                  this with a real observed timestamp (persistent across
-    #                  restarts).  See custom_components/aseko_local/backwash_tracker.py.
-    # next_backwash = last_backwash + backwash_every_n_days days.
+    # Backwash history — filled by the coordinator from BackwashTracker
+    # (persistent across restarts) and None until a real cycle has been seen.
+    # The device never transmits its backwash history, so there is nothing to
+    # derive these from before that: the schedule alone cannot tell us whether
+    # a cycle actually ran, so guessing from it would show a confident
+    # timestamp for something that may never have happened.
+    # See custom_components/aseko_local/backwash_tracker.py.
+    #
+    # These differ in how much they can be trusted:
+    #
+    # OBSERVED — the integration watched the backwash valve stay open for a
+    # full cycle, so this happened:
+    #   last_backwash           = most recent cycle, whatever started it.
+    #
+    # DERIVED — split out of the above by a heuristic on the start time, which
+    # can misclassify (see BackwashTracker._classify for how and when):
+    #   last_scheduled_backwash = most recent cycle that looked like the unit's
+    #                             own scheduled run.
+    #   last_manual_backwash    = most recent cycle that did not.
+    #   last_backwash_trigger   = which of the two the latest cycle was.  No
+    #                             entity — it is redundant with comparing the
+    #                             two timestamps above — but it is surfaced in
+    #                             diagnostics so a misclassification is visible
+    #                             in a dump.
+    #   next_scheduled_backwash = last_scheduled_backwash projected forward by
+    #                             backwash_every_n_days, so it inherits any
+    #                             error in that classification.  None while no
+    #                             scheduled cycle has been observed: a manual
+    #                             backwash does not reveal the schedule phase,
+    #                             and an unscheduled one cannot be predicted.
     last_backwash: datetime | None = None
-    next_backwash: datetime | None = None
+    last_scheduled_backwash: datetime | None = None
+    last_manual_backwash: datetime | None = None
+    last_backwash_trigger: AsekoBackwashTrigger | None = None
+    next_scheduled_backwash: datetime | None = None
 
     # Server-side receive timestamp – set by the coordinator on every incoming frame.
     # Independent of the device clock (which can be wrong or missing on some models).

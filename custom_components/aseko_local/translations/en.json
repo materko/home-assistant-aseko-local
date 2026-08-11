@@ -201,8 +201,14 @@
       "last_backwash": {
         "name": "Last backwash"
       },
-      "next_backwash": {
-        "name": "Next backwash"
+      "last_scheduled_backwash": {
+        "name": "Last scheduled backwash (estimated)"
+      },
+      "last_manual_backwash": {
+        "name": "Last manual backwash (estimated)"
+      },
+      "next_scheduled_backwash": {
+        "name": "Next scheduled backwash (estimated)"
       },
       "backwash_every_n_days": {
         "name": "Backwash interval"

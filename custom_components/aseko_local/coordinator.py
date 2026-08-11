@@ -87,6 +87,12 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
                 "➡️ Device %s is_new_device=%s", device.serial_number, is_new_device
             )
 
+            # Fill the observed-backwash fields *before* handing the device to
+            # AsekoData.set(): for an already-known device, set() copies the
+            # attributes off this object onto the stored one, and anything
+            # written afterwards would never reach the entities.
+            self._update_backwash(device)
+
             new_data.set(device.serial_number, device)
 
             # Stamp server-side receive time (independent of device clock)
@@ -98,28 +104,6 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
             if device.serial_number not in self._trackers:
                 self._trackers[device.serial_number] = AsekoConsumptionTracker()
             self._trackers[device.serial_number].update(device, dt_util.now())
-
-            # Update backwash tracker for this device (live detection,
-            # overrides the schedule-based schedule estimate with a real
-            # observed timestamp that survives restarts).
-            #
-            # Lazy-load persisted state on first frame after a restart so
-            # the saved last_backwash survives reloads.  Doing it here
-            # (rather than in ``async_setup_backwash_trackers``) avoids a
-            # race where the tracker is created on the first frame *before*
-            # the setup hook has a chance to load its persisted state.
-            if device.serial_number not in self._backwash_trackers:
-                tracker = BackwashTracker(self.hass, device.serial_number)
-                self._backwash_trackers[device.serial_number] = tracker
-                self.hass.async_create_task(tracker.async_load())
-            tracker = self._backwash_trackers[device.serial_number]
-            tracker.update(device, dt_util.now())
-            # Override schedule-based estimate with the real observed value.
-            # The sensor reads device.last_backwash, so this transparently
-            # switches from "schedule" to "live" once the tracker has data.
-            observed = tracker.last_backwash
-            if observed is not None:
-                device.last_backwash = observed
 
             _LOGGER.debug(
                 "✅ Stored device %s → known serials now: %s",
@@ -151,6 +135,40 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
                         listener,
                         device.serial_number,
                     )
+
+    def _update_backwash(self, device: AsekoDevice) -> None:
+        """Feed the frame to the device's BackwashTracker and publish its state.
+
+        The device transmits only the backwash *configuration* and the live
+        relay bit, never its history, so every observed-backwash field on
+        ``AsekoDevice`` comes from the tracker.  They stay None until a real
+        cycle has been seen, which is what makes the sensors read "unknown"
+        rather than showing a schedule-derived guess.
+
+        Lazy-load persisted state on the first frame after a restart so the
+        saved timestamps survive reloads.  Doing it here (rather than in
+        ``async_setup_backwash_trackers``) avoids a race where the tracker is
+        created on the first frame *before* the setup hook has had a chance to
+        load its persisted state.
+        """
+        serial = device.serial_number
+        if serial is None:
+            return
+
+        if serial not in self._backwash_trackers:
+            new_tracker = BackwashTracker(self.hass, serial)
+            self._backwash_trackers[serial] = new_tracker
+            self.hass.async_create_task(new_tracker.async_load())
+
+        tracker = self._backwash_trackers[serial]
+        now = dt_util.now()
+        tracker.update(device, now)
+
+        device.last_backwash = tracker.last_backwash
+        device.last_scheduled_backwash = tracker.last_scheduled_backwash
+        device.last_manual_backwash = tracker.last_manual_backwash
+        device.last_backwash_trigger = tracker.last_trigger
+        device.next_scheduled_backwash = tracker.next_scheduled_backwash(device, now)
 
     def async_add_new_device_listener(
         self, listener: Callable[[AsekoDevice], None]
