@@ -307,6 +307,11 @@ watched. It also does not touch `last_manual_backwash`, which tracks *observed*
 cycles that were started by hand — a different thing from a manually entered
 date.
 
+To undo a mistyped date there is `aseko_local.clear_last_scheduled_backwash`,
+which returns the value to unknown (optionally for one `serial_number`). If an
+older cycle is on record, clearing also re-derives the split from it — see
+below.
+
 ### Upgrading from a store that predates the split
 
 `last_scheduled_backwash` and `last_manual_backwash` are newer than

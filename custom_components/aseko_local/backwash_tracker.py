@@ -238,14 +238,14 @@ class BackwashTracker:
             return None
 
     async def async_save(self) -> None:
-        """Persist the current state to storage.  No-op if nothing is recorded.
+        """Persist the current state to storage.
 
-        The check covers ``last_scheduled_backwash`` as well as
-        ``last_backwash``: a manually seeded schedule is the one case where
-        there is something worth saving before any cycle has been observed.
+        Writes unconditionally, nulls included.  An earlier version skipped the
+        write while nothing was recorded, which silently broke
+        ``clear_last_scheduled_backwash``: clearing the only stored value left
+        the old one on disk, and it came back on the next restart.  Every
+        caller reaches this after a change, so there is nothing to save on.
         """
-        if self._last_backwash is None and self._last_scheduled_backwash is None:
-            return
         await self._store.async_save(
             {
                 "last_backwash": (
@@ -316,6 +316,24 @@ class BackwashTracker:
         if self._relay_on_since is not None:
             self._record_window(device, self._relay_on_since, now)
             self._relay_on_since = None
+
+    def clear_last_scheduled_backwash(self) -> None:
+        """Forget the last scheduled backwash, returning it to unknown.
+
+        The undo for ``set_last_scheduled_backwash``: without it a mistyped
+        date is permanent, because every other path only ever overwrites the
+        value with another one.
+
+        Clearing it also re-arms ``_backfill_split``, so if a
+        ``last_backwash`` is on record and no manual cycle has been observed,
+        the next frame re-derives the split from it.
+        """
+        if self._last_scheduled_backwash is None:
+            return
+        self._last_scheduled_backwash = None
+        self._last_scheduled_source = None
+        _LOGGER.info("Last scheduled backwash cleared for serial=%s", self._serial)
+        self._hass.async_create_task(self.async_save())
 
     def _backfill_split(self, device: "AsekoDevice") -> None:
         """Classify a stored ``last_backwash`` that predates the split, once.

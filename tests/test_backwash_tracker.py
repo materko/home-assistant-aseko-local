@@ -236,13 +236,21 @@ async def test_async_load_from_empty_store():
     assert tracker.last_backwash is None
 
 
-async def test_async_save_skipped_when_no_event():
-    """async_save is a no-op when nothing has been recorded yet."""
-    hass = _hass()
-    tracker = BackwashTracker(hass, serial_number=110071590)
-    # last_backwash is None → async_save returns without touching the store.
+async def test_async_save_writes_nulls_rather_than_skipping():
+    """An empty state must be written, not skipped.
+
+    Skipping made clearing a no-op on disk: the cleared value came back on the
+    next restart.  Callers only reach async_save after a change, so writing
+    unconditionally costs nothing.
+    """
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    tracker._store.async_save = AsyncMock()  # type: ignore[method-assign]
+
     await tracker.async_save()
-    hass.async_create_task.assert_not_called()
+
+    saved = tracker._store.async_save.call_args.args[0]  # type: ignore[attr-defined]
+    assert saved["last_backwash"] is None
+    assert saved["last_scheduled_backwash"] is None
 
 
 # ── scheduled vs. manual classification ─────────────────────────────────────
@@ -672,3 +680,58 @@ def test_backfill_is_a_no_op_on_an_empty_store():
     assert tracker.last_scheduled_backwash is None
     assert tracker.last_manual_backwash is None
     assert tracker.last_trigger is None
+
+
+# ── clearing ────────────────────────────────────────────────────────────────
+
+
+def test_clear_returns_the_value_to_unknown():
+    """The undo for a mistyped date."""
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    tracker.set_last_scheduled_backwash(T0 - timedelta(days=1))
+
+    tracker.clear_last_scheduled_backwash()
+
+    assert tracker.last_scheduled_backwash is None
+    assert tracker.last_scheduled_source is None
+
+
+def test_clear_rearms_the_backfill():
+    """After clearing, an older stored cycle is classified again.
+
+    This is what makes clearing useful rather than merely destructive: the
+    schedule falls back to whatever the integration actually observed.
+    """
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    tracker._last_backwash = T0  # type: ignore[attr-defined]
+    tracker.set_last_scheduled_backwash(T0 - timedelta(days=30))
+
+    tracker.clear_last_scheduled_backwash()
+    tracker.update(_scheduled_device(False), T0 + timedelta(minutes=5))
+
+    assert tracker.last_scheduled_backwash == T0
+    assert tracker.last_scheduled_source is AsekoBackwashSource.OBSERVED
+
+
+def test_clear_is_a_no_op_when_already_unknown():
+    """Nothing stored, nothing to clear — and no pointless write."""
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+
+    tracker.clear_last_scheduled_backwash()
+
+    assert tracker.last_scheduled_backwash is None
+    tracker._hass.async_create_task.assert_not_called()  # type: ignore[attr-defined]
+
+
+async def test_clear_is_persisted():
+    """Clearing must reach the store, or the old value returns on restart."""
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    tracker._store.async_save = AsyncMock()  # type: ignore[method-assign]
+    tracker.set_last_scheduled_backwash(T0)
+
+    tracker.clear_last_scheduled_backwash()
+    await tracker.async_save()
+
+    saved = tracker._store.async_save.call_args.args[0]  # type: ignore[attr-defined]
+    assert saved["last_scheduled_backwash"] is None
+    assert saved["last_scheduled_source"] is None

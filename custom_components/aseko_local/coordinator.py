@@ -180,15 +180,33 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
     def set_last_scheduled_backwash(
         self, moment: datetime, serial_number: int | None = None
     ) -> bool:
-        """Seed the last scheduled backwash for one device, or for all of them.
+        """Seed the last scheduled backwash for one device, or for all of them."""
+        return self._apply_to_backwash_trackers(
+            lambda tracker: tracker.set_last_scheduled_backwash(moment),
+            serial_number,
+        )
 
-        Backs the ``aseko_local.set_last_scheduled_backwash`` service.  Returns
-        True if at least one tracker was updated, so the service can tell the
-        user when a serial number matched nothing.
+    def clear_last_scheduled_backwash(self, serial_number: int | None = None) -> bool:
+        """Forget the last scheduled backwash for one device, or for all of them."""
+        return self._apply_to_backwash_trackers(
+            lambda tracker: tracker.clear_last_scheduled_backwash(),
+            serial_number,
+        )
+
+    def _apply_to_backwash_trackers(
+        self,
+        action: Callable[[BackwashTracker], None],
+        serial_number: int | None,
+    ) -> bool:
+        """Run ``action`` on the matching trackers and republish their state.
+
+        Backs the ``aseko_local.*_last_scheduled_backwash`` services.  Returns
+        True if at least one tracker matched, so the service can tell the user
+        when a serial number matched nothing.
 
         The stored device objects are updated in place and listeners notified,
-        so the sensors reflect the new value straight away instead of waiting
-        for the next frame.
+        so the entities reflect the change straight away instead of waiting for
+        the next frame.
         """
         if serial_number is not None:
             trackers = {
@@ -203,7 +221,7 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
             return False
 
         for serial, tracker in trackers.items():
-            tracker.set_last_scheduled_backwash(moment)
+            action(tracker)
             device = self.get_device(serial)
             if device is not None:
                 self._publish_backwash(device, tracker, dt_util.now())

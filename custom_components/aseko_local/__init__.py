@@ -44,6 +44,7 @@ _SERVERS: dict[str, AsekoDeviceServer] = {}
 
 SERVICE_RESET_CONSUMPTION = "reset_consumption"
 SERVICE_SET_LAST_SCHEDULED_BACKWASH = "set_last_scheduled_backwash"
+SERVICE_CLEAR_LAST_SCHEDULED_BACKWASH = "clear_last_scheduled_backwash"
 
 RESET_CONSUMPTION_SCHEMA = vol.Schema(
     {
@@ -57,6 +58,12 @@ RESET_CONSUMPTION_SCHEMA = vol.Schema(
 SET_LAST_SCHEDULED_BACKWASH_SCHEMA = vol.Schema(
     {
         vol.Required("timestamp"): cv.datetime,
+        vol.Optional("serial_number"): cv.positive_int,
+    }
+)
+
+CLEAR_LAST_SCHEDULED_BACKWASH_SCHEMA = vol.Schema(
+    {
         vol.Optional("serial_number"): cv.positive_int,
     }
 )
@@ -239,6 +246,40 @@ async def async_setup_entry(
             "Registered service %s.%s", DOMAIN, SERVICE_SET_LAST_SCHEDULED_BACKWASH
         )
 
+    if not hass.services.has_service(DOMAIN, SERVICE_CLEAR_LAST_SCHEDULED_BACKWASH):
+
+        async def handle_clear_last_scheduled_backwash(call: ServiceCall) -> None:
+            """Return the last scheduled backwash to unknown.
+
+            The undo for a mistyped date.  Also re-arms the classification of
+            an older stored cycle, so if one is on record it is re-derived on
+            the next frame.
+            """
+            serial = call.data.get("serial_number")
+
+            matched = False
+            for entry in hass.config_entries.async_entries(DOMAIN):
+                rd = getattr(entry, "runtime_data", None)
+                if rd and rd.coordinator.clear_last_scheduled_backwash(serial):
+                    matched = True
+
+            if not matched:
+                raise ServiceValidationError(
+                    f"No Aseko device found for serial_number {serial}"
+                    if serial is not None
+                    else "No Aseko device with a backwash valve has been seen yet"
+                )
+
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_CLEAR_LAST_SCHEDULED_BACKWASH,
+            handle_clear_last_scheduled_backwash,
+            schema=CLEAR_LAST_SCHEDULED_BACKWASH_SCHEMA,
+        )
+        _LOGGER.debug(
+            "Registered service %s.%s", DOMAIN, SERVICE_CLEAR_LAST_SCHEDULED_BACKWASH
+        )
+
     return True
 
 
@@ -273,6 +314,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             for service in (
                 SERVICE_RESET_CONSUMPTION,
                 SERVICE_SET_LAST_SCHEDULED_BACKWASH,
+                SERVICE_CLEAR_LAST_SCHEDULED_BACKWASH,
             ):
                 if hass.services.has_service(DOMAIN, service):
                     hass.services.async_remove(DOMAIN, service)

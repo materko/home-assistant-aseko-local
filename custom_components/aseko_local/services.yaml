@@ -32,6 +32,29 @@ set_last_scheduled_backwash:
           min: 0
           step: 1
 
+clear_last_scheduled_backwash:
+  name: Clear last scheduled backwash
+  description: >
+    Forgets the last scheduled backwash, returning it to unknown. The undo for
+    a mistyped date entered with set_last_scheduled_backwash.
+
+    If the integration has an older backwash on record and no manual cycle has
+    been observed, clearing this also re-derives the scheduled/manual split
+    from that record on the next frame.
+  fields:
+    serial_number:
+      name: Serial number
+      description: >
+        Which device to clear. Leave empty to clear it on every Aseko device
+        that has a backwash valve.
+      required: false
+      example: 110071590
+      selector:
+        number:
+          mode: box
+          min: 0
+          step: 1
+
 reset_consumption:
   name: Reset consumption
   description: >
