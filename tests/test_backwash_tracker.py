@@ -476,7 +476,6 @@ def test_manual_seed_marks_source_and_drives_projection():
 
     assert tracker.last_scheduled_backwash == seeded
     assert tracker.last_scheduled_source is AsekoBackwashSource.MANUAL
-    assert tracker.next_scheduled_source is AsekoBackwashSource.CALCULATED_FROM_MANUAL
     # Seeded 2026-06-13 21:00, interval 3 days -> 2026-06-16 21:00.
     assert tracker.next_scheduled_backwash(device, T0) == datetime(
         2026, 6, 16, 21, 0, 0, tzinfo=timezone.utc
@@ -494,8 +493,8 @@ def test_manual_seed_does_not_touch_observed_last_backwash():
     assert tracker.last_trigger is None
 
 
-def test_observed_scheduled_cycle_supersedes_manual_seed():
-    """Once a real scheduled cycle is detected, the seed is replaced."""
+def test_newer_observed_cycle_supersedes_an_older_seed():
+    """A cycle we just watched is newer than the seed, so it takes over."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
     tracker.set_last_scheduled_backwash(T0 - timedelta(days=1))
@@ -505,22 +504,40 @@ def test_observed_scheduled_cycle_supersedes_manual_seed():
 
     assert tracker.last_scheduled_backwash == T0 + timedelta(seconds=45)
     assert tracker.last_scheduled_source is AsekoBackwashSource.OBSERVED
-    assert tracker.next_scheduled_source is AsekoBackwashSource.CALCULATED_FROM_OBSERVED
 
 
-def test_observed_cycle_supersedes_a_newer_manual_seed():
-    """The seed loses even when its timestamp is later than the observation.
+def test_older_observed_cycle_does_not_supersede_a_newer_seed():
+    """Newest date wins, whatever it came from.
 
-    The seed only ever stood in for a real cycle; once we have one, guessing
-    is over.
+    Replaying an older cycle (a late frame, a reconnect) must not drag the
+    schedule backwards past a more recent date the user entered.
     """
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
-    tracker.set_last_scheduled_backwash(T0 + timedelta(days=5))
+    seeded = T0 + timedelta(days=5)
+    tracker.set_last_scheduled_backwash(seeded)
     _run_cycle(tracker, T0)
 
-    assert tracker.last_scheduled_backwash == T0 + timedelta(seconds=45)
+    assert tracker.last_scheduled_backwash == seeded
+    assert tracker.last_scheduled_source is AsekoBackwashSource.MANUAL
+
+
+def test_manual_seed_applies_even_when_it_moves_backwards():
+    """An explicit entry is a correction, so it always lands.
+
+    Only *detection* defers to the newer timestamp; the user overriding the
+    record on purpose is not something to second-guess.
+    """
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+
+    _run_cycle(tracker, T0)
     assert tracker.last_scheduled_source is AsekoBackwashSource.OBSERVED
+
+    corrected = T0 - timedelta(days=10)
+    tracker.set_last_scheduled_backwash(corrected)
+
+    assert tracker.last_scheduled_backwash == corrected
+    assert tracker.last_scheduled_source is AsekoBackwashSource.MANUAL
 
 
 def test_observed_manual_cycle_leaves_the_seed_alone():
@@ -541,7 +558,6 @@ def test_no_source_while_nothing_is_known():
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
     assert tracker.last_scheduled_source is None
-    assert tracker.next_scheduled_source is None
 
 
 async def test_manual_seed_is_persisted_before_any_observation():
@@ -588,4 +604,3 @@ async def test_async_load_treats_sourceless_stored_value_as_observed():
     await tracker.async_load()
 
     assert tracker.last_scheduled_source is AsekoBackwashSource.OBSERVED
-    assert tracker.next_scheduled_source is AsekoBackwashSource.CALCULATED_FROM_OBSERVED

@@ -57,9 +57,9 @@ class AsekoSensorEntityDescription(SensorEntityDescription):
     # entities would never be created.  Set this to decide presence from
     # something other than the current value.
     supported_fn: Callable[[AsekoDevice], bool] | None = None
-    # Extra state attributes for this sensor.  Used by the backwash history
-    # sensors to publish where their value came from, so a manually seeded
-    # timestamp is never mistaken for one the integration measured.
+    # Extra state attributes for this sensor.  Used by last_scheduled_backwash
+    # to publish where its value came from, so a manually seeded timestamp is
+    # never mistaken for one the integration measured.
     attributes_fn: Callable[[AsekoDevice], dict[str, str]] | None = None
 
 
@@ -660,9 +660,8 @@ SENSORS: list[AsekoSensorEntityDescription] = [
         icon="mdi:clock-alert-outline",
         value_fn=lambda device: device.next_scheduled_backwash,
         supported_fn=_has_backwash,
-        attributes_fn=lambda device: _source_attributes(
-            device.next_scheduled_backwash_source
-        ),
+        # No source attribute: this is always projected from
+        # last_scheduled_backwash, so that sensor's source is this one's too.
     ),
 ]
 

@@ -275,21 +275,26 @@ data:
   # serial_number: 110071590   # optional; omit to set every backwash-capable device
 ```
 
-The timestamp must be in the past. Both affected sensors then carry a `source`
-attribute saying where the value came from:
+The timestamp must be in the past. `sensor.last_scheduled_backwash` then
+carries a `source` attribute saying where its value came from:
 
-| Sensor | `source` | Meaning |
-|---|---|---|
-| `last_scheduled_backwash` | `observed` | The integration watched this cycle run |
-| | `manual` | You entered it |
-| `next_scheduled_backwash` | `calculated_from_observed` | Projected from a cycle that was watched |
-| | `calculated_from_manual` | Projected from the value you entered |
+| `source` | Meaning |
+|---|---|
+| `observed` | The integration watched this cycle run |
+| `manual` | You entered it |
 
-**An observed cycle always supersedes a seeded one.** The moment a real
-scheduled backwash is detected, `last_scheduled_backwash` switches to the
-observed timestamp and both sources flip to the `observed` variants — the seed
-is a stand-in until the real thing turns up, never something that outranks it.
-This holds even when the seeded timestamp is the later of the two.
+`next_scheduled_backwash` has no `source` of its own — it is always projected
+from `last_scheduled_backwash`, so that sensor's `source` covers both.
+
+**The most recent timestamp wins, whatever it came from.** A cycle the
+integration has just watched is normally newer than a seeded date, so it takes
+over and the source flips to `observed`. But if the seeded date is still the
+later of the two — say a delayed frame replays an older cycle — the seeded
+value stands.
+
+Entering a date by hand always applies, even when it moves the timestamp
+backwards: that is you correcting the record, not a stale observation. Only
+detection defers to the newer value.
 
 Seeding deliberately does **not** touch `sensor.last_backwash`: that one means
 "the integration watched this happen", and a typed-in date has not been

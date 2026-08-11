@@ -54,26 +54,23 @@ class AsekoBackwashTrigger(Enum):
 
 
 class AsekoBackwashSource(Enum):
-    """Where a reported backwash timestamp came from.
+    """Where ``last_scheduled_backwash`` came from.
 
     OBSERVED — the integration watched the backwash valve run a full cycle.
     MANUAL — the user entered it via ``aseko_local.set_last_scheduled_backwash``,
-        typically to seed the schedule phase instead of waiting for the next
-        real cycle.
-    CALCULATED_FROM_OBSERVED / CALCULATED_FROM_MANUAL — a projection, carrying
-        which of the two it was projected from.  ``next_scheduled_backwash`` is
-        only ever as trustworthy as the timestamp it was calculated from, and
-        saying so is the point of this enum.
+        to seed the schedule phase instead of waiting for the next real cycle.
 
-    An observed cycle always supersedes a manual entry: once the integration
-    has actually seen a scheduled backwash, the seed has served its purpose
-    and the source flips back to OBSERVED.
+    Whichever timestamp is the most recent wins, regardless of source: a cycle
+    we just watched normally supersedes a seeded date, but a seeded date that
+    is still the later of the two stands.
+
+    ``next_scheduled_backwash`` carries no source of its own — it is always
+    projected from ``last_scheduled_backwash``, so its provenance is that
+    sensor's and repeating it would only be one more thing to keep in sync.
     """
 
     OBSERVED = "observed"
     MANUAL = "manual"
-    CALCULATED_FROM_OBSERVED = "calculated_from_observed"
-    CALCULATED_FROM_MANUAL = "calculated_from_manual"
 
 
 class AsekoThirdPumpSlot:
@@ -316,20 +313,20 @@ class AsekoDevice:
     #   next_scheduled_backwash = last_scheduled_backwash projected forward by
     #                             backwash_every_n_days, so it inherits any
     #                             error in that classification.  None while no
-    #                             scheduled cycle has been observed: a manual
-    #                             backwash does not reveal the schedule phase,
-    #                             and an unscheduled one cannot be predicted.
+    #                             scheduled cycle is known: a manual backwash
+    #                             does not reveal the schedule phase, and an
+    #                             unscheduled one cannot be predicted.
     #
-    # The two *_source fields say where the value came from, and are exposed as
-    # a "source" state attribute so a seeded value is never mistaken for a
-    # measured one.  See AsekoBackwashSource.
+    # last_scheduled_backwash_source says whether that timestamp was observed
+    # or entered by hand, and is exposed as a "source" state attribute so a
+    # seeded value is never mistaken for a measured one.  next_scheduled_backwash
+    # needs no equivalent: it is always projected from that same timestamp.
     last_backwash: datetime | None = None
     last_scheduled_backwash: datetime | None = None
     last_scheduled_backwash_source: AsekoBackwashSource | None = None
     last_manual_backwash: datetime | None = None
     last_backwash_trigger: AsekoBackwashTrigger | None = None
     next_scheduled_backwash: datetime | None = None
-    next_scheduled_backwash_source: AsekoBackwashSource | None = None
 
     # Server-side receive timestamp – set by the coordinator on every incoming frame.
     # Independent of the device clock (which can be wrong or missing on some models).

@@ -176,11 +176,6 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         device.last_manual_backwash = tracker.last_manual_backwash
         device.last_backwash_trigger = tracker.last_trigger
         device.next_scheduled_backwash = tracker.next_scheduled_backwash(device, now)
-        device.next_scheduled_backwash_source = (
-            tracker.next_scheduled_source
-            if device.next_scheduled_backwash is not None
-            else None
-        )
 
     def set_last_scheduled_backwash(
         self, moment: datetime, serial_number: int | None = None

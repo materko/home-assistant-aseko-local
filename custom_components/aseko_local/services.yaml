@@ -6,9 +6,10 @@ set_last_scheduled_backwash:
     for the first cycle the integration observes itself. The device never
     transmits its backwash history, so this has to be entered by hand.
 
-    The value is marked as manually entered (source: manual) and the
-    projection derived from it as calculated_from_manual. As soon as a real
-    scheduled backwash is detected, both are replaced by the observed value.
+    The value is marked as manually entered (source: manual) on the
+    "last scheduled backwash" sensor. The most recent timestamp wins: a
+    detected cycle replaces this once it is newer, and a date entered here
+    always applies, even if it moves the record backwards.
   fields:
     timestamp:
       name: Last scheduled backwash

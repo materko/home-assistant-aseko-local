@@ -147,30 +147,19 @@ class BackwashTracker:
         """Return where ``last_scheduled_backwash`` came from, or None if unset."""
         return self._last_scheduled_source
 
-    @property
-    def next_scheduled_source(self) -> AsekoBackwashSource | None:
-        """Return the provenance of the ``next_scheduled_backwash`` projection.
-
-        A projection is only as good as the timestamp it starts from, so this
-        mirrors ``last_scheduled_source`` into its CALCULATED_FROM_* form.
-        """
-        if self._last_scheduled_source is AsekoBackwashSource.OBSERVED:
-            return AsekoBackwashSource.CALCULATED_FROM_OBSERVED
-        if self._last_scheduled_source is AsekoBackwashSource.MANUAL:
-            return AsekoBackwashSource.CALCULATED_FROM_MANUAL
-        return None
-
     def set_last_scheduled_backwash(self, moment: datetime) -> None:
         """Record a user-supplied timestamp for the last scheduled backwash.
 
         Lets the schedule projection start working immediately instead of
         waiting out a whole interval for the next real cycle.  The value is
         marked MANUAL and persisted, and ``next_scheduled_backwash`` is
-        projected from it and marked CALCULATED_FROM_MANUAL.
+        projected from it.
 
-        A later *observed* scheduled cycle overwrites this and flips the source
-        back to OBSERVED — the seed is a stand-in until the real thing shows
-        up, never something that outranks it.
+        An explicit entry always applies, even when it moves the timestamp
+        backwards — the user is correcting the record and knows better than we
+        do.  Detection is the side that defers: an observed cycle only takes
+        over if it is *newer* than what is stored (see ``_record_window``), so
+        a seeded date that is still the most recent one is not thrown away.
 
         ``last_backwash`` is deliberately left alone: it means "we watched this
         happen", and a typed-in date has not been watched.
@@ -356,10 +345,16 @@ class BackwashTracker:
         self._last_backwash = recorded_at
         self._last_trigger = trigger
         if trigger is AsekoBackwashTrigger.SCHEDULED:
-            # An observed cycle always wins over a manual seed, whatever the
-            # seeded timestamp was: the seed only ever stood in for this.
-            self._last_scheduled_backwash = recorded_at
-            self._last_scheduled_source = AsekoBackwashSource.OBSERVED
+            # Newest date wins, whatever it came from.  A cycle we just watched
+            # is normally the newest, so it takes over from a seeded value —
+            # but if the user seeded a *later* date than this cycle, theirs is
+            # the better answer and stands.
+            if (
+                self._last_scheduled_backwash is None
+                or recorded_at > self._last_scheduled_backwash
+            ):
+                self._last_scheduled_backwash = recorded_at
+                self._last_scheduled_source = AsekoBackwashSource.OBSERVED
         else:
             self._last_manual_backwash = recorded_at
 
