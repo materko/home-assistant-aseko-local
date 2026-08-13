@@ -207,7 +207,7 @@
         "name": "Poslední zpětné proplachování"
       },
       "last_manual_backwash": {
-        "name": "Poslední ruční zpětné proplachování (odhad)"
+        "name": "Poslední ruční zpětné proplachování"
       },
       "next_scheduled_backwash": {
         "name": "Příští plánované zpětné proplachování (odhad)"

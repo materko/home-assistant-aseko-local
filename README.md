@@ -242,12 +242,17 @@ Configuration read straight from the frame:
 
 History, recorded live and persisted across restarts. **These are not all equally reliable** — see below:
 
-| Entity | Description | Confidence |
-|---|---|---|
-| `sensor.last_backwash` | Last cycle, whatever started it. **Unknown** until one is seen | **Observed** — it happened |
-| `datetime.last_scheduled_backwash` | Last cycle that looked like the unit's own scheduled run — **and settable**, see below | Estimated |
-| `sensor.last_manual_backwash` | Last cycle that did not | Estimated |
-| `sensor.next_scheduled_backwash` | Projected next automatic cycle. **Unknown** until a scheduled cycle is known | Estimated |
+| Entity | Description | Timestamp | Which bucket it lands in |
+|---|---|---|---|
+| `sensor.last_backwash` | Last cycle, whatever started it. **Unknown** until one is seen | Observed | n/a — it holds every cycle |
+| `datetime.last_scheduled_backwash` | Last cycle that looked like the unit's own scheduled run — **and settable**, see below | Observed *or* entered by hand — see its `source` attribute | Estimated |
+| `sensor.last_manual_backwash` | Last cycle that did not | Observed | Estimated |
+| `sensor.next_scheduled_backwash` | Projected next automatic cycle. **Unknown** until a scheduled cycle is known | **Calculated** | Inherited |
+
+The two columns matter separately. A cycle the integration watched has an exact
+timestamp — what is estimated is only *which* of the two buckets it belongs in.
+Only `next_scheduled_backwash` holds a timestamp that was computed rather than
+measured, which is why it is the one carrying "(estimated)" in its name.
 
 ### Observed vs. estimated
 
