@@ -221,7 +221,7 @@
                 "name": "Dernière contre-lavage"
             },
             "last_manual_backwash": {
-                "name": "Dernier contre-lavage manuel (estimé)"
+                "name": "Dernier contre-lavage manuel"
             },
             "next_scheduled_backwash": {
                 "name": "Prochain contre-lavage programmé (estimé)"

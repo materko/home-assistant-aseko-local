@@ -221,7 +221,7 @@
         "name": "Letzte Rückspülung"
       },
       "last_manual_backwash": {
-        "name": "Letzte manuelle Rückspülung (geschätzt)"
+        "name": "Letzte manuelle Rückspülung"
       },
       "next_scheduled_backwash": {
         "name": "Nächste geplante Rückspülung (geschätzt)"

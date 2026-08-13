@@ -207,7 +207,7 @@
         "name": "Last backwash"
       },
       "last_manual_backwash": {
-        "name": "Last manual backwash (estimated)"
+        "name": "Last manual backwash"
       },
       "next_scheduled_backwash": {
         "name": "Next scheduled backwash (estimated)"
