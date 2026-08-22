@@ -2134,18 +2134,24 @@ def test_air_temperature_only_on_salt(unit_type: int) -> None:
 
 
 @pytest.mark.parametrize(
-    ("byte37", "expected_mode", "nonstop"),
+    ("byte37", "expected_mode", "expected_schedule"),
     [
-        (0xC3, AsekoFiltrationMode.NONSTOP_24H, True),
-        (0xD3, AsekoFiltrationMode.TIMER_PERIOD_1, False),
-        (0xF3, AsekoFiltrationMode.TIMER_PERIOD_1_AND_2, False),
-        (0xC7, AsekoFiltrationMode.MANUAL, False),
-        (0xD7, AsekoFiltrationMode.MANUAL, False),
-        (0xF7, AsekoFiltrationMode.MANUAL, False),
+        (0xC3, AsekoFiltrationMode.NONSTOP_24H, AsekoFiltrationMode.NONSTOP_24H),
+        (0xD3, AsekoFiltrationMode.TIMER_PERIOD_1, AsekoFiltrationMode.TIMER_PERIOD_1),
+        (
+            0xF3,
+            AsekoFiltrationMode.TIMER_PERIOD_1_AND_2,
+            AsekoFiltrationMode.TIMER_PERIOD_1_AND_2,
+        ),
+        (0xC7, AsekoFiltrationMode.MANUAL, AsekoFiltrationMode.NONSTOP_24H),
+        (0xD7, AsekoFiltrationMode.MANUAL, AsekoFiltrationMode.TIMER_PERIOD_1),
+        (0xF7, AsekoFiltrationMode.MANUAL, AsekoFiltrationMode.TIMER_PERIOD_1_AND_2),
     ],
 )
 def test_filtration_mode_salt_uses_the_firmware_b_bits(
-    byte37: int, expected_mode: AsekoFiltrationMode, nonstop: bool
+    byte37: int,
+    expected_mode: AsekoFiltrationMode,
+    expected_schedule: AsekoFiltrationMode,
 ) -> None:
     """SALT carries the mode in the same bits as HOME firmware B.
 
@@ -2158,7 +2164,8 @@ def test_filtration_mode_salt_uses_the_firmware_b_bits(
 
     Note 0xF7 is MANUAL, not two filtration periods: bit 0x04 is set, and
     whatever was configured stays underneath it.  The same goes for 0xC7,
-    which is manual mode entered from nonstop.
+    which is manual mode entered from nonstop — hence the second column:
+    the schedule is reported alongside the mode, not replaced by it.
     """
     data = _make_base_bytes()  # SALT
     data[37] = byte37
@@ -2169,7 +2176,12 @@ def test_filtration_mode_salt_uses_the_firmware_b_bits(
 
     assert device.device_type == AsekoDeviceType.SALT
     assert device.filtration_mode == expected_mode
-    assert device.filtration_nonstop24 is nonstop
+    assert device.filtration_schedule == expected_schedule
+    # The legacy boolean follows the schedule, not the mode, so manual
+    # mode on a nonstop unit still reads as nonstop.
+    assert device.filtration_nonstop24 is (
+        expected_schedule is AsekoFiltrationMode.NONSTOP_24H
+    )
 
 
 def test_filtration_mode_salt_unknown_bits_stay_unknown() -> None:
@@ -2188,6 +2200,7 @@ def test_filtration_mode_salt_unknown_bits_stay_unknown() -> None:
 
     assert device.device_type == AsekoDeviceType.SALT
     assert device.filtration_mode is None
+    assert device.filtration_schedule is None
     assert device.filtration_nonstop24 is None
 
 
@@ -2205,3 +2218,31 @@ def test_filtration_mode_home_transitional_still_suppressed() -> None:
     assert device.device_type == AsekoDeviceType.HOME
     assert device.filtration_mode is None
     assert device.filtration_nonstop24 is None
+
+
+def test_filtration_schedule_survives_manual_mode() -> None:
+    """Manual mode hides the schedule from filtration_mode, not from the unit.
+
+    Going into manual mode and back out again is the same schedule throughout
+    — 0xC3 -> 0xC7 -> 0xC3 on a captured SALT — so filtration_schedule must
+    read the same in all three, even though filtration_mode does not.
+
+    This is what makes the schedule usable on a dashboard while the override
+    is on: it can be shown greyed out rather than disappearing.
+    """
+    data = _make_base_bytes()  # SALT
+
+    schedules = []
+    modes = []
+    for byte37 in (0xC3, 0xC7, 0xC3):
+        data[37] = byte37
+        device = AsekoDecoder.decode(bytes(data))
+        schedules.append(device.filtration_schedule)
+        modes.append(device.filtration_mode)
+
+    assert schedules == [AsekoFiltrationMode.NONSTOP_24H] * 3
+    assert modes == [
+        AsekoFiltrationMode.NONSTOP_24H,
+        AsekoFiltrationMode.MANUAL,
+        AsekoFiltrationMode.NONSTOP_24H,
+    ]

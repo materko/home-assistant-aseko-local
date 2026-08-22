@@ -635,6 +635,11 @@ class AsekoDecoder:
             0x15 = P1 + manual override     → MANUAL (bit 0x04 set)
             0x35 = P1 & P2 + manual override → MANUAL (bit 0x04 set)
 
+        Bit 0x04 is an override laid on top of a schedule that stays
+        configured underneath it, so the two are decoded into separate
+        fields: `filtration_mode` reports what is in charge right now
+        (MANUAL wins), `filtration_schedule` what the unit will go back to.
+
         SALT uses the same mode bits as the new encoding above; its high
         nibble carries its own flags (0x80 = algicide routing) and bit 0x40 is
         set in every frame.  Confirmed on an ASIN AQUA Salt, in both directions
@@ -666,6 +671,11 @@ class AsekoDecoder:
             return
 
         mode: AsekoFiltrationMode | None = None
+        # The schedule underneath the mode.  Manual is an override laid on
+        # top of a schedule that stays configured, so the two are tracked
+        # apart: 0xC7 is a SALT in manual mode whose schedule is nonstop,
+        # and reporting only MANUAL loses the second half of that.
+        schedule: AsekoFiltrationMode | None = None
         b = data[37]
 
         # byte[37] carries the mode flag for every FILTRATION_TYPES device
@@ -692,18 +702,22 @@ class AsekoDecoder:
                     mode = AsekoFiltrationMode.TIMER_PERIOD_1_AND_2
                 # 0x47 / 0x57 → transitional edit state, leave as None.
             else:
-                # Firmware B: high nibble 0x0/0x1/0x3.
-                if b & 0x04:
-                    # Manual override active — bit 2 set.
-                    # Observed values: 0x15 (P1 + override),
-                    # 0x35 (P1&P2 + override).
-                    mode = AsekoFiltrationMode.MANUAL
-                elif (b & 0x30) == 0x00:
-                    mode = AsekoFiltrationMode.NONSTOP_24H
+                # Firmware B: the schedule is in bits 0x10 / 0x20 and the
+                # manual override in bit 0x04, independently of each other.
+                # 0x20 without 0x10 has never been seen — period 2 is only
+                # offered on top of period 1 — and leaves both unset.
+                if (b & 0x30) == 0x00:
+                    schedule = AsekoFiltrationMode.NONSTOP_24H
                 elif (b & 0x30) == 0x10:
-                    mode = AsekoFiltrationMode.TIMER_PERIOD_1
+                    schedule = AsekoFiltrationMode.TIMER_PERIOD_1
                 elif (b & 0x30) == 0x30:
-                    mode = AsekoFiltrationMode.TIMER_PERIOD_1_AND_2
+                    schedule = AsekoFiltrationMode.TIMER_PERIOD_1_AND_2
+
+                mode = (
+                    AsekoFiltrationMode.MANUAL
+                    if b & AsekoByte37Masks.HOME_FWB_MANUAL_OVERRIDE
+                    else schedule
+                )
         # Fallback for unrecognised firmware A values (Issue #135):
         # serial 110175608 (byte 4=0x03 REDOX HOME) has values 0x45/0x49/0x41
         # that don't match the known CLF HOME patterns (0x43/0x53/0x47/0x57).
@@ -733,9 +747,23 @@ class AsekoDecoder:
         if mode is None:
             return
 
+        # Firmware A and the fallback have no manual state, so there the
+        # mode *is* the schedule.
+        if schedule is None and mode is not AsekoFiltrationMode.MANUAL:
+            schedule = mode
+
         unit.filtration_mode = mode
-        # Mirror onto the legacy boolean for backwards compatibility.
-        unit.filtration_nonstop24 = mode == AsekoFiltrationMode.NONSTOP_24H
+        unit.filtration_schedule = schedule
+        # Mirror onto the legacy boolean for backwards compatibility.  Taken
+        # from the schedule so that a manual excursion does not flip it: the
+        # unit goes quiet while in manual mode, so a False written on the way
+        # in would be the last value Home Assistant holds, and it would be
+        # answering the wrong question.
+        unit.filtration_nonstop24 = (
+            schedule == AsekoFiltrationMode.NONSTOP_24H
+            if schedule is not None
+            else None
+        )
 
     @staticmethod
     def _air_temperature(data: bytes) -> float | None:

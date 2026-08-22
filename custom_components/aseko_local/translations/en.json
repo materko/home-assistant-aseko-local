@@ -104,6 +104,14 @@
       "filtration_1_stop": { "name": "Filtration 1 stop" },
       "filtration_2_start": { "name": "Filtration 2 start" },
       "filtration_2_stop": { "name": "Filtration 2 stop" },
+      "filtration_schedule": {
+        "name": "Filtration schedule",
+        "state": {
+          "nonstop_24h": "24h nonstop",
+          "timer_period_1": "Time period 1",
+          "timer_period_1_and_2": "Time periods 1 & 2"
+        }
+      },
       "filtration_mode": {
         "name": "Filtration mode",
         "state": {

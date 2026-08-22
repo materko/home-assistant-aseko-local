@@ -222,8 +222,17 @@ class AsekoDevice:
     water_filling_active: bool | None = None
 
     # Filtration mode — byte [37]
-    # True = nonstop 24 h (0x43), False = timer (0x53), None = transitional/unknown
+    # True = nonstop 24 h, False = timer, None = transitional/unknown.
+    # Derived from `filtration_schedule`, not from `filtration_mode`, so
+    # that entering manual mode does not read as "no longer nonstop".
     filtration_nonstop24: bool | None = None
+
+    # The filtration schedule the unit is configured for — byte [37]
+    # bits 0x10 / 0x20, which the manual override (bit 0x04) does not
+    # touch.  Never MANUAL: that is a state of `filtration_mode`, not a
+    # schedule.  The two are independent, so a unit can be in manual mode
+    # *and* configured for nonstop, and both are worth showing.
+    filtration_schedule: AsekoFiltrationMode | None = None
 
     # Filtration mode — 4-state enum (Issue #133).
     # Set for every device type in FILTRATION_TYPES = {SALT, HOME, OXY, PROFI}.

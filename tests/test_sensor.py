@@ -292,7 +292,9 @@ async def test_async_setup_salt_redox(hass) -> None:
     #   entity, counted by that platform rather than here
     # The legacy filtration_nonstop24 binary sensor is gone: filtration_mode
     # reports all four modes, so it said nothing new.  -1 entity.
-    assert len(added_entities) == 40
+    # + 1 filtration_schedule sensor: manual mode is an override on top of a
+    #   schedule that stays configured, so both are reported.
+    assert len(added_entities) == 41
     # Nothing has been observed yet, so the history is unknown rather than
     # guessed from the schedule.
     backwash_history = {
@@ -420,7 +422,9 @@ async def test_async_setup_salt_clf(hass) -> None:
     #   entity, counted by that platform rather than here
     # The legacy filtration_nonstop24 binary sensor is gone: filtration_mode
     # reports all four modes, so it said nothing new.  -1 entity.
-    assert len(added_entities) == 41
+    # + 1 filtration_schedule sensor: manual mode is an override on top of a
+    #   schedule that stays configured, so both are reported.
+    assert len(added_entities) == 42
     assert any(
         getattr(e.entity_description, "key", None) != "water_flow_to_probes"
         for e in added_entities
@@ -690,7 +694,9 @@ async def test_async_setup_profi_clf_redox(hass) -> None:
     #   entity, counted by that platform rather than here
     # The legacy filtration_nonstop24 binary sensor is gone: filtration_mode
     # reports all four modes, so it said nothing new.  -1 entity.
-    assert len(added_entities) == 43
+    # + 1 filtration_schedule sensor: manual mode is an override on top of a
+    #   schedule that stays configured, so both are reported.
+    assert len(added_entities) == 44
     assert any(
         getattr(e.entity_description, "key", None) == "free_chlorine"
         for e in added_entities

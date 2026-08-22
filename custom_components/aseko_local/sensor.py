@@ -558,6 +558,25 @@ SENSORS: list[AsekoSensorEntityDescription] = [
         ),
     ),
     AsekoSensorEntityDescription(
+        key="filtration_schedule",
+        translation_key="filtration_schedule",
+        icon="mdi:calendar-clock",
+        device_class=SensorDeviceClass.ENUM,
+        # No "manual": that is a mode, not a schedule.  This sensor keeps
+        # reporting what the unit is configured for while manual mode is on,
+        # which is exactly when filtration_mode cannot tell you.
+        options=[
+            "nonstop_24h",
+            "timer_period_1",
+            "timer_period_1_and_2",
+        ],
+        value_fn=lambda device: (
+            device.filtration_schedule.value
+            if device.filtration_schedule is not None
+            else None
+        ),
+    ),
+    AsekoSensorEntityDescription(
         key="pool_volume",
         translation_key="pool_volume",
         native_unit_of_measurement=UnitOfVolume.CUBIC_METERS,
