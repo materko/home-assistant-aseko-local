@@ -2003,3 +2003,44 @@ def test_home_issue_110_frame() -> None:
     assert (
         device.max_filling_time == 60
     )  # raw = minutes directly (verified Issue #110 app)
+
+
+# ── byte[37] firmware-A fallback is HOME-only ────────────────────────────────
+
+
+def test_filtration_mode_salt_routing_value_falls_back_to_schedule() -> None:
+    """A SALT reporting 0xF7 still gets a mode from its schedule.
+
+    On SALT byte[37] carries the third-pump routing, not a HOME-style mode
+    word, so its bit 1 says nothing about the schedule.  The firmware-A
+    transitional check keys on that bit and used to suppress the
+    schedule-derived fallback here, leaving both filtration_mode and the
+    legacy filtration_nonstop24 at None on a unit that plainly runs two
+    filtration periods.
+    """
+    data = _make_base_bytes()  # SALT
+    data[37] = 0xF7  # observed on an ASIN AQUA Salt, firmware v7
+    assert data[56] != 0xFF  # period 1 configured
+    assert data[60] != 0xFF  # period 2 configured
+
+    device = AsekoDecoder.decode(bytes(data))
+
+    assert device.device_type == AsekoDeviceType.SALT
+    assert device.filtration_mode == AsekoFiltrationMode.TIMER_PERIOD_1_AND_2
+    assert device.filtration_nonstop24 is False
+
+
+def test_filtration_mode_home_transitional_still_suppressed() -> None:
+    """The transitional check keeps working where it came from.
+
+    0x47 is a half-finished edit on HOME firmware A: no mode should be
+    reported for it, even though the schedule bytes are populated.
+    """
+    data = _make_home_bytes()
+    data[37] = 0x47
+
+    device = AsekoDecoder.decode(bytes(data))
+
+    assert device.device_type == AsekoDeviceType.HOME
+    assert device.filtration_mode is None
+    assert device.filtration_nonstop24 is None

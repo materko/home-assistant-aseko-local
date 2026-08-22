@@ -703,10 +703,20 @@ class AsekoDecoder:
         # Transitional edit states (0x47, 0x57) have bit 1 set — keep them
         # as None.  All other unrecognised firmware A values fall back to
         # schedule-derived mode.
+        #
+        # The transitional check is HOME-only, as its constant name says: it
+        # was derived from HOME captures, where bit 1 marks a half-finished
+        # edit.  On the other FILTRATION_TYPES byte[37] carries the third-pump
+        # routing (AsekoThirdPumpSlot), so bit 1 is just part of a routing
+        # value and means nothing about the schedule.  Applying the check to
+        # them suppressed the fallback for ordinary values — a SALT reporting
+        # 0xF7 while running two filtration periods ended up with no mode at
+        # all, and with filtration_nonstop24 back to None.
+        is_home = unit.device_type == AsekoDeviceType.HOME
         if (
             mode is None
             and b & 0x40
-            and not (b & AsekoByte37Masks.HOME_FWA_TRANSITIONAL_MASK)
+            and not (is_home and b & AsekoByte37Masks.HOME_FWA_TRANSITIONAL_MASK)
         ):
             p1_set = data[56] != UNSPECIFIED_VALUE and data[57] != UNSPECIFIED_VALUE
             p2_set = data[60] != UNSPECIFIED_VALUE and data[61] != UNSPECIFIED_VALUE
