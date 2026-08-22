@@ -14,6 +14,7 @@ from custom_components.aseko_local.sensor import (
     async_setup_entry,
     AsekoLocalSensorEntity,
     AsekoConsumptionSensorEntity,
+    SENSORS,
 )
 from custom_components.aseko_local.aseko_decoder import AsekoDecoder
 
@@ -292,9 +293,9 @@ async def test_async_setup_salt_redox(hass) -> None:
     #   entity, counted by that platform rather than here
     # The legacy filtration_nonstop24 binary sensor is gone: filtration_mode
     # reports all four modes, so it said nothing new.  -1 entity.
-    # + 1 filtration_schedule sensor: manual mode is an override on top of a
-    #   schedule that stays configured, so both are reported.
-    assert len(added_entities) == 41
+    # The schedule underneath a manual override rides on filtration_mode as an
+    # attribute, not as a second sensor: it would only repeat the state.
+    assert len(added_entities) == 40
     # Nothing has been observed yet, so the history is unknown rather than
     # guessed from the schedule.
     backwash_history = {
@@ -422,9 +423,9 @@ async def test_async_setup_salt_clf(hass) -> None:
     #   entity, counted by that platform rather than here
     # The legacy filtration_nonstop24 binary sensor is gone: filtration_mode
     # reports all four modes, so it said nothing new.  -1 entity.
-    # + 1 filtration_schedule sensor: manual mode is an override on top of a
-    #   schedule that stays configured, so both are reported.
-    assert len(added_entities) == 42
+    # The schedule underneath a manual override rides on filtration_mode as an
+    # attribute, not as a second sensor: it would only repeat the state.
+    assert len(added_entities) == 41
     assert any(
         getattr(e.entity_description, "key", None) != "water_flow_to_probes"
         for e in added_entities
@@ -694,9 +695,9 @@ async def test_async_setup_profi_clf_redox(hass) -> None:
     #   entity, counted by that platform rather than here
     # The legacy filtration_nonstop24 binary sensor is gone: filtration_mode
     # reports all four modes, so it said nothing new.  -1 entity.
-    # + 1 filtration_schedule sensor: manual mode is an override on top of a
-    #   schedule that stays configured, so both are reported.
-    assert len(added_entities) == 44
+    # The schedule underneath a manual override rides on filtration_mode as an
+    # attribute, not as a second sensor: it would only repeat the state.
+    assert len(added_entities) == 43
     assert any(
         getattr(e.entity_description, "key", None) == "free_chlorine"
         for e in added_entities
@@ -896,3 +897,77 @@ async def test_retired_removal_is_idempotent(hass, mock_config_entry) -> None:
         )
         if entry.unique_id.endswith("filtration_nonstop24")
     ]
+
+
+# ── filtration_mode schedule attribute ──────────────────────────────────────
+
+
+def _filtration_mode_description():
+    """Return the filtration_mode sensor description."""
+    return next(d for d in SENSORS if d.key == "filtration_mode")
+
+
+def _decode_salt(byte37: int):
+    """Decode a SALT frame carrying the given byte[37]."""
+    data = _make_salt_redox_bytes()
+    data[37] = byte37
+    return AsekoDecoder.decode(bytes(data))
+
+
+@pytest.mark.parametrize(
+    ("byte37", "expected_state", "expected_schedule"),
+    [
+        (0xC3, "nonstop_24h", "nonstop_24h"),
+        (0xD3, "timer_period_1", "timer_period_1"),
+        (0xF3, "timer_period_1_and_2", "timer_period_1_and_2"),
+        (0xC7, "manual", "nonstop_24h"),
+        (0xD7, "manual", "timer_period_1"),
+        (0xF7, "manual", "timer_period_1_and_2"),
+    ],
+)
+def test_filtration_mode_publishes_the_schedule_as_an_attribute(
+    byte37: int, expected_state: str, expected_schedule: str
+) -> None:
+    """The schedule rides on filtration_mode rather than being its own sensor.
+
+    Outside manual mode the two agree, which is why a second sensor would
+    have been noise; in manual mode the state cannot say what the unit is
+    configured for, and the attribute can.
+    """
+    description = _filtration_mode_description()
+    device = _decode_salt(byte37)
+
+    assert description.value_fn(device) == expected_state
+    assert description.attribute_fn(device) == {"schedule": expected_schedule}
+
+
+def test_filtration_schedule_attribute_absent_without_a_schedule() -> None:
+    """No schedule decoded, no attribute — rather than a made-up default."""
+    device = _decode_salt(0xE3)  # period 2 without period 1: never sent
+
+    assert device.filtration_schedule is None
+    assert _filtration_mode_description().attribute_fn(device) is None
+
+
+def test_sensors_without_attribute_fn_publish_no_attributes() -> None:
+    """attribute_fn is opt-in: every other sensor is unchanged by it."""
+    description = next(d for d in SENSORS if d.key == "pool_volume")
+    assert description.attribute_fn is None
+
+    stub = MagicMock()
+    stub.entity_description = description
+    assert (
+        AsekoLocalSensorEntity.extra_state_attributes.fget(stub)  # type: ignore[attr-defined]
+        is None
+    )
+
+
+def test_filtration_mode_entity_exposes_the_attribute() -> None:
+    """The description's attribute_fn actually reaches the entity property."""
+    stub = MagicMock()
+    stub.entity_description = _filtration_mode_description()
+    stub.device = _decode_salt(0xC7)  # manual, on top of nonstop
+
+    attributes = AsekoLocalSensorEntity.extra_state_attributes.fget(stub)  # type: ignore[attr-defined]
+
+    assert attributes == {"schedule": "nonstop_24h"}
