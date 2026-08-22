@@ -2139,6 +2139,7 @@ def test_air_temperature_only_on_salt(unit_type: int) -> None:
         (0xC3, AsekoFiltrationMode.NONSTOP_24H, True),
         (0xD3, AsekoFiltrationMode.TIMER_PERIOD_1, False),
         (0xF3, AsekoFiltrationMode.TIMER_PERIOD_1_AND_2, False),
+        (0xC7, AsekoFiltrationMode.MANUAL, False),
         (0xD7, AsekoFiltrationMode.MANUAL, False),
         (0xF7, AsekoFiltrationMode.MANUAL, False),
     ],
@@ -2156,7 +2157,8 @@ def test_filtration_mode_salt_uses_the_firmware_b_bits(
     exact values and came out with no mode at all.
 
     Note 0xF7 is MANUAL, not two filtration periods: bit 0x04 is set, and
-    the periods stay configured underneath it.
+    whatever was configured stays underneath it.  The same goes for 0xC7,
+    which is manual mode entered from nonstop.
     """
     data = _make_base_bytes()  # SALT
     data[37] = byte37
