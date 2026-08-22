@@ -2133,26 +2133,60 @@ def test_air_temperature_only_on_salt(unit_type: int) -> None:
 # ── byte[37] firmware-A fallback is HOME-only ────────────────────────────────
 
 
-def test_filtration_mode_salt_routing_value_falls_back_to_schedule() -> None:
-    """A SALT reporting 0xF7 still gets a mode from its schedule.
+@pytest.mark.parametrize(
+    ("byte37", "expected_mode", "nonstop"),
+    [
+        (0xC3, AsekoFiltrationMode.NONSTOP_24H, True),
+        (0xD3, AsekoFiltrationMode.TIMER_PERIOD_1, False),
+        (0xF3, AsekoFiltrationMode.TIMER_PERIOD_1_AND_2, False),
+        (0xD7, AsekoFiltrationMode.MANUAL, False),
+        (0xF7, AsekoFiltrationMode.MANUAL, False),
+    ],
+)
+def test_filtration_mode_salt_uses_the_firmware_b_bits(
+    byte37: int, expected_mode: AsekoFiltrationMode, nonstop: bool
+) -> None:
+    """SALT carries the mode in the same bits as HOME firmware B.
 
-    On SALT byte[37] carries the third-pump routing, not a HOME-style mode
-    word, so its bit 1 says nothing about the schedule.  The firmware-A
-    transitional check keys on that bit and used to suppress the
-    schedule-derived fallback here, leaving both filtration_mode and the
-    legacy filtration_nonstop24 at None on a unit that plainly runs two
-    filtration periods.
+    Every value here was captured on an ASIN AQUA Salt while the mode shown
+    on the unit itself was known, in both directions of each transition.
+    The high nibble is SALT's own configuration (0x80 = algicide routing)
+    and bit 0x40 is set in every frame — which is why routing on that bit
+    sent SALT into the HOME firmware-A branch, where it matched none of the
+    exact values and came out with no mode at all.
+
+    Note 0xF7 is MANUAL, not two filtration periods: bit 0x04 is set, and
+    the periods stay configured underneath it.
     """
     data = _make_base_bytes()  # SALT
-    data[37] = 0xF7  # observed on an ASIN AQUA Salt, firmware v7
+    data[37] = byte37
     assert data[56] != 0xFF  # period 1 configured
     assert data[60] != 0xFF  # period 2 configured
 
     device = AsekoDecoder.decode(bytes(data))
 
     assert device.device_type == AsekoDeviceType.SALT
-    assert device.filtration_mode == AsekoFiltrationMode.TIMER_PERIOD_1_AND_2
-    assert device.filtration_nonstop24 is False
+    assert device.filtration_mode == expected_mode
+    assert device.filtration_nonstop24 is nonstop
+
+
+def test_filtration_mode_salt_unknown_bits_stay_unknown() -> None:
+    """An unrecognised SALT value yields no mode rather than a guess.
+
+    The schedule-derived fallback is HOME-only: SALT reports the filtration
+    times unchanged in every mode, so deriving the mode from them there
+    could only ever return one constant answer regardless of the truth.
+    0xE3 has period 2 set without period 1, which the unit never sends.
+    """
+    data = _make_base_bytes()  # SALT
+    data[37] = 0xE3
+    assert data[56] != 0xFF  # a schedule is present to fall back on
+
+    device = AsekoDecoder.decode(bytes(data))
+
+    assert device.device_type == AsekoDeviceType.SALT
+    assert device.filtration_mode is None
+    assert device.filtration_nonstop24 is None
 
 
 def test_filtration_mode_home_transitional_still_suppressed() -> None:

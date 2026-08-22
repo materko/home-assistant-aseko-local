@@ -635,6 +635,27 @@ class AsekoDecoder:
             0x15 = P1 + manual override     → MANUAL (bit 0x04 set)
             0x35 = P1 & P2 + manual override → MANUAL (bit 0x04 set)
 
+        SALT uses the same mode bits as the new encoding above; its high
+        nibble carries its own flags (0x80 = algicide routing) and bit 0x40 is
+        set in every frame.  Confirmed on an ASIN AQUA Salt, in both directions
+        of every transition:
+            0xC3 = nonstop 24h
+            0xD3 = P1 only
+            0xF3 = P1 & P2
+            0xD7 / 0xF7 = the above plus manual mode → MANUAL (bit 0x04 set)
+
+        Because bit 0x40 is set in every SALT frame, the firmware-A branch is
+        taken for HOME only; every other device type reads the bit flags.
+
+        On SALT, MANUAL is a mode the user enters at the unit to switch
+        filtration by hand, and the unit stops transmitting while it is in it
+        — the frame carrying the mode change is the last one until the user
+        leaves the mode again.  It therefore shows up as a brief flip to
+        MANUAL followed by the device going offline.  Note that this is the
+        opposite of the HOME firmware-B override, which forces the pump *off*:
+        on SALT the user may equally have switched the pump on, which is why
+        the pump-off override in `_fill_pump_states` is gated on HOME.
+
         The legacy `filtration_nonstop24` boolean field is kept for
         backwards compatibility and is derived from `filtration_mode` here.
         """
@@ -652,8 +673,15 @@ class AsekoDecoder:
         #   bit 2 (0x04) = manual override active
         #   bit 4 (0x10) = period 1 enabled
         #   bit 5 (0x20) = period 2 enabled
+        # Firmware A is a HOME encoding, and bit 0x40 only discriminates it
+        # there.  On the other FILTRATION_TYPES that bit is part of an
+        # unrelated configuration value — SALT sets it in every frame — so
+        # routing them by it sent them into a branch of HOME-specific exact
+        # values they can never match.
+        is_home = unit.device_type == AsekoDeviceType.HOME
+
         if b != UNSPECIFIED_VALUE:
-            if b & 0x40:
+            if is_home and b & 0x40:
                 # Firmware A: high nibble 0x4/0x5.
                 if b == 0x43:
                     mode = AsekoFiltrationMode.NONSTOP_24H
@@ -680,19 +708,15 @@ class AsekoDecoder:
         # as None.  All other unrecognised firmware A values fall back to
         # schedule-derived mode.
         #
-        # The transitional check is HOME-only, as its constant name says: it
-        # was derived from HOME captures, where bit 1 marks a half-finished
-        # edit.  On the other FILTRATION_TYPES byte[37] carries the third-pump
-        # routing (AsekoThirdPumpSlot), so bit 1 is just part of a routing
-        # value and means nothing about the schedule.  Applying the check to
-        # them suppressed the fallback for ordinary values — a SALT reporting
-        # 0xF7 while running two filtration periods ended up with no mode at
-        # all, and with filtration_nonstop24 back to None.
-        is_home = unit.device_type == AsekoDeviceType.HOME
+        # HOME-only, like the branch it backs up.  It derives the mode from
+        # the filtration schedule bytes, and those are reported unchanged in
+        # every mode on SALT — identical across nonstop, P1, P1&P2 and manual
+        # — so for a SALT it could only ever return one constant answer.
         if (
             mode is None
+            and is_home
             and b & 0x40
-            and not (is_home and b & AsekoByte37Masks.HOME_FWA_TRANSITIONAL_MASK)
+            and not b & AsekoByte37Masks.HOME_FWA_TRANSITIONAL_MASK
         ):
             p1_set = data[56] != UNSPECIFIED_VALUE and data[57] != UNSPECIFIED_VALUE
             p2_set = data[60] != UNSPECIFIED_VALUE and data[61] != UNSPECIFIED_VALUE
