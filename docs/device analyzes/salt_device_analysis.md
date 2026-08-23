@@ -182,8 +182,8 @@ filtration output.
 | Algicide 10 → Flocculant 11 (both change) | `0x80` | bit 7 only |
 
 Bit 2 (`0x04`) was read here as dosage encoding.  **That reading is
-superseded**: `0x04` is the manual-mode flag, captured directly on serial
-…5262 across six byte[37] values and both directions of every transition
+superseded**: `0x04` is the manual-mode flag, captured directly on an ASIN
+AQUA Salt across six byte[37] values and both directions of every transition
 (see §byte[37] – filtration mode and schedule below).  The XOR above came
 from two frames diffed in PR #122; the dosage change and a mode change most
 likely coincided in that pair.  The remaining bits are unconfirmed.
