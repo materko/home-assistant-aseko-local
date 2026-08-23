@@ -745,7 +745,7 @@ async def test_clear_is_persisted():
     assert saved["last_scheduled_source"] is None
 
 
-# ── manual mode as an observed signal (SALT byte[37] bit 0x04) ───────────────
+# ── the settings menu as an observed signal (SALT byte[37] bit 0x04) ─────────
 
 
 def _salt_device(
@@ -760,7 +760,7 @@ def _salt_device(
     return dev
 
 
-def _run_manual_mode_cycle(
+def _run_service_menu_cycle(
     tracker: BackwashTracker,
     start: datetime,
     mode_during: AsekoFiltrationMode,
@@ -782,7 +782,7 @@ def _run_manual_mode_cycle(
     )
 
 
-def test_manual_mode_during_the_window_means_manual():
+def test_service_menu_during_the_window_means_manual():
     """A SALT cycle run from manual mode is manual, whatever the clock says.
 
     This is the case the time-only rule gets wrong: started by hand, but
@@ -792,14 +792,14 @@ def test_manual_mode_during_the_window_means_manual():
     """
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
-    _run_manual_mode_cycle(tracker, T0, AsekoFiltrationMode.MANUAL)
+    _run_service_menu_cycle(tracker, T0, AsekoFiltrationMode.SERVICE_MENU)
 
     assert tracker.last_trigger is AsekoBackwashTrigger.MANUAL
     assert tracker.last_manual_backwash is not None
     assert tracker.last_scheduled_backwash is None
 
 
-def test_manual_mode_is_latched_across_the_whole_window():
+def test_service_menu_is_latched_across_the_whole_window():
     """The flag counts even though the closing frame has already lost it.
 
     Reading the mode at the end of the window would miss every real cycle:
@@ -808,7 +808,7 @@ def test_manual_mode_is_latched_across_the_whole_window():
     """
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
-    tracker.update(_salt_device(True, AsekoFiltrationMode.MANUAL), T0)
+    tracker.update(_salt_device(True, AsekoFiltrationMode.SERVICE_MENU), T0)
     # the mode is already back to normal for the rest of the window
     tracker.update(
         _salt_device(True, AsekoFiltrationMode.SCHEDULE),
@@ -822,17 +822,17 @@ def test_manual_mode_is_latched_across_the_whole_window():
     assert tracker.last_trigger is AsekoBackwashTrigger.MANUAL
 
 
-def test_without_manual_mode_the_schedule_still_decides():
+def test_without_the_service_menu_the_schedule_still_decides():
     """The flag only ever adds evidence; its absence changes nothing."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
-    _run_manual_mode_cycle(tracker, T0, AsekoFiltrationMode.SCHEDULE)
+    _run_service_menu_cycle(tracker, T0, AsekoFiltrationMode.SCHEDULE)
 
     assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
     assert tracker.last_scheduled_backwash is not None
 
 
-def test_manual_mode_signal_does_not_apply_to_home():
+def test_service_menu_signal_does_not_apply_to_home():
     """On HOME the same bit is a standing pump override, not a person.
 
     It can sit set indefinitely, so honouring it there would refile every
@@ -840,21 +840,21 @@ def test_manual_mode_signal_does_not_apply_to_home():
     """
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
-    _run_manual_mode_cycle(
-        tracker, T0, AsekoFiltrationMode.MANUAL, AsekoDeviceType.HOME
+    _run_service_menu_cycle(
+        tracker, T0, AsekoFiltrationMode.SERVICE_MENU, AsekoDeviceType.HOME
     )
 
     assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
 
 
-def test_manual_mode_flag_does_not_leak_into_the_next_cycle():
+def test_service_menu_flag_does_not_leak_into_the_next_cycle():
     """Each window starts from a clean slate."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
-    _run_manual_mode_cycle(tracker, T0, AsekoFiltrationMode.MANUAL)
+    _run_service_menu_cycle(tracker, T0, AsekoFiltrationMode.SERVICE_MENU)
     assert tracker.last_trigger is AsekoBackwashTrigger.MANUAL
 
     later = T0 + timedelta(days=SCHEDULE_EVERY_N_DAYS)
-    _run_manual_mode_cycle(tracker, later, AsekoFiltrationMode.SCHEDULE)
+    _run_service_menu_cycle(tracker, later, AsekoFiltrationMode.SCHEDULE)
 
     assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED

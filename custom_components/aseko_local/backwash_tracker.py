@@ -20,10 +20,10 @@ ways.  Consumers should treat ``last_backwash`` as reliable and the
 scheduled/manual split (and the ``next_scheduled_backwash`` projection built
 on it) as an estimate.
 
-SALT is the exception: it reports manual mode in byte[37] bit 0x04, and a
-manual backwash is started from inside that mode, so a cycle that runs while
-the bit is set is manual as a matter of observation rather than inference.
-See ``_manual_mode_engaged``.
+SALT is the exception: byte[37] bit 0x04 marks its settings menu being open,
+and that is the menu a backwash is started by hand from — so a cycle that
+runs while the bit is set is manual as a matter of observation rather than
+inference.  See ``_service_menu_open``.
 
 Nothing is guessed before the first observation, though: every value starts out
 as ``None``: until a cycle has actually been seen, the honest answer is
@@ -75,27 +75,29 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
-def _manual_mode_engaged(device: "AsekoDevice") -> bool:
-    """Return True if this frame shows somebody operating the unit by hand.
+def _service_menu_open(device: "AsekoDevice") -> bool:
+    """Return True if somebody has the unit's settings menu open.
 
-    On SALT, byte[37] bit 0x04 marks the manual mode the user enters at the
-    unit, and a manual backwash is started from within it: a capture of one
-    has the bit set on every frame from ~30 s before the valve opened until
-    ~20 s after it closed.  A cycle seen while
-    the bit is set was therefore started by a person — observed, not inferred.
+    On SALT, byte[37] bit 0x04 marks that menu — the one filtration and
+    backwash can be started by hand from.  It appears on entering, before
+    anything is touched, so on its own it says only that a person is at the
+    unit.  Paired with a running backwash it says more: a capture of a
+    by-hand cycle has the bit set on every frame from ~30 s before the valve
+    opened until ~20 s after it closed.  Somebody was standing at the menu
+    the button lives on — observed, not inferred from the clock.
 
-    Restricted to SALT because the same bit means something different on HOME
-    firmware B, where it is a standing override that forces the pump off and
-    can stay set indefinitely; treating that as a person being present would
+    Restricted to SALT because the same bit is documented differently on
+    HOME firmware B (Issue #133): a standing manual override that forces the
+    pump off and can stay set indefinitely.  Honouring it there would
     misclassify every scheduled cycle that ran while the override was on.
 
     The bit is only ever *additional* evidence.  It is never used to call a
-    cycle scheduled: not being in manual mode is no proof that the unit
+    cycle scheduled: nobody being at the unit is no proof that the unit
     started the cycle itself.
     """
     return (
         device.device_type is AsekoDeviceType.SALT
-        and device.filtration_mode is AsekoFiltrationMode.MANUAL
+        and device.filtration_mode is AsekoFiltrationMode.SERVICE_MENU
     )
 
 
@@ -149,11 +151,11 @@ class BackwashTracker:
         # None = relay is currently off, or we have not seen it on yet.
         self._relay_on_since: datetime | None = None
 
-        # Was the unit in manual mode during the current window?  Latched
+        # Was the settings menu open during the current window?  Latched
         # across the whole window rather than read at the end: the unit
         # drops the flag a frame or two after the valve closes, so by the
         # time the window is recorded it has usually gone again.
-        self._manual_mode_in_window = False
+        self._service_menu_in_window = False
 
         # Last frame timestamp we processed — used to detect dropped connections.
         self._last_frame_at: datetime | None = None
@@ -346,24 +348,24 @@ class BackwashTracker:
                 self._serial,
             )
             self._relay_on_since = None
-            self._manual_mode_in_window = False
+            self._service_menu_in_window = False
         self._last_frame_at = now
 
         # Step 2: if the relay is on, start (or continue) a new window.
         if device.backwash_active:
             if self._relay_on_since is None:
                 self._relay_on_since = now
-                self._manual_mode_in_window = False
-            self._manual_mode_in_window |= _manual_mode_engaged(device)
+                self._service_menu_in_window = False
+            self._service_menu_in_window |= _service_menu_open(device)
             return
 
         # Step 3: relay just went off.  Evaluate the previous "on" window.
         if self._relay_on_since is not None:
             self._record_window(
-                device, self._relay_on_since, now, self._manual_mode_in_window
+                device, self._relay_on_since, now, self._service_menu_in_window
             )
             self._relay_on_since = None
-            self._manual_mode_in_window = False
+            self._service_menu_in_window = False
 
     def clear_last_scheduled_backwash(self) -> None:
         """Forget the last scheduled backwash, returning it to unknown.
@@ -433,7 +435,7 @@ class BackwashTracker:
         device: "AsekoDevice",
         started_at: datetime,
         ended_at: datetime,
-        manual_mode_observed: bool = False,
+        service_menu_observed: bool = False,
     ) -> None:
         """Record a completed relay-on window if it is long enough to be real."""
         duration = ended_at - started_at
@@ -458,7 +460,7 @@ class BackwashTracker:
         # opened the valve, and therefore the moment to compare against the
         # configured schedule.  The midpoint is shifted by half the cycle
         # duration and would bias every comparison.
-        trigger = self._classify(device, started_at, manual_mode_observed)
+        trigger = self._classify(device, started_at, service_menu_observed)
 
         self._last_backwash = recorded_at
         self._last_trigger = trigger
@@ -487,13 +489,13 @@ class BackwashTracker:
     def _classify(
         device: "AsekoDevice",
         started_at: datetime,
-        manual_mode_observed: bool = False,
+        service_menu_observed: bool = False,
     ) -> AsekoBackwashTrigger:
         """Return whether a cycle starting at ``started_at`` was scheduled.
 
-        ``manual_mode_observed`` is the one hard signal available: on SALT the
+        ``service_menu_observed`` is the one hard signal available: on SALT the
         unit reports that somebody was operating it by hand while the valve
-        was open (see ``_manual_mode_engaged``), which settles the question.
+        was open (see ``_service_menu_open``), which settles the question.
         It is only ever raised, never lowered — its absence proves nothing.
 
         Without it, a cycle counts as scheduled only if the unit could have
@@ -506,7 +508,7 @@ class BackwashTracker:
         ways it gets the answer wrong:
 
         * A cycle started by hand within the tolerance window of the scheduled
-          time is reported as scheduled (unless ``manual_mode_observed``).
+          time is reported as scheduled (unless ``service_menu_observed``).
         * Only the time of day is checked, not the day itself — a manual cycle
           at exactly ``backwash_time`` on a day the interval does not fall on
           still counts as scheduled.  Checking the day would need the schedule
@@ -521,7 +523,7 @@ class BackwashTracker:
         the cycle, and is never revisited: changing ``backwash_time`` later
         does not reclassify history.
         """
-        if manual_mode_observed:
+        if service_menu_observed:
             # Observed fact rather than inference: a person was at the unit.
             return AsekoBackwashTrigger.MANUAL
 
