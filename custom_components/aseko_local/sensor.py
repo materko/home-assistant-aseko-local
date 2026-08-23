@@ -56,9 +56,6 @@ class AsekoSensorEntityDescription(SensorEntityDescription):
     # entities would never be created.  Set this to decide presence from
     # something other than the current value.
     supported_fn: Callable[[AsekoDevice], bool] | None = None
-    # Extra state attributes, for context that qualifies the value without
-    # being a value in its own right.  Return None to publish none.
-    attribute_fn: Callable[[AsekoDevice], dict[str, str] | None] | None = None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -217,19 +214,6 @@ def _has_backwash(device: AsekoDevice) -> bool:
     currently open.  See ``AsekoDecoder._fill_backwash_active`` and Issue #129.
     """
     return device.backwash_active is not None
-
-
-def _filtration_schedule_attribute(device: AsekoDevice) -> dict[str, str] | None:
-    """Return the schedule the unit falls back on, or None if unknown.
-
-    Only interesting while `filtration_mode` reads MANUAL, which is the one
-    time the state cannot say what the unit is configured for.  Published
-    unconditionally anyway, so a template does not have to special-case the
-    attribute appearing and disappearing.
-    """
-    if device.filtration_schedule is None:
-        return None
-    return {"schedule": device.filtration_schedule.value}
 
 
 SENSORS: list[AsekoSensorEntityDescription] = [
@@ -563,20 +547,34 @@ SENSORS: list[AsekoSensorEntityDescription] = [
         translation_key="filtration_mode",
         icon="mdi:pump",
         device_class=SensorDeviceClass.ENUM,
+        # Whether the schedule is in charge, not which schedule it is —
+        # that is filtration_schedule, and it stays readable either way.
         options=[
-            "nonstop_24h",
-            "timer_period_1",
-            "timer_period_1_and_2",
+            "schedule",
             "manual",
         ],
         value_fn=lambda device: (
             device.filtration_mode.value if device.filtration_mode is not None else None
         ),
-        # Manual is an override laid on top of a schedule that stays
-        # configured underneath, and the state can only report one of the
-        # two.  The schedule rides along as an attribute rather than as a
-        # second sensor: outside manual mode it only ever repeats the state.
-        attribute_fn=_filtration_schedule_attribute,
+    ),
+    AsekoSensorEntityDescription(
+        key="filtration_schedule",
+        translation_key="filtration_schedule",
+        icon="mdi:calendar-clock",
+        device_class=SensorDeviceClass.ENUM,
+        # No "manual": that is a mode, not a schedule.  Keeps reporting
+        # what the unit is configured for while the override is on, which
+        # is the one time filtration_mode cannot say.
+        options=[
+            "nonstop_24h",
+            "timer_period_1",
+            "timer_period_1_and_2",
+        ],
+        value_fn=lambda device: (
+            device.filtration_schedule.value
+            if device.filtration_schedule is not None
+            else None
+        ),
     ),
     AsekoSensorEntityDescription(
         key="pool_volume",
@@ -916,14 +914,6 @@ class AsekoLocalSensorEntity(AsekoLocalEntity, SensorEntity):
     """Representation of an Aseko device sensor entity."""
 
     entity_description: AsekoSensorEntityDescription
-
-    @property
-    def extra_state_attributes(self) -> dict[str, str] | None:
-        """Return the description's extra attributes, if it defines any."""
-        attribute_fn = self.entity_description.attribute_fn
-        if attribute_fn is None:
-            return None
-        return attribute_fn(self.device)
 
     @property
     def native_value(self) -> StateType:

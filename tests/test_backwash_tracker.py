@@ -777,7 +777,7 @@ def _run_manual_mode_cycle(
         start + timedelta(seconds=45),
     )
     tracker.update(
-        _salt_device(False, AsekoFiltrationMode.TIMER_PERIOD_1_AND_2, device_type),
+        _salt_device(False, AsekoFiltrationMode.SCHEDULE, device_type),
         start + timedelta(seconds=90),
     )
 
@@ -811,11 +811,11 @@ def test_manual_mode_is_latched_across_the_whole_window():
     tracker.update(_salt_device(True, AsekoFiltrationMode.MANUAL), T0)
     # the mode is already back to normal for the rest of the window
     tracker.update(
-        _salt_device(True, AsekoFiltrationMode.TIMER_PERIOD_1_AND_2),
+        _salt_device(True, AsekoFiltrationMode.SCHEDULE),
         T0 + timedelta(seconds=45),
     )
     tracker.update(
-        _salt_device(False, AsekoFiltrationMode.TIMER_PERIOD_1_AND_2),
+        _salt_device(False, AsekoFiltrationMode.SCHEDULE),
         T0 + timedelta(seconds=90),
     )
 
@@ -826,7 +826,7 @@ def test_without_manual_mode_the_schedule_still_decides():
     """The flag only ever adds evidence; its absence changes nothing."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
-    _run_manual_mode_cycle(tracker, T0, AsekoFiltrationMode.TIMER_PERIOD_1)
+    _run_manual_mode_cycle(tracker, T0, AsekoFiltrationMode.SCHEDULE)
 
     assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
     assert tracker.last_scheduled_backwash is not None
@@ -855,6 +855,6 @@ def test_manual_mode_flag_does_not_leak_into_the_next_cycle():
     assert tracker.last_trigger is AsekoBackwashTrigger.MANUAL
 
     later = T0 + timedelta(days=SCHEDULE_EVERY_N_DAYS)
-    _run_manual_mode_cycle(tracker, later, AsekoFiltrationMode.TIMER_PERIOD_1)
+    _run_manual_mode_cycle(tracker, later, AsekoFiltrationMode.SCHEDULE)
 
     assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED

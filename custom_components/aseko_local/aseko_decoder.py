@@ -9,6 +9,7 @@ from .aseko_data import (
     AsekoDeviceType,
     AsekoElectrolyzerDirection,
     AsekoFiltrationMode,
+    AsekoFiltrationSchedule,
     AsekoProbeType,
 )
 from .aseko_v7_helpers import (
@@ -665,67 +666,62 @@ class AsekoDecoder:
         if unit.device_type is None or unit.device_type not in FILTRATION_TYPES:
             return
 
-        mode: AsekoFiltrationMode | None = None
-        # The schedule underneath the mode.  Manual is an override laid on
-        # top of a schedule that stays configured, so the two are tracked
-        # apart: 0xC7 is a SALT in manual mode whose schedule is nonstop,
-        # and reporting only MANUAL loses the second half of that.
-        schedule: AsekoFiltrationMode | None = None
+        # The two independent halves of byte[37]: which schedule is configured,
+        # and whether the user has taken the pump over by hand.  Folding them
+        # into one value would drop the schedule exactly when manual mode makes
+        # it interesting, so they stay apart all the way to the entities.
+        schedule: AsekoFiltrationSchedule | None = None
+        manual = False
         b = data[37]
 
-        # byte[37] carries the mode flag for every FILTRATION_TYPES device
-        # (SALT, HOME, OXY, PROFI).  Firmware A (high nibble 0x4/0x5,
-        # serial 110128063, byte 4 = 0x02) uses exact byte values.
-        # Firmware B (high nibble 0x0/0x1/0x3, serial 110169464, byte 4 = 0x03)
-        # uses bit flags:
+        # Firmware A (high nibble 0x4/0x5, serial 110128063, byte 4 = 0x02) uses
+        # exact byte values and encodes no manual state.  Firmware B (high nibble
+        # 0x0/0x1/0x3, serial 110169464, byte 4 = 0x03) uses bit flags:
         #   bit 2 (0x04) = manual override active
         #   bit 4 (0x10) = period 1 enabled
         #   bit 5 (0x20) = period 2 enabled
+        #
         # Firmware A is a HOME encoding, and bit 0x40 only discriminates it
-        # there.  On the other FILTRATION_TYPES that bit is part of an
-        # unrelated configuration value — SALT sets it in every frame — so
-        # routing them by it sent them into a branch of HOME-specific exact
-        # values they can never match.
+        # there.  On the other FILTRATION_TYPES that bit is part of an unrelated
+        # configuration value — SALT sets it in every frame — so routing them by
+        # it sent them into a branch of HOME-specific exact values they can
+        # never match.
         is_home = unit.device_type == AsekoDeviceType.HOME
 
         if b != UNSPECIFIED_VALUE:
             if is_home and b & 0x40:
                 # Firmware A: high nibble 0x4/0x5.
                 if b == 0x43:
-                    mode = AsekoFiltrationMode.NONSTOP_24H
+                    schedule = AsekoFiltrationSchedule.NONSTOP_24H
                 elif b == 0x53:
-                    mode = AsekoFiltrationMode.TIMER_PERIOD_1_AND_2
+                    schedule = AsekoFiltrationSchedule.TIMER_PERIOD_1_AND_2
                 # 0x47 / 0x57 → transitional edit state, leave as None.
             else:
-                # Firmware B: the schedule is in bits 0x10 / 0x20 and the
-                # manual override in bit 0x04, independently of each other.
-                # 0x20 without 0x10 has never been seen — period 2 is only
-                # offered on top of period 1 — and leaves both unset.
+                # Firmware B.  0x20 without 0x10 has never been seen — period 2
+                # is only offered on top of period 1 — and leaves the schedule
+                # unset rather than guessed.
                 if (b & 0x30) == 0x00:
-                    schedule = AsekoFiltrationMode.NONSTOP_24H
+                    schedule = AsekoFiltrationSchedule.NONSTOP_24H
                 elif (b & 0x30) == 0x10:
-                    schedule = AsekoFiltrationMode.TIMER_PERIOD_1
+                    schedule = AsekoFiltrationSchedule.TIMER_PERIOD_1
                 elif (b & 0x30) == 0x30:
-                    schedule = AsekoFiltrationMode.TIMER_PERIOD_1_AND_2
+                    schedule = AsekoFiltrationSchedule.TIMER_PERIOD_1_AND_2
 
-                mode = (
-                    AsekoFiltrationMode.MANUAL
-                    if b & AsekoByte37Masks.HOME_FWB_MANUAL_OVERRIDE
-                    else schedule
-                )
+                manual = bool(b & AsekoByte37Masks.HOME_FWB_MANUAL_OVERRIDE)
+
         # Fallback for unrecognised firmware A values (Issue #135):
         # serial 110175608 (byte 4=0x03 REDOX HOME) has values 0x45/0x49/0x41
         # that don't match the known CLF HOME patterns (0x43/0x53/0x47/0x57).
-        # Transitional edit states (0x47, 0x57) have bit 1 set — keep them
-        # as None.  All other unrecognised firmware A values fall back to
-        # schedule-derived mode.
+        # Transitional edit states (0x47, 0x57) have bit 1 set — keep them as
+        # None.  All other unrecognised firmware A values fall back to the
+        # schedule bytes.
         #
-        # HOME-only, like the branch it backs up.  It derives the mode from
-        # the filtration schedule bytes, and those are reported unchanged in
-        # every mode on SALT — identical across nonstop, P1, P1&P2 and manual
-        # — so for a SALT it could only ever return one constant answer.
+        # HOME-only, like the branch it backs up.  It reads the filtration
+        # times, and those are reported unchanged in every mode on SALT —
+        # identical across nonstop, P1, P1&P2 and manual — so for a SALT it
+        # could only ever return one constant answer.
         if (
-            mode is None
+            schedule is None
             and is_home
             and b & 0x40
             and not b & AsekoByte37Masks.HOME_FWA_TRANSITIONAL_MASK
@@ -733,22 +729,20 @@ class AsekoDecoder:
             p1_set = data[56] != UNSPECIFIED_VALUE and data[57] != UNSPECIFIED_VALUE
             p2_set = data[60] != UNSPECIFIED_VALUE and data[61] != UNSPECIFIED_VALUE
             if not p1_set:
-                mode = AsekoFiltrationMode.NONSTOP_24H
+                schedule = AsekoFiltrationSchedule.NONSTOP_24H
             elif p2_set or bool(b & FILTRATION_PERIOD2_ENABLED_MASK):
-                mode = AsekoFiltrationMode.TIMER_PERIOD_1_AND_2
+                schedule = AsekoFiltrationSchedule.TIMER_PERIOD_1_AND_2
             else:
-                mode = AsekoFiltrationMode.TIMER_PERIOD_1
+                schedule = AsekoFiltrationSchedule.TIMER_PERIOD_1
 
-        if mode is None:
+        if schedule is None and not manual:
+            # Nothing readable in this frame — say so rather than guess.
             return
 
-        # Firmware A and the fallback have no manual state, so there the
-        # mode *is* the schedule.
-        if schedule is None and mode is not AsekoFiltrationMode.MANUAL:
-            schedule = mode
-
-        unit.filtration_mode = mode
         unit.filtration_schedule = schedule
+        unit.filtration_mode = (
+            AsekoFiltrationMode.MANUAL if manual else AsekoFiltrationMode.SCHEDULE
+        )
 
     @staticmethod
     def _air_temperature(data: bytes) -> float | None:

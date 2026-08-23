@@ -112,13 +112,19 @@
       "filtration_2_stop": {
         "name": "Filtration 2 Stopp"
       },
-      "filtration_mode": {
-        "name": "Filtriermodus",
+      "filtration_schedule": {
+        "name": "Filtrationsplan",
         "state": {
           "nonstop_24h": "24 h durchgehend",
           "timer_period_1": "Zeitperiode 1",
-          "timer_period_1_and_2": "Zeitperioden 1 & 2",
-          "manual": "Manueller Betriebsmodus"
+          "timer_period_1_and_2": "Zeitperioden 1 & 2"
+        }
+      },
+      "filtration_mode": {
+        "name": "Filtriermodus",
+        "state": {
+          "schedule": "Nach Plan",
+          "manual": "Handbetrieb"
         }
       },
       "pool_volume": {
