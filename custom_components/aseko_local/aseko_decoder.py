@@ -661,11 +661,6 @@ class AsekoDecoder:
         on SALT the user may equally have switched the pump on, which is why
         the pump-off override in `_fill_pump_states` is gated on HOME.
 
-        The legacy `filtration_nonstop24` boolean field is kept for
-        backwards compatibility and is derived from `filtration_mode` here.
-        It no longer has an entity of its own — `filtration_mode` reports all
-        four modes rather than just whether it is nonstop — but it stays in
-        the decoded device, and so in diagnostics.
         """
         if unit.device_type is None or unit.device_type not in FILTRATION_TYPES:
             return
@@ -754,16 +749,6 @@ class AsekoDecoder:
 
         unit.filtration_mode = mode
         unit.filtration_schedule = schedule
-        # Mirror onto the legacy boolean for backwards compatibility.  Taken
-        # from the schedule so that a manual excursion does not flip it: the
-        # unit goes quiet while in manual mode, so a False written on the way
-        # in would be the last value Home Assistant holds, and it would be
-        # answering the wrong question.
-        unit.filtration_nonstop24 = (
-            schedule == AsekoFiltrationMode.NONSTOP_24H
-            if schedule is not None
-            else None
-        )
 
     @staticmethod
     def _air_temperature(data: bytes) -> float | None:
