@@ -66,7 +66,6 @@ from .aseko_data import (
     AsekoBackwashSource,
     AsekoBackwashTrigger,
     AsekoDeviceType,
-    AsekoFiltrationMode,
 )
 
 if TYPE_CHECKING:
@@ -96,8 +95,7 @@ def _service_menu_open(device: "AsekoDevice") -> bool:
     started the cycle itself.
     """
     return (
-        device.device_type is AsekoDeviceType.SALT
-        and device.filtration_mode is AsekoFiltrationMode.SERVICE_MENU
+        device.device_type is AsekoDeviceType.SALT and device.service_menu_open is True
     )
 
 

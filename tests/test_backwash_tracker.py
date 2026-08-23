@@ -16,7 +16,6 @@ from custom_components.aseko_local.aseko_data import (
     AsekoBackwashSource,
     AsekoBackwashTrigger,
     AsekoDeviceType,
-    AsekoFiltrationMode,
 )
 from custom_components.aseko_local.backwash_tracker import (
     BackwashTracker,
@@ -750,20 +749,20 @@ async def test_clear_is_persisted():
 
 def _salt_device(
     backwash_active: bool | None,
-    mode: AsekoFiltrationMode,
+    menu: bool,
     device_type: AsekoDeviceType = AsekoDeviceType.SALT,
 ) -> Any:
     """A scheduled device that also reports a device type and filtration mode."""
     dev = _scheduled_device(backwash_active)
     dev.device_type = device_type
-    dev.filtration_mode = mode
+    dev.service_menu_open = menu
     return dev
 
 
 def _run_service_menu_cycle(
     tracker: BackwashTracker,
     start: datetime,
-    mode_during: AsekoFiltrationMode,
+    menu_during: bool,
     device_type: AsekoDeviceType = AsekoDeviceType.SALT,
 ) -> None:
     """Drive a cycle that ends with the manual flag already dropped.
@@ -771,13 +770,13 @@ def _run_service_menu_cycle(
     Mirrors the captured cycle: the unit clears bit 0x04 a frame or two
     after the valve closes, so the closing frame no longer carries it.
     """
-    tracker.update(_salt_device(True, mode_during, device_type), start)
+    tracker.update(_salt_device(True, menu_during, device_type), start)
     tracker.update(
-        _salt_device(True, mode_during, device_type),
+        _salt_device(True, menu_during, device_type),
         start + timedelta(seconds=45),
     )
     tracker.update(
-        _salt_device(False, AsekoFiltrationMode.SCHEDULE, device_type),
+        _salt_device(False, False, device_type),
         start + timedelta(seconds=90),
     )
 
@@ -792,7 +791,7 @@ def test_service_menu_during_the_window_means_manual():
     """
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
-    _run_service_menu_cycle(tracker, T0, AsekoFiltrationMode.SERVICE_MENU)
+    _run_service_menu_cycle(tracker, T0, True)
 
     assert tracker.last_trigger is AsekoBackwashTrigger.MANUAL
     assert tracker.last_manual_backwash is not None
@@ -808,14 +807,14 @@ def test_service_menu_is_latched_across_the_whole_window():
     """
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
-    tracker.update(_salt_device(True, AsekoFiltrationMode.SERVICE_MENU), T0)
+    tracker.update(_salt_device(True, True), T0)
     # the mode is already back to normal for the rest of the window
     tracker.update(
-        _salt_device(True, AsekoFiltrationMode.SCHEDULE),
+        _salt_device(True, False),
         T0 + timedelta(seconds=45),
     )
     tracker.update(
-        _salt_device(False, AsekoFiltrationMode.SCHEDULE),
+        _salt_device(False, False),
         T0 + timedelta(seconds=90),
     )
 
@@ -826,7 +825,7 @@ def test_without_the_service_menu_the_schedule_still_decides():
     """The flag only ever adds evidence; its absence changes nothing."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
-    _run_service_menu_cycle(tracker, T0, AsekoFiltrationMode.SCHEDULE)
+    _run_service_menu_cycle(tracker, T0, False)
 
     assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
     assert tracker.last_scheduled_backwash is not None
@@ -840,9 +839,7 @@ def test_service_menu_signal_does_not_apply_to_home():
     """
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
-    _run_service_menu_cycle(
-        tracker, T0, AsekoFiltrationMode.SERVICE_MENU, AsekoDeviceType.HOME
-    )
+    _run_service_menu_cycle(tracker, T0, True, AsekoDeviceType.HOME)
 
     assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
 
@@ -851,10 +848,10 @@ def test_service_menu_flag_does_not_leak_into_the_next_cycle():
     """Each window starts from a clean slate."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
-    _run_service_menu_cycle(tracker, T0, AsekoFiltrationMode.SERVICE_MENU)
+    _run_service_menu_cycle(tracker, T0, True)
     assert tracker.last_trigger is AsekoBackwashTrigger.MANUAL
 
     later = T0 + timedelta(days=SCHEDULE_EVERY_N_DAYS)
-    _run_service_menu_cycle(tracker, later, AsekoFiltrationMode.SCHEDULE)
+    _run_service_menu_cycle(tracker, later, False)
 
     assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED

@@ -543,29 +543,12 @@ SENSORS: list[AsekoSensorEntityDescription] = [
         ),
     ),
     AsekoSensorEntityDescription(
-        key="filtration_mode",
-        translation_key="filtration_mode",
-        icon="mdi:pump",
-        device_class=SensorDeviceClass.ENUM,
-        # Whether the unit is running its schedule or somebody has the
-        # settings menu open — not which schedule, that is
-        # filtration_schedule, and it stays readable either way.
-        options=[
-            "schedule",
-            "service_menu",
-        ],
-        value_fn=lambda device: (
-            device.filtration_mode.value if device.filtration_mode is not None else None
-        ),
-    ),
-    AsekoSensorEntityDescription(
         key="filtration_schedule",
         translation_key="filtration_schedule",
         icon="mdi:calendar-clock",
         device_class=SensorDeviceClass.ENUM,
-        # No "manual": that is a mode, not a schedule.  Keeps reporting
-        # what the unit is configured for while the override is on, which
-        # is the one time filtration_mode cannot say.
+        # What the unit runs when nobody is at it.  byte[37] bit 0x04 is a
+        # separate fact and lives on binary_sensor.service_menu.
         options=[
             "nonstop_24h",
             "timer_period_1",
@@ -681,6 +664,19 @@ SENSORS: list[AsekoSensorEntityDescription] = [
 # new entity_id, losing its history.  async_migrate_unique_ids rewrites them at
 # setup instead.  Old suffix → new suffix; entries are matched on the suffix
 # because the serial number prefix varies per device.
+# Sensor keys that no longer exist.  Same problem as a rename, minus the
+# destination: the registry entry outlives the description and the entity
+# sits in the UI as unavailable forever.  async_remove_retired_entities
+# deletes them at setup.  Suffixes, because the serial prefix varies.
+RETIRED_UNIQUE_ID_SUFFIXES: frozenset[str] = frozenset(
+    {
+        # byte[37] bit 0x04 is not a filtration state — it marks the unit's
+        # settings menu being open, and is now binary_sensor.service_menu.
+        # What is left of the old sensor is filtration_schedule.
+        "filtration_mode",
+    }
+)
+
 MIGRATED_UNIQUE_ID_SUFFIXES: dict[str, str] = {
     # v1.7.x → next: renamed for symmetry with last_scheduled_backwash, and
     # because the value only ever projects the *scheduled* cycle.
@@ -747,6 +743,33 @@ def async_migrate_unique_ids(
             break
 
 
+@callback
+def async_remove_retired_entities(
+    hass: HomeAssistant, config_entry: AsekoLocalConfigEntry
+) -> None:
+    """Delete registry entries for sensors that no longer exist.
+
+    Runs before the entities are added, so a retired one never gets a
+    chance to be restored as unavailable.  A no-op once there is nothing
+    left to remove.
+    """
+    registry = er.async_get(hass)
+
+    for entry in er.async_entries_for_config_entry(registry, config_entry.entry_id):
+        if entry.domain != "sensor":
+            continue
+        if not any(
+            entry.unique_id.endswith(suffix) for suffix in RETIRED_UNIQUE_ID_SUFFIXES
+        ):
+            continue
+        _LOGGER.info(
+            "Removing retired Aseko sensor %s (unique_id %s)",
+            entry.entity_id,
+            entry.unique_id,
+        )
+        registry.async_remove(entry.entity_id)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: AsekoLocalConfigEntry,
@@ -755,6 +778,7 @@ async def async_setup_entry(
     """Set up the Aseko device sensors."""
 
     async_migrate_unique_ids(hass, config_entry)
+    async_remove_retired_entities(hass, config_entry)
 
     coordinator = config_entry.runtime_data.coordinator
     devices = coordinator.get_devices() or []
