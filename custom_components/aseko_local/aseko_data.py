@@ -206,7 +206,7 @@ class AsekoDevice:
     backwash_active: bool | None = None
 
     pool_volume: int | None = None  # byte 92 & 93
-    max_filling_time: int | None = None  # byte 94
+    max_filling_time: int | None = None  # bytes 76-77, seconds
 
     air_temperature: float | None = None  # byte 23 & 24 (signed, ÷10 = °C)
 
