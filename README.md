@@ -53,6 +53,10 @@ If you own an Aseko device that is not listed above as fully supported, you can 
 
 The diagnostics file contains an annotated table of every byte in the raw data frame sent by your device.
 
+Which values are read on which model, and which of them still lack a confirming capture, is listed per model in the [support matrix](docs/support_matrix.md). It is generated from the decoder's device profiles, so it is always current; every ❓ in it is a value a diagnostics download from that model would settle.
+
+How the decoder is put together (one decoder file per value, one profile per model and firmware) is described in [Decoding by device profile](docs/decoding-by-device-profile.md).
+
 ## Installation
 
 ### Via HACS - recommended
