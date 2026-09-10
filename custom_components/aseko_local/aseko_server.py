@@ -9,6 +9,7 @@ from typing import ClassVar, Optional, Any
 from .aseko_data import AsekoDevice
 from .aseko_decoder import AsekoDecoder
 from .aseko_decoder_v8 import AsekoV8Decoder
+from .decoding.profile import ProfileMemory
 from .const import (
     DEFAULT_BINDING_ADDRESS,
     DEFAULT_BINDING_PORT,
@@ -49,6 +50,10 @@ class AsekoDeviceServer:
         self._forward_v8_cb: Optional[Callable[[bytes], Any]] = None
         self._server: Optional[asyncio.AbstractServer] = None
         self._clients: set[asyncio.StreamWriter] = set()
+        # Last confidently detected firmware variant per serial number, so a
+        # frame that cannot tell the variant apart is read the way the
+        # previous one was rather than by a fixed fallback.
+        self._profile_memory = ProfileMemory()
 
     async def start(self) -> None:
         """Start of the TCP server."""
@@ -188,7 +193,7 @@ class AsekoDeviceServer:
                 if frame_type == FrameType.V8:
                     await self._call_forward_v8_cb(frame)
                     try:
-                        device = AsekoV8Decoder.decode(frame)
+                        device = AsekoV8Decoder.decode(frame, self._profile_memory)
                         await self._call_v8_raw_sink(frame)
                     except ValueError as exc:
                         _LOGGER.error(
@@ -240,7 +245,7 @@ class AsekoDeviceServer:
                         )
                         break  # leave loop → connection will be closed
 
-                    device = AsekoDecoder.decode(frame)
+                    device = AsekoDecoder.decode(frame, self._profile_memory)
 
                 except ValueError as e:
                     _LOGGER.error(

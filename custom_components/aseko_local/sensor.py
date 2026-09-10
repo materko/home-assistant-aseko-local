@@ -27,7 +27,6 @@ from homeassistant.helpers.typing import StateType
 
 from . import AsekoLocalConfigEntry
 from .aseko_data import (
-    ACTUATOR_MASKS,
     AsekoDevice,
     AsekoElectrolyzerDirection,
 )
@@ -68,20 +67,7 @@ class AsekoConsumptionSensorEntityDescription(SensorEntityDescription):
 
 # ---------- Consumption sensors ----------
 
-# Maps pump_key to the corresponding field name in AsekoActuatorMasks.
-# None means the pump is not yet mapped (e.g. pH+) and sensors are skipped.
-PUMP_MASK_FIELD: dict[str, str | None] = {
-    "cl": "cl",
-    "ph_minus": "ph_minus",
-    "ph_plus": None,  # byte position unknown — disabled until confirmed
-    "algicide": "algicide",
-    "floc": "flocculant",
-    "oxy": "oxy",  # byte position unconfirmed — enabled once mask is set in ACTUATOR_MASKS
-}
-
-# Maps pump_key to the corresponding *_pump_running attribute on AsekoDevice.
-# Used as secondary filter: if the decoder left the attribute as None, the pump
-# is not present on this specific device (e.g. algicide vs flocculant share bit 0x20).
+# Maps pump_key to the corresponding *_pump_running field on AsekoDevice.
 PUMP_RUNNING_ATTR: dict[str, str] = {
     "cl": "cl_pump_running",
     "ph_minus": "ph_minus_pump_running",
@@ -90,6 +76,25 @@ PUMP_RUNNING_ATTR: dict[str, str] = {
     "floc": "floc_pump_running",
     "oxy": "oxy_pump_running",
 }
+
+
+def device_has_pump(device: AsekoDevice, pump_key: str) -> bool:
+    """Return True if this unit has the given chemical pump.
+
+    Two conditions, both answered by the decoder rather than by byte masks.
+    The pump's running-state field must be one this model reads at all
+    (``device.features``), and it must currently hold a value: a model can
+    read a field and still leave it None -- SALT's shared third port is
+    algicide *or* flocculant, and only the chemical the port is configured
+    for gets a state.  A pump nobody has mapped yet (pH+) is in no profile's
+    feature list and is skipped by the first check.
+    """
+    running_attr = PUMP_RUNNING_ATTR[pump_key]
+    return (
+        running_attr in device.features
+        and getattr(device, running_attr, None) is not None
+    )
+
 
 CONSUMPTION_SENSORS: list[AsekoConsumptionSensorEntityDescription] = [
     AsekoConsumptionSensorEntityDescription(
@@ -208,12 +213,11 @@ CONSUMPTION_SENSORS: list[AsekoConsumptionSensorEntityDescription] = [
 def _has_backwash(device: AsekoDevice) -> bool:
     """Return True if the device has a backwash valve.
 
-    ``backwash_active`` is the decoder's presence marker for the backwash
-    output: it is left as None on device types without one (NET), and is a
-    real bool on every type that has one, whether or not the valve is
-    currently open.  See ``AsekoDecoder._fill_backwash_active`` and Issue #129.
+    The profile lists ``backwash_active`` only for models with a backwash
+    output (NET has none), so its presence in ``device.features`` is the
+    answer, whether or not the valve is currently open.  See Issue #129.
     """
-    return device.backwash_active is not None
+    return "backwash_active" in device.features
 
 
 SENSORS: list[AsekoSensorEntityDescription] = [
@@ -857,18 +861,9 @@ def _build_sensor_entities(
                 entity.unique_id,
             )
 
-        device_masks = (
-            ACTUATOR_MASKS.get(device.device_type) if device.device_type else None
-        )
         for description in CONSUMPTION_SENSORS:
-            mask_field = PUMP_MASK_FIELD[description.pump_key]
-            if mask_field is None:
-                continue  # pump not yet mapped (e.g. ph_plus)
-            if device_masks is None or getattr(device_masks, mask_field, 0) == 0:
-                continue  # pump not present on this device type
-            running_attr = PUMP_RUNNING_ATTR.get(description.pump_key)
-            if running_attr and getattr(device, running_attr, None) is None:
-                continue  # decoder determined pump absent (e.g. algicide vs floc share bit 0x20)
+            if not device_has_pump(device, description.pump_key):
+                continue
             entity = AsekoConsumptionSensorEntity(device, coordinator, description)
             entities.append(entity)
             _LOGGER.debug(

@@ -16,6 +16,7 @@ from custom_components.aseko_local.aseko_data import (
     AsekoBackwashSource,
     AsekoBackwashTrigger,
     AsekoDeviceType,
+    AsekoProfileFlag,
 )
 from custom_components.aseko_local.backwash_tracker import (
     BackwashTracker,
@@ -752,9 +753,20 @@ def _salt_device(
     menu: bool,
     device_type: AsekoDeviceType = AsekoDeviceType.SALT,
 ) -> Any:
-    """A scheduled device that also reports a device type and filtration mode."""
+    """A scheduled device that also reports the settings-menu bit.
+
+    The tracker never looks at the device type; what it reads is the profile
+    flag saying the bit marks presence only, which the SALT profile carries
+    and the HOME ones do not.  The type is kept as the test's way of naming
+    which of the two it is modelling.
+    """
     dev = _scheduled_device(backwash_active)
     dev.device_type = device_type
+    dev.flags = (
+        frozenset({AsekoProfileFlag.MENU_BIT_IS_PRESENCE_ONLY})
+        if device_type is AsekoDeviceType.SALT
+        else frozenset()
+    )
     dev.service_menu_open = menu
     return dev
 

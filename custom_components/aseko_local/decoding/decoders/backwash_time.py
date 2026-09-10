@@ -1,0 +1,29 @@
+"""Time of day the scheduled backwash starts.  v7: bytes 69-70 (hour, minute).
+
+Backwash schedule, bytes 68-71, on every model with a backwash valve.  NET
+(Aqua NET) is a measurement and dosing unit with neither a filter nor a
+backwash valve; before profiles, reading these bytes on every model surfaced
+phantom backwash entities from a NET frame carrying non-0xFF data there
+(Issue #129), so no NET profile lists them.
+"""
+
+from __future__ import annotations
+
+from datetime import time
+from typing import TYPE_CHECKING
+
+from ..feature import Feature
+from ..frame import decode_time
+
+if TYPE_CHECKING:
+    from ...aseko_data import AsekoDevice
+    from ..frame import V7Frame
+
+
+class BackwashTime(Feature):
+    """v7: bytes 69-70."""
+
+    field = "backwash_time"
+
+    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> time | None:
+        return decode_time(frame[69:71])

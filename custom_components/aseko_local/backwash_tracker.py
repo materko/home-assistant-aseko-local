@@ -20,10 +20,11 @@ ways.  Consumers should treat ``last_backwash`` as reliable and the
 scheduled/manual split (and the ``next_scheduled_backwash`` projection built
 on it) as an estimate.
 
-SALT is the exception: byte[37] bit 0x04 marks its settings menu being open,
-and that is the menu a backwash is started by hand from — so a cycle that
-runs while the bit is set is manual as a matter of observation rather than
-inference.  See ``_service_menu_open``.
+Units whose profile carries ``AsekoProfileFlag.MENU_BIT_IS_PRESENCE_ONLY``
+(SALT today) are the exception: byte[37] bit 0x04 marks their settings menu
+being open, and that is the menu a backwash is started by hand from — so a
+cycle that runs while the bit is set is manual as a matter of observation
+rather than inference.  See ``_service_menu_open``.
 
 Nothing is guessed before the first observation, though: every value starts out
 as ``None``: until a cycle has actually been seen, the honest answer is
@@ -65,7 +66,7 @@ from homeassistant.helpers.storage import Store
 from .aseko_data import (
     AsekoBackwashSource,
     AsekoBackwashTrigger,
-    AsekoDeviceType,
+    AsekoProfileFlag,
 )
 
 if TYPE_CHECKING:
@@ -85,17 +86,21 @@ def _service_menu_open(device: "AsekoDevice") -> bool:
     opened until ~20 s after it closed.  Somebody was standing at the menu
     the button lives on — observed, not inferred from the clock.
 
-    Restricted to SALT because the same bit is documented differently on
-    HOME firmware B (Issue #133): a standing manual override that forces the
-    pump off and can stay set indefinitely.  Honouring it there would
-    misclassify every scheduled cycle that ran while the override was on.
+    Honoured only where the device's profile says the bit means presence and
+    nothing more (``AsekoProfileFlag.MENU_BIT_IS_PRESENCE_ONLY``, SALT
+    today).  On HOME firmware B (Issue #133) the same bit is a standing
+    manual override that forces the pump off and can stay set indefinitely;
+    honouring it there would misclassify every scheduled cycle that ran
+    while the override was on, so that profile does not carry the flag.
+    The tracker itself knows no models.
 
     The bit is only ever *additional* evidence.  It is never used to call a
     cycle scheduled: nobody being at the unit is no proof that the unit
     started the cycle itself.
     """
     return (
-        device.device_type is AsekoDeviceType.SALT and device.service_menu_open is True
+        AsekoProfileFlag.MENU_BIT_IS_PRESENCE_ONLY in device.flags
+        and device.service_menu_open is True
     )
 
 

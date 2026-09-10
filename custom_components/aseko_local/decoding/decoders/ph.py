@@ -1,0 +1,29 @@
+"""Measured pH."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from ...aseko_data import AsekoProbeType
+from ..feature import Feature
+from .configuration import Configuration
+
+if TYPE_CHECKING:
+    from ...aseko_data import AsekoDevice
+    from ..frame import V7Frame, V8Frame
+
+
+class Ph(Feature):
+    """v7: bytes 14-15 / 100, when a pH probe is installed.  v8: ains[0] / 100."""
+
+    field = "ph"
+    depends_on = (Configuration,)
+
+    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> float | None:
+        if AsekoProbeType.PH not in device.configuration:
+            return None
+        return frame.word(14) / 100
+
+    def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> float | None:
+        raw = frame.value("ains", 0)
+        return raw / 100 if raw is not None else None

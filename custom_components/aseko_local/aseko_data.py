@@ -1,16 +1,17 @@
 """Data model for Aseko pool devices.
 
 This module defines the **protocol-agnostic target schema** (``AsekoDevice``)
-that the entity layer (sensors, binary sensors, buttons, …) consumes.  It
+that the entity layer (sensors, binary sensors, buttons, ...) consumes.  It
 also defines the device-type enum, the probe-type enum, the electrolyser
-direction enum, and the filtration-mode enum.
+direction enum, the filtration-schedule enum, and the two enums that describe
+*how* a device was decoded: its firmware variant and the semantic flags its
+profile carries.
 
-Decoder-specific byte-level knowledge (v7 ``byte[29]`` masks, v8 ``fncs:``
-capability codes, ``byte[37]`` routing constants, etc.) lives in
-``aseko_v7_helpers.py`` and ``aseko_v8_helpers.py`` next to the corresponding
-decoder.  The v7 constants ``AsekoActuatorMasks``, ``ACTUATOR_MASKS``, and
-``AsekoThirdPumpSlot`` are re-exported at the bottom of this file for
-backwards compatibility with existing import sites.
+Byte-level knowledge lives in ``decoding/``: one decoder file per field in
+``decoding/decoders/``, and one profile per (protocol, model, firmware) in
+``decoding/profiles/``.  Nothing in this module knows a byte offset, and
+nothing outside ``decoding/`` should either: the entity layer asks
+``AsekoDevice.features`` and ``AsekoDevice.flags`` instead.
 """
 
 from dataclasses import dataclass, field, fields
@@ -28,6 +29,45 @@ class AsekoDeviceType(Enum):
     OXY = "ASIN AQUA Oxygen"
     PROFI = "ASIN AQUA Profi"
     SALT = "ASIN AQUA Salt"
+
+
+class AsekoFirmwareVariant(Enum):
+    """A firmware revision that changes how a model's frame must be read.
+
+    The frame carries no firmware number, so a variant is inferred from the
+    frame's content and only exists where two encodings of the same bytes
+    have actually been observed.  Today that is HOME only:
+
+    HOME_A -- ``byte[37]`` high nibble ``0x4`` / ``0x5`` (serials 110128063,
+        110175608): exact byte values for the filtration schedule, plus the
+        heating-control (``0x08``) and antifreeze (``0x80``) master enables.
+    HOME_B -- ``byte[37]`` high nibble ``0x0`` / ``0x1`` / ``0x3`` (serial
+        110169464, Issue #133): bit flags -- ``0x10`` period 1, ``0x20``
+        period 2, ``0x04`` settings menu open.
+
+    Discriminated by bit ``0x40`` of ``byte[37]``.  See
+    ``decoding.profile.detect_profile``.
+    """
+
+    HOME_A = "home_a"
+    HOME_B = "home_b"
+
+
+class AsekoProfileFlag(Enum):
+    """Semantic facts about a model that are not values in the frame.
+
+    A flag says how an already-decoded value may be *used*, which is model
+    knowledge and therefore belongs on the profile.  Consumers check
+    ``AsekoDevice.flags`` instead of branching on ``device_type``.
+    """
+
+    # byte[37] bit 0x04 (``service_menu_open``) marks a person standing at
+    # the unit's settings menu and nothing more.  Where set, a backwash that
+    # runs while the bit is on is manual as a matter of observation.  Where
+    # not set (HOME firmware B, Issue #133) the same bit is a standing pump
+    # override that can stay on indefinitely, so it proves nothing about who
+    # started a backwash.  Read by ``backwash_tracker``.
+    MENU_BIT_IS_PRESENCE_ONLY = "menu_bit_is_presence_only"
 
 
 class AsekoProbeType(Enum):
@@ -103,29 +143,24 @@ class AsekoFiltrationSchedule(Enum):
     TIMER_PERIOD_1_AND_2 = "timer_period_1_and_2"
 
 
-# ---------------------------------------------------------------------------
-# Re-exports for backwards compatibility
-# ---------------------------------------------------------------------------
-#
-# ``AsekoActuatorMasks``, ``ACTUATOR_MASKS``, and ``AsekoThirdPumpSlot`` are
-# **v7-decoder specific** (byte[29] bit masks, byte[37] routing constants).
-# They used to live in this module, but they belong in ``aseko_v7_helpers.py``
-# next to the v7 decoder.  We re-export them here so existing import sites
-# (``aseko_decoder.py``, ``button.py``, ``sensor.py``, …) keep working without
-# a global rename.  New code should import them from ``aseko_v7_helpers`` directly.
-from .aseko_v7_helpers import (  # noqa: E402, F401
-    ACTUATOR_MASKS,
-    AsekoActuatorMasks,
-    AsekoByte37Masks,
-    AsekoThirdPumpSlot,
-)
-
-
 @dataclass
 class AsekoDevice:
     """Holds data received from Aseko device."""
 
-    device_type: AsekoDeviceType | None = None  # byte 4-7?
+    device_type: AsekoDeviceType | None = None  # v7 byte[4], v8 header f2
+    # How this device was decoded.  All three come from the profile that
+    # ``decoding.profile.detect_profile`` picked for the frame, and they are
+    # what the entity layer consults instead of byte masks or device types:
+    #
+    # firmware_variant -- None where the model has a single known encoding,
+    #     or where the frame did not allow the variant to be told apart.
+    # features -- names of the AsekoDevice fields the profile decodes at all.
+    #     A field not in here is one this model does not have; a field in
+    #     here that reads None is one whose value is unknown right now.
+    # flags -- semantic facts about the model, see ``AsekoProfileFlag``.
+    firmware_variant: AsekoFirmwareVariant | None = None
+    features: frozenset[str] = field(default_factory=frozenset)
+    flags: frozenset[AsekoProfileFlag] = field(default_factory=frozenset)
     configuration: set[AsekoProbeType] = field(default_factory=set)
 
     serial_number: int | None = None  # byte 0 - 4
