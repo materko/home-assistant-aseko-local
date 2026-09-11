@@ -7,7 +7,8 @@ A **profile** is one (protocol, model, firmware) combination.  A **feature** is 
 | Mark | Meaning |
 |---|---|
 | ✅ | read on this model, checked against the unit display or the Aseko Live app |
-| ❓ | read on this model, but not yet confirmed by a capture — **a diagnostics dump would settle it** |
+| 👁 | seen repeatedly in captures from a real unit with consistent, plausible values, but not compared with the unit display or the app — **a glance at the unit would settle it** |
+| ❓ | read on this model, but never seen with a real value in any capture — **a diagnostics dump would settle it** |
 | — | this model does not have the value, so no entity is created for it |
 | `decode_…` | the profile uses this reading instead of the protocol default |
 
@@ -28,14 +29,14 @@ Two further profiles exist that no unit is meant to decode with and that the tab
 | `backwash_duration` | ❓ | ❓ | ✅ | ❓ | — | ❓ |
 | `backwash_every_n_days` | ❓ | ❓ | ✅ | ❓ | — | ❓ |
 | `backwash_time` | ❓ | ❓ | ✅ | ❓ | — | ❓ |
-| `cl_free` | ❓ | ❓ | ❓ | — | ✅ | ❓ |
-| `cl_free_mv` | ❓ | ❓ | ❓ | — | ✅ | ❓ |
+| `cl_free` | ❓ | ❓ | 👁 | — | ✅ | ❓ |
+| `cl_free_mv` | ❓ | ❓ | 👁 | — | ✅ | ❓ |
 | `cl_pump_running` | ❓ | ❓ | — | — | ✅ `decode_v7_net` | ❓ |
 | `configuration` | ✅ `decode_v7_by_unit_type_byte` | ✅ `decode_v7_by_unit_type_byte` | ✅ | ✅ `decode_v7_ph_and_oxy` | ✅ | ❓ `decode_v7_without_dose` |
 | `delay_after_dose` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `delay_after_startup` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `electrolyzer_active` | — | — | ✅ | — | — | — |
-| `electrolyzer_direction` | — | — | ❓ | — | — | — |
+| `electrolyzer_direction` | — | — | 👁 | — | — | — |
 | `electrolyzer_power` | — | — | ✅ | — | — | — |
 | `filtration_pump_running` | ❓ | ✅ `decode_v7_menu_override` | ✅ | ✅ | — | ❓ |
 | `filtration_schedule` | ✅ `decode_v7_home_a` | ✅ | ✅ | ❓ | — | ❓ |
@@ -50,34 +51,34 @@ Two further profiles exist that no unit is meant to decode with and that the tab
 | `max_filling_time` | ❓ | ❓ | ✅ | ❓ | — | — |
 | `oxy_pump_running` | — | — | — | ✅ | — | — |
 | `ph` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `ph_minus_concentration` | ✅ | ✅ | ❓ | ❓ | — | ❓ |
+| `ph_minus_concentration` | ✅ | ✅ | 👁 | ❓ | — | ❓ |
 | `ph_minus_pump_running` | ❓ | ❓ | ❓ | ✅ | ✅ `decode_v7_net` | ❓ |
 | `pool_volume` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `redox` | ❓ | ❓ | ❓ | — | ❓ | ❓ |
+| `redox` | ❓ | ❓ | 👁 | — | ❓ | ❓ |
 | `required_algicide` | ✅ | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | ❓ `decode_v7_routed_by_byte37` | — |
 | `required_cl_dose` | ❓ | ❓ | ❓ | — | ❓ | ❓ |
-| `required_cl_free` | ❓ | ❓ | ❓ | — | ❓ | ❓ |
+| `required_cl_free` | ❓ | ❓ | 👁 | — | ❓ | ❓ |
 | `required_floc` | ✅ | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | ❓ `decode_v7_routed_by_byte37` | — |
 | `required_oxy_dose` | — | — | — | ✅ | — | — |
 | `required_ph` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `required_redox` | ❓ | ❓ | ❓ | — | ❓ | — |
-| `required_water_temperature` | ❓ | ❓ | ❓ | ❓ | ❓ | ❓ |
+| `required_redox` | ❓ | ❓ | 👁 | — | ❓ | — |
+| `required_water_temperature` | ❓ | ❓ | 👁 | ❓ | ❓ | ❓ |
 | `salinity` | — | — | ✅ | — | — | — |
 | `serial_number` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `service_menu_open` | — | ✅ | ✅ | ❓ | — | ❓ |
-| `start1` | ❓ | ❓ | ❓ | ❓ | — | ❓ |
-| `start2` | ❓ | ❓ | ❓ | ❓ | — | ❓ |
-| `stop1` | ❓ | ❓ | ❓ | ❓ | — | ❓ |
-| `stop2` | ❓ | ❓ | ❓ | ❓ | — | ❓ |
+| `start1` | ❓ | ❓ | 👁 | ❓ | — | ❓ |
+| `start2` | ❓ | ❓ | 👁 | ❓ | — | ❓ |
+| `stop1` | ❓ | ❓ | 👁 | ❓ | — | ❓ |
+| `stop2` | ❓ | ❓ | 👁 | ❓ | — | ❓ |
 | `timestamp` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `vsp_pump_running` | ✅ | ✅ | ❓ | ❓ | — | ❓ |
+| `vsp_pump_running` | ✅ | ✅ | 👁 | ❓ | — | ❓ |
 | `water_filling_active` | ✅ | ✅ | ❓ | ❓ | — | ❓ |
 | `water_flow_to_probes` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `water_level` | ✅ | ✅ | ❓ | ❓ | — | ❓ |
-| `water_level_filling_off` | ✅ | ✅ | ❓ | ❓ | — | ❓ |
-| `water_level_filling_on` | ✅ | ✅ | ❓ | ❓ | — | ❓ |
-| `water_level_high_alarm` | ✅ | ✅ | ❓ | ❓ | — | ❓ |
-| `water_level_low_alarm` | ✅ | ✅ | ❓ | ❓ | — | ❓ |
+| `water_level` | ✅ | ✅ | 👁 | ❓ | — | ❓ |
+| `water_level_filling_off` | ✅ | ✅ | 👁 | ❓ | — | ❓ |
+| `water_level_filling_on` | ✅ | ✅ | 👁 | ❓ | — | ❓ |
+| `water_level_high_alarm` | ✅ | ✅ | 👁 | ❓ | — | ❓ |
+| `water_level_low_alarm` | ✅ | ✅ | 👁 | ❓ | — | ❓ |
 | `water_temperature` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ## v8
@@ -161,30 +162,12 @@ Every entry below is read today without a confirming capture.  If you own one of
 
 ### v7 SALT
 
-- `alarm_rapid_ph_change` — unconfirmed: byte[13] 0x08 from error_codes.md, no capture
-- `cl_free` — no evidence recorded
-- `cl_free_mv` — no evidence recorded
-- `electrolyzer_direction` — tentative: 0x50 = left from a single Apr 2 frame
-- `flowrate_chlor` — unverified: byte[99], read as-is
-- `heating_active` — assumed: byte[29] 0x04 per JS-DE-Tech relay_byte bit 2
-- `ph_minus_concentration` — assumed: byte[112], confirmed on HOME only
-- `ph_minus_pump_running` — unconfirmed: byte[29] 0x80, no frame with the pump running
-- `redox` — no evidence recorded
-- `required_cl_dose` — no evidence recorded
-- `required_cl_free` — no evidence recorded
-- `required_redox` — no evidence recorded
-- `required_water_temperature` — unverified: byte[55], read as-is
-- `start1` — no evidence recorded
-- `start2` — no evidence recorded
-- `stop1` — no evidence recorded
-- `stop2` — no evidence recorded
-- `vsp_pump_running` — assumed: byte[22] 0x08, confirmed on HOME only
-- `water_filling_active` — assumed: byte[29] 0x02, confirmed on HOME only
-- `water_level` — assumed: byte[27], confirmed on HOME only
-- `water_level_filling_off` — no evidence recorded
-- `water_level_filling_on` — no evidence recorded
-- `water_level_high_alarm` — no evidence recorded
-- `water_level_low_alarm` — no evidence recorded
+- `alarm_rapid_ph_change` — unconfirmed: byte[13] 0x08 from error_codes.md; never set in the own SALT dumps, 37 frames 2026-08-08..28
+- `flowrate_chlor` — unverified: byte[99]; 0xFF in every frame of the own SALT dumps, 37 frames 2026-08-08..28 (no chlorine pump on a SALT)
+- `heating_active` — assumed: byte[29] 0x04 per JS-DE-Tech relay_byte bit 2; never set in the own SALT dumps, 37 frames 2026-08-08..28
+- `ph_minus_pump_running` — unconfirmed: byte[29] 0x80; the bit was never set in the own SALT dumps, 37 frames 2026-08-08..28
+- `required_cl_dose` — unverified: byte[53] for a DOSE unit; neither unit of the own SALT dumps, 37 frames 2026-08-08..28 is one
+- `water_filling_active` — assumed: byte[29] 0x02, confirmed on HOME only; never set in the own SALT dumps, 37 frames 2026-08-08..28
 
 ### v7 OXY
 
@@ -272,6 +255,31 @@ Every entry below is read today without a confirming capture.  If you own one of
 - `configuration` — assumed: same layout as NET; header type 105 only tells the model
 - `flowrate_chlor` — assumed: not transmitted, 60 ml/min taken for consumption
 - `flowrate_ph_minus` — assumed: not transmitted, 60 ml/min taken for consumption
+
+## Seen, not compared
+
+Values captured from real units that nobody has yet checked against the unit display or the app.  If you own one of these units, comparing the entity with what the unit shows is all it takes.
+
+### v7 SALT
+
+- `cl_free` — observed: bytes 16-17 = 0.77 and 0.93 mg/l on the CLF unit (serial 110194590) of the own SALT dumps, 37 frames 2026-08-08..28
+- `cl_free_mv` — observed: bytes 20-21 = 6656 and 6934 mV on the CLF unit of the own SALT dumps, 37 frames 2026-08-08..28
+- `electrolyzer_direction` — observed: left, right and waiting all seen (own SALT dumps, 37 frames 2026-08-08..28); polarity not compared with the display
+- `ph_minus_concentration` — observed: byte[112] = 14 then 15 % in the own SALT dumps, 37 frames 2026-08-08..28; not compared with the setting
+- `redox` — observed: bytes 16-19 = 593..670 mV on the REDOX unit of the own SALT dumps, 37 frames 2026-08-08..28; not compared with the display
+- `required_cl_free` — observed: byte[53] / 10 = 0.9 mg/l on the CLF unit of the own SALT dumps, 37 frames 2026-08-08..28
+- `required_redox` — observed: byte[53] * 10 = 670 mV on the REDOX unit of the own SALT dumps, 37 frames 2026-08-08..28
+- `required_water_temperature` — observed: byte[55] = 25 C in every frame of the own SALT dumps, 37 frames 2026-08-08..28; not compared with the setting
+- `start1` — observed: bytes 56-57 changed 08:00 -> 09:00 with the timer settings during the own SALT dumps, 37 frames 2026-08-08..28
+- `start2` — observed: bytes 60-61 changed 18:00 -> 18:10 with the timer settings during the own SALT dumps, 37 frames 2026-08-08..28
+- `stop1` — observed: bytes 58-59 changed 18:05 / 19:00 / 21:35 with the timer settings during the own SALT dumps, 37 frames 2026-08-08..28
+- `stop2` — observed: bytes 62-63 changed 22:00 -> 23:55 with the timer settings during the own SALT dumps, 37 frames 2026-08-08..28
+- `vsp_pump_running` — observed: byte[22] toggles 0x10 / 0x18 across the own SALT dumps, 37 frames 2026-08-08..28; not compared with the pump
+- `water_level` — observed: byte[27] 14..25 cm across the own SALT dumps, 37 frames 2026-08-08..28; not compared with the display
+- `water_level_filling_off` — observed: byte[104] = 25 and 35 cm on the two units of the own SALT dumps, 37 frames 2026-08-08..28
+- `water_level_filling_on` — observed: byte[103] = 10 and 33 cm on the two units of the own SALT dumps, 37 frames 2026-08-08..28
+- `water_level_high_alarm` — observed: byte[105] = 40 and 56..73 cm on the two units of the own SALT dumps, 37 frames 2026-08-08..28
+- `water_level_low_alarm` — observed: byte[102] = 5 and 31 cm on the two units of the own SALT dumps, 37 frames 2026-08-08..28; thresholds ordered low < on < off < high
 
 ## Not mapped on any protocol
 

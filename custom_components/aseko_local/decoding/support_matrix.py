@@ -18,6 +18,7 @@ from .profile import Profile
 from .profiles import ALL_PROFILES, FALLBACK_PROFILES
 
 CONFIRMED = "✅"
+OBSERVED = "👁"
 UNSURE = "❓"
 ABSENT = "—"
 
@@ -33,6 +34,8 @@ def _status(profile: Profile, feature: type[Feature]) -> str:
     word = evidence.split(":", 1)[0].strip().lower()
     if any(word.startswith(prefix) for prefix in _CONFIRMED_PREFIXES):
         mark = CONFIRMED
+    elif word.startswith("observed"):
+        mark = OBSERVED
     else:
         mark = UNSURE
     variant = profile.overrides.get(feature)
@@ -48,6 +51,26 @@ def _profiles_for(protocol: Protocol) -> list[Profile]:
 def _features_for(protocol: Protocol) -> list[type[Feature]]:
     listed = {f for p in _profiles_for(protocol) for f in p.features}
     return [f for f in ALL_FEATURES if f in listed]
+
+
+def _help_section(w, mark: str) -> None:
+    """List, per real profile, the features whose status carries ``mark``."""
+    for profile in ALL_PROFILES:
+        if profile in FALLBACK_PROFILES:
+            continue
+        listed = [
+            f
+            for f in ALL_FEATURES
+            if f in profile.features and _status(profile, f).startswith(mark)
+        ]
+        if not listed:
+            continue
+        w(f"### {profile.name}")
+        w("")
+        for feature in listed:
+            evidence = profile.evidence.get(feature, "no evidence recorded")
+            w(f"- `{feature.field}` — {evidence}")
+        w("")
 
 
 def render() -> str:
@@ -74,7 +97,10 @@ def render() -> str:
         f"| {CONFIRMED} | read on this model, checked against the unit display or the Aseko Live app |"
     )
     w(
-        f"| {UNSURE} | read on this model, but not yet confirmed by a capture — **a diagnostics dump would settle it** |"
+        f"| {OBSERVED} | seen repeatedly in captures from a real unit with consistent, plausible values, but not compared with the unit display or the app — **a glance at the unit would settle it** |"
+    )
+    w(
+        f"| {UNSURE} | read on this model, but never seen with a real value in any capture — **a diagnostics dump would settle it** |"
     )
     w(
         f"| {ABSENT} | this model does not have the value, so no entity is created for it |"
@@ -116,22 +142,17 @@ def render() -> str:
         "visible on the unit or in the Aseko Live app is exactly what is needed."
     )
     w("")
-    for profile in ALL_PROFILES:
-        if profile in FALLBACK_PROFILES:
-            continue
-        unsure = [
-            f
-            for f in ALL_FEATURES
-            if f in profile.features and _status(profile, f).startswith(UNSURE)
-        ]
-        if not unsure:
-            continue
-        w(f"### {profile.name}")
-        w("")
-        for feature in unsure:
-            evidence = profile.evidence.get(feature, "no evidence recorded")
-            w(f"- `{feature.field}` — {evidence}")
-        w("")
+    _help_section(w, UNSURE)
+
+    w("## Seen, not compared")
+    w("")
+    w(
+        "Values captured from real units that nobody has yet checked against the "
+        "unit display or the app.  If you own one of these units, comparing the "
+        "entity with what the unit shows is all it takes."
+    )
+    w("")
+    _help_section(w, OBSERVED)
 
     unmapped = [f for f in ALL_FEATURES if not f.protocols()]
     if unmapped:
