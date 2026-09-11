@@ -6,7 +6,7 @@
 |---|---|
 | Model | ASIN AQUA Salt |
 | Firmware | 5.x – 7.x |
-| Source | PR #87 live captures 2026-04-04; earlier frames 2026-04-02, 2026-04-03; Issue #84 |
+| Source | PR #87 live captures 2026-04-04; earlier frames 2026-04-02, 2026-04-03; Issue #84; maintainer's units 110195262 and 110194590, 37 diagnostics downloads Aug 2026 and an app + display review 2026-09-11 |
 | byte[4] | `0x0E` (Redox) or `0x0D` (CLF) or `0x0f` (DOSE) → `(data[4] & 0x0C) == 0x0C` → **SALT** |
 
 ---
@@ -323,6 +323,57 @@ AsekoDeviceType.SALT: AsekoActuatorMasks(
 
 ---
 
+## Ground truth 2026-09-11 — Aseko Live app and unit display vs decoded frames
+
+Serial 110195262 (REDOX probe). Settings compared against the last captured
+frame (2026-08-28); the settings had not changed in between. Live values are
+from different days and are listed only to show the encoding, not the number.
+
+| Field | Decoded (frame 2026-08-28) | App / display 2026-09-11 | Match |
+|---|---|---|---|
+| `required_redox` | 670 mV | Required values: Redox 670 mV | ✓ |
+| `required_ph` | 7.2 | Required values: pH 7.2 | ✓ |
+| `required_algicide` (byte[54], byte[37] bit 7 set) | 5 ml/m³/day | Algicide 5 ml/m³/day | ✓ |
+| `required_water_temperature` | 25 °C | Water temp. `---` (Heating control OFF) | ⚠ byte[55] keeps the setpoint while the app hides it |
+| `pool_volume` | 40 m³ | Pool volume 40 m³ | ✓ |
+| `delay_after_startup` | 480 s | Delay time at startup 8 min | ✓ |
+| `delay_after_dose` | 240 s | Delay time after dose 4 min / display "4 min Delay time" | ✓ |
+| `backwash_every_n_days` | 15 | Backwash every 15 days | ✓ |
+| `backwash_time` | 08:30 | Backwash starts at 08:30 | ✓ |
+| `backwash_duration` | 100 s | Backwash takes 01:40 min | ✓ |
+| `water_level_high_alarm` | 73 cm | 73 cm High level – Alarm | ✓ |
+| `water_level_filling_off` | 25 cm | 25 cm Filling OFF – Level OK | ✓ |
+| `water_level_filling_on` | 10 cm | 10 cm Filling ON | ✓ |
+| `water_level_low_alarm` | 5 cm | 5 cm Low level – Alarm | ✓ |
+| `max_filling_time` (bytes 76–77) | 1140 s | Max filling time 19 min / display "19 min Max. time of filling" | ✓ |
+| `ph_minus_concentration` (byte[112]) | 15 % | display "15 % Concentration pH−" | ✓ |
+| `filtration_schedule` (byte[37] = 0xD3) | timer, period 1 | display: Timer filtration ON, Time period 1 ●, Time period 2 ✕, NONSTOP ○ | ✓ |
+| `filtration_start1` / `filtration_stop1` | 08:00 / 21:35 | Time period 1 8:00 → 21:35; app Filtration time 1 08:00 / 21:35 | ✓ |
+| `filtration_start2` / `filtration_stop2` | 18:10 / 23:55 | Time period 2 18:10 → 23:55 (disabled, still transmitted) | ✓ (Issue #133 behaviour) |
+| `configuration` | REDOX | display "Choose the type of probe: Redox probe RX" | ✓ |
+| `electrolyzer_direction` / `electrolyzer_power` | waiting / 0 | display "Power 0 g/h WAITING"; app "STOP WAITING" | ✓ |
+| `salinity` | 4.0 kg/m³ (Aug) | 4.4 kg/m³ (Sep) | ✓ encoding; different day |
+| `air_temperature` | None (open-circuit value) | display "air OFF", app "Air ---" | ✓ no probe → no value |
+| `vsp_pump_running` (byte[22] bit 0x08) | False | display "VS Pump OFF" | ✓; the second unit (110194590) has the bit set |
+| `heating_active` | False | display "Heating control OFF", app "Heating ---" | consistent; the running state itself never captured |
+| `water_level` | 31 cm (Aug) | 30 cm, "Filling OFF – Level OK" | ✓ encoding; the status text is derived from the thresholds |
+
+### Visible on the unit or in the app, not decoded
+
+| App / display item | Where it might live | What would settle it |
+|---|---|---|
+| Safety functions: **Max. number of doses of pH = 20** | `byte[115]` = 20 on this unit, **40** on serial 110194590, 20 on the HOME frame in `home_device_analysis.md` (listed there as unknown) | change the setting 20 → 19 on the unit, take a diagnostics download, expect `byte[115]` = 19 |
+| Timeline error **"Low pH under 6,7 – increase pH"** | the HOME frame with pH 6.29 in `home_device_analysis.md` carries `byte[13]` = 0x28, i.e. bits 0x08 and 0x20 while the pH was under 6.7; the decoder currently calls 0x08 "rapid pH change" on the strength of error_codes.md alone | a download taken while the app shows this error; bytes 12–13 |
+| Timeline error **"Water level too high"** | unknown; the level bytes are thresholds and the live level, not an alarm bit | a download during the alarm (the level above `water_level_high_alarm`); bytes 12–13 |
+| Config toggles **Heating control**, **Winter mode**, **Waterlevel**, **Flow detection**, **VS Pump**, **Filter backwash**, **Timer filtration**, **Water flow meter** | on HOME firmware A, heating control is `byte[37]` bit 0x08 and antifreeze bit 0x80; on SALT bit 0x80 is the algicide routing, so winter mode must live elsewhere. `byte[37]` bit 0x08 was never set on this unit (heating control OFF) — consistent but unproven | toggle one setting at a time, one download per state |
+| Status **Pool flow OVERFLOW** (overflow vs. skimmer pool) | unknown | a download after switching the pool type |
+| Status **Pump speed ON** | not `byte[22]` bit 0x08: that bit is clear on this unit while the app shows ON | unknown |
+| Consumption page: electrolyser efficiency / production kg/week, canister levels, pump lifetimes, water filled m³, heating kWh | cloud aggregates, not frame fields; production could be integrated locally from `electrolyzer_power` | — |
+| Constant unknown bytes on both SALT units: `byte[73]` = 20 (HOME/OXY: 40), bytes 109–110 = 3000 (HOME: 600), `byte[111]` = 15, `byte[113]` = 1, `byte[117]` = 252 | settings of some kind: identical on both units, different on HOME | change candidate settings on the unit and diff |
+| Slowly varying unknowns: `byte[114]` (35–198 over August), `byte[96]`, `byte[98]`, bytes 38–39 (357 on this unit, ~8250 on the other), bytes 64–65 (~700), bytes 66–67 (270–312, tracks the water temperature) | measurements or counters | correlate with the app's history |
+
+---
+
 ## Open Questions
 
 | Question | Status |
@@ -332,3 +383,7 @@ AsekoDeviceType.SALT: AsekoActuatorMasks(
 | byte[37] full field layout? | ⏳ Bits 0–6 partially known; full semantics not confirmed |
 | byte[37] routing for Issue #84 firmware? | ⚠️ `0x13` = algicide but bit 7 NOT set — different firmware variant |
 | byte[103] semantics? | ⏳ Always mirrors byte[101] on SALT — may be a duplicate or separate pump |
+| `byte[115]` = max. number of pH doses? | ⏳ Candidate — 20 on 110195262 (display shows 20), 40 on 110194590; see §Ground truth 2026-09-11 |
+| Which `byte[13]` bit is "Low pH under 6,7"? | ⏳ 0x08 or 0x20 — the HOME frame with pH 6.29 had both set; 0x08 is currently read as rapid pH change |
+| "Water level too high" alarm bit? | ⏳ Unknown — needs a download during the alarm |
+| Config toggles (heating control, winter mode, waterlevel, flow detection, VS pump, filter backwash, water flow meter) and pool flow type? | ⏳ Unknown bytes — one toggle per download would map them |
