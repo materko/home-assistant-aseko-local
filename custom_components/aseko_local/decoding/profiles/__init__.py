@@ -16,7 +16,8 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
-#: Every profile, in the order the support matrix lists them.
+#: Every profile, in the order the support matrix lists them.  Includes the
+#: two fallbacks below, which the matrix mentions but does not tabulate.
 ALL_PROFILES: tuple[Profile, ...] = (
     v7.HOME_A,
     v7.HOME_B,
@@ -29,6 +30,11 @@ ALL_PROFILES: tuple[Profile, ...] = (
     v8.NET,
     v8.SALT,
 )
+
+#: Profiles no unit is *meant* to decode with: the frame did not allow the
+#: proper one to be picked.  Real decoding paths, but not answers to "what
+#: does my model support", so the support matrix keeps them out of its tables.
+FALLBACK_PROFILES: tuple[Profile, ...] = (v7.HOME_UNKNOWN_FIRMWARE, v7.UNKNOWN)
 
 
 def profile_for(
@@ -89,4 +95,11 @@ def detect_profile(
     return profile_for(Protocol.V7, model, firmware), firmware
 
 
-__all__ = ["ALL_PROFILES", "detect_profile", "profile_for", "v7", "v8"]
+__all__ = [
+    "ALL_PROFILES",
+    "FALLBACK_PROFILES",
+    "detect_profile",
+    "profile_for",
+    "v7",
+    "v8",
+]

@@ -492,33 +492,57 @@ PROFI = Profile(
 )
 
 # ---------------------------------------------------------------------------
-# A unit type nobody has mapped: read what every model shares, and every
-# probe, so the frame is at least visible in diagnostics.  The coordinator
-# does not store a device without a model, so none of this reaches entities.
+# A unit type nobody has mapped.  Read everything that has a generic v7
+# reading -- every probe, the shared-port layout most models use, the
+# default actuator bits -- so that the diagnostics of such a unit show as
+# much as the frame can be made to say.  Nothing here is verified for the
+# unit at hand: the coordinator keeps it out of the entity platforms and
+# reports it separately in diagnostics as unrecognised.
+#
+# Left out are readings whose bytes mean something else on other models and
+# so cannot be called generic: SALT's electrolyser and salinity (bytes 20-21
+# are cl_free_mv elsewhere), the OXY dose and pump (byte[53] and bit 0x40
+# are chlorine elsewhere), HOME's heating / antifreeze enables (byte[37] 0x80
+# is the algicide routing elsewhere) and the air temperature, verified on
+# SALT only.
 # ---------------------------------------------------------------------------
+
+_UNKNOWN_FEATURES = (
+    *_IDENTITY,
+    *_MEASUREMENTS,
+    *_CHLORINE_PROBES,
+    *_SETTINGS,
+    *_DISINFECTION_SETPOINTS,
+    RequiredAlgicide,
+    RequiredFloc,
+    FlowrateChlor,
+    FlowrateAlgicide,
+    FlowrateFloc,
+    *_FILTRATION,
+    ServiceMenuOpen,
+    ClPumpRunning,
+    PhMinusPumpRunning,
+    AlgicidePumpRunning,
+    FlocPumpRunning,
+    *_WATER_LEVEL,
+    MaxFillingTime,
+    *_UNIT_STATE,
+    *_BACKWASH,
+    *_ALARMS,
+)
 
 UNKNOWN = Profile(
     name="v7 unknown unit type",
     protocol=Protocol.V7,
     model=None,
-    features=(
-        *_IDENTITY,
-        *_MEASUREMENTS,
-        *_CHLORINE_PROBES,
-        *_SETTINGS,
-        *_DISINFECTION_SETPOINTS,
-        FlowrateChlor,
-        FlowrateAlgicide,
-        FlowrateFloc,
-        *_WATER_LEVEL,
-        *_UNIT_STATE,
-        BackwashActive,
-        *_ALARMS,
-    ),
+    features=_UNKNOWN_FEATURES,
     overrides={
         Configuration: "decode_v7_all_probes",
-        FlowrateAlgicide: "decode_v7_routed_by_byte37",
-        FlowrateFloc: "decode_v7_routed_by_byte37",
+        **_SHARED_THIRD_PUMP,
+    },
+    evidence={
+        feature: "unverified: unmapped unit type, read with the generic v7 reading"
+        for feature in _UNKNOWN_FEATURES
     },
 )
 

@@ -53,6 +53,9 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         self._last_partial_frames: dict[int, bytes] = {}
         # Last raw v8 text frame per device serial number (for diagnostics)
         self._last_v8_frames: dict[int, bytes] = {}
+        # Last decoding of every unit whose type nobody has mapped, by serial
+        # number -- kept for diagnostics only, never handed to the platforms
+        self._unrecognised_devices: dict[int, AsekoDevice] = {}
         # Unsubscribe handle for the periodic stale-check
         self._stale_check_unsub: Callable[[], None] | None = None
         # Per-platform listeners called whenever a brand-new device is discovered
@@ -66,12 +69,21 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
     def devices_update_callback(self, device: AsekoDevice) -> None:
         """Receive callback with device update."""
 
-        # Check if device_type is valid
+        # A frame from a unit type nobody has mapped.  It gets no entities --
+        # nothing about it is verified -- but it is kept aside so the
+        # diagnostics download can show its raw frame and the generic
+        # decoding, which is exactly what is needed to map it.
         if getattr(device, "device_type", None) is None:
-            _LOGGER.warning(
-                "❌ Received device with unknown type, not stored! serial=%s",
-                getattr(device, "serial_number", None),
-            )
+            serial = getattr(device, "serial_number", None)
+            if serial is not None and serial not in self._unrecognised_devices:
+                _LOGGER.warning(
+                    "❌ Received device with unknown type, not stored! serial=%s. "
+                    "Please share a diagnostics download at "
+                    "https://github.com/hopkins-tk/home-assistant-aseko-local/issues",
+                    serial,
+                )
+            if serial is not None:
+                self._unrecognised_devices[serial] = device
             return
 
         _LOGGER.debug(
@@ -350,6 +362,10 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
     def get_v8_frame(self, serial_number: int) -> bytes | None:
         """Return the last raw v8 text frame for a given device serial number."""
         return self._last_v8_frames.get(serial_number)
+
+    def get_unrecognised_devices(self) -> list[AsekoDevice]:
+        """Return the units whose type nobody has mapped, as last decoded."""
+        return list(self._unrecognised_devices.values())
 
     def get_tracker(self, serial_number: int) -> AsekoConsumptionTracker | None:
         """Return the consumption tracker for a given device serial number."""

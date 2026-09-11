@@ -11,72 +11,74 @@ A **profile** is one (protocol, model, firmware) combination.  A **feature** is 
 | — | this model does not have the value, so no entity is created for it |
 | `decode_…` | the profile uses this reading instead of the protocol default |
 
+Two further profiles exist that no unit is meant to decode with and that the tables leave out: **v7 HOME firmware not yet known** and **v7 unknown unit type**.  The first reads what both HOME firmware revisions share while a frame with `byte[37]` unset cannot tell them apart; the second reads everything that has a generic v7 reading so an unmapped unit shows as much as possible in diagnostics, where it is reported as unrecognised.
+
 ## v7
 
-| field | HOME firmware A | HOME firmware B | HOME firmware not yet known | SALT | OXY | NET | PROFI | unknown unit type |
-|---|---|---|---|---|---|---|---|---|
-| `air_temperature` | — | — | — | ✅ | — | — | — | — |
-| `alarm_no_flow_to_probes` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❓ |
-| `alarm_orp_too_many_doses` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❓ |
-| `alarm_ph_too_many_doses` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❓ |
-| `alarm_rapid_ph_change` | ❓ | ❓ | ❓ | ❓ | ❓ | ❓ | ❓ | ❓ |
-| `algicide_pump_running` | ❓ | ❓ | ❓ | ✅ | ✅ `decode_v7_oxy` | — | — | — |
-| `antifreeze_enabled` | ✅ | ❓ | ❓ | — | — | — | — | — |
-| `backwash_active` | ❓ | ❓ | ❓ | ✅ | ❓ | — | ❓ | ❓ |
-| `backwash_duration` | ❓ | ❓ | ❓ | ✅ | ❓ | — | ❓ | — |
-| `backwash_every_n_days` | ❓ | ❓ | ❓ | ❓ | ❓ | — | ❓ | — |
-| `backwash_time` | ❓ | ❓ | ❓ | ❓ | ❓ | — | ❓ | — |
-| `cl_free` | ❓ | ❓ | ❓ | ❓ | — | ✅ | ❓ | ❓ |
-| `cl_free_mv` | ❓ | ❓ | ❓ | ❓ | — | ✅ | ❓ | ❓ |
-| `cl_pump_running` | ❓ | ❓ | ❓ | — | — | ✅ `decode_v7_net` | ❓ | — |
-| `configuration` | ✅ `decode_v7_by_unit_type_byte` | ✅ `decode_v7_by_unit_type_byte` | ✅ `decode_v7_by_unit_type_byte` | ✅ | ✅ `decode_v7_ph_and_oxy` | ✅ | ❓ `decode_v7_without_dose` | ❓ `decode_v7_all_probes` |
-| `delay_after_dose` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❓ |
-| `delay_after_startup` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❓ |
-| `electrolyzer_active` | — | — | — | ✅ | — | — | — | — |
-| `electrolyzer_direction` | — | — | — | ❓ | — | — | — | — |
-| `electrolyzer_power` | — | — | — | ✅ | — | — | — | — |
-| `filtration_pump_running` | ❓ | ✅ `decode_v7_menu_override` | ❓ | ✅ | ✅ | — | ❓ | — |
-| `filtration_schedule` | ✅ `decode_v7_home_a` | ✅ | ❓ | ✅ | ❓ | — | ❓ | — |
-| `floc_pump_running` | ❓ | ❓ | ❓ | ✅ | ✅ | — | ❓ | — |
-| `flowrate_algicide` | ✅ | ✅ | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | ❓ `decode_v7_routed_by_byte37` | ❓ `decode_v7_routed_by_byte37` | ❓ `decode_v7_routed_by_byte37` |
-| `flowrate_chlor` | ✅ | ✅ | ✅ | ❓ | — | ❓ | ❓ | ❓ |
-| `flowrate_floc` | ✅ | ✅ | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | ❓ `decode_v7_routed_by_byte37` | ❓ `decode_v7_routed_by_byte37` | ❓ `decode_v7_routed_by_byte37` |
-| `flowrate_oxy` | — | — | — | — | ✅ | — | — | — |
-| `flowrate_ph_minus` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❓ |
-| `heating_active` | ❓ | ❓ | ❓ | ❓ | ❓ | — | ❓ | ❓ |
-| `heating_control_enabled` | ✅ | ❓ | ❓ | — | — | — | — | — |
-| `max_filling_time` | ❓ | ❓ | ❓ | ✅ | ❓ | — | — | — |
-| `oxy_pump_running` | — | — | — | — | ✅ | — | — | — |
-| `ph` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❓ |
-| `ph_minus_concentration` | ✅ | ✅ | ✅ | ❓ | ❓ | — | ❓ | ❓ |
-| `ph_minus_pump_running` | ❓ | ❓ | ❓ | ❓ | ✅ | ✅ `decode_v7_net` | ❓ | — |
-| `pool_volume` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❓ |
-| `redox` | ❓ | ❓ | ❓ | ❓ | — | ❓ | ❓ | ❓ |
-| `required_algicide` | ✅ | ✅ | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | ❓ `decode_v7_routed_by_byte37` | — | — |
-| `required_cl_dose` | ❓ | ❓ | ❓ | ❓ | — | ❓ | ❓ | ❓ |
-| `required_cl_free` | ❓ | ❓ | ❓ | ❓ | — | ❓ | ❓ | ❓ |
-| `required_floc` | ✅ | ✅ | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | ❓ `decode_v7_routed_by_byte37` | — | — |
-| `required_oxy_dose` | — | — | — | — | ✅ | — | — | — |
-| `required_ph` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❓ |
-| `required_redox` | ❓ | ❓ | ❓ | ❓ | — | ❓ | — | ❓ |
-| `required_water_temperature` | ❓ | ❓ | ❓ | ❓ | ❓ | ❓ | ❓ | ❓ |
-| `salinity` | — | — | — | ✅ | — | — | — | — |
-| `serial_number` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❓ |
-| `service_menu_open` | — | ✅ | — | ✅ | ❓ | — | ❓ | — |
-| `start1` | ❓ | ❓ | ❓ | ❓ | ❓ | — | ❓ | — |
-| `start2` | ❓ | ❓ | ❓ | ❓ | ❓ | — | ❓ | — |
-| `stop1` | ❓ | ❓ | ❓ | ❓ | ❓ | — | ❓ | — |
-| `stop2` | ❓ | ❓ | ❓ | ❓ | ❓ | — | ❓ | — |
-| `timestamp` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❓ |
-| `vsp_pump_running` | ✅ | ✅ | ✅ | ❓ | ❓ | — | ❓ | ❓ |
-| `water_filling_active` | ✅ | ✅ | ✅ | ❓ | ❓ | — | ❓ | ❓ |
-| `water_flow_to_probes` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❓ |
-| `water_level` | ✅ | ✅ | ✅ | ❓ | ❓ | — | ❓ | ❓ |
-| `water_level_filling_off` | ✅ | ✅ | ✅ | ❓ | ❓ | — | ❓ | ❓ |
-| `water_level_filling_on` | ✅ | ✅ | ✅ | ❓ | ❓ | — | ❓ | ❓ |
-| `water_level_high_alarm` | ✅ | ✅ | ✅ | ❓ | ❓ | — | ❓ | ❓ |
-| `water_level_low_alarm` | ✅ | ✅ | ✅ | ❓ | ❓ | — | ❓ | ❓ |
-| `water_temperature` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❓ |
+| field | HOME firmware A | HOME firmware B | SALT | OXY | NET | PROFI |
+|---|---|---|---|---|---|---|
+| `air_temperature` | — | — | ✅ | — | — | — |
+| `alarm_no_flow_to_probes` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `alarm_orp_too_many_doses` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `alarm_ph_too_many_doses` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `alarm_rapid_ph_change` | ❓ | ❓ | ❓ | ❓ | ❓ | ❓ |
+| `algicide_pump_running` | ❓ | ❓ | ✅ | ✅ `decode_v7_oxy` | — | — |
+| `antifreeze_enabled` | ✅ | ❓ | — | — | — | — |
+| `backwash_active` | ❓ | ❓ | ✅ | ❓ | — | ❓ |
+| `backwash_duration` | ❓ | ❓ | ✅ | ❓ | — | ❓ |
+| `backwash_every_n_days` | ❓ | ❓ | ❓ | ❓ | — | ❓ |
+| `backwash_time` | ❓ | ❓ | ❓ | ❓ | — | ❓ |
+| `cl_free` | ❓ | ❓ | ❓ | — | ✅ | ❓ |
+| `cl_free_mv` | ❓ | ❓ | ❓ | — | ✅ | ❓ |
+| `cl_pump_running` | ❓ | ❓ | — | — | ✅ `decode_v7_net` | ❓ |
+| `configuration` | ✅ `decode_v7_by_unit_type_byte` | ✅ `decode_v7_by_unit_type_byte` | ✅ | ✅ `decode_v7_ph_and_oxy` | ✅ | ❓ `decode_v7_without_dose` |
+| `delay_after_dose` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `delay_after_startup` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `electrolyzer_active` | — | — | ✅ | — | — | — |
+| `electrolyzer_direction` | — | — | ❓ | — | — | — |
+| `electrolyzer_power` | — | — | ✅ | — | — | — |
+| `filtration_pump_running` | ❓ | ✅ `decode_v7_menu_override` | ✅ | ✅ | — | ❓ |
+| `filtration_schedule` | ✅ `decode_v7_home_a` | ✅ | ✅ | ❓ | — | ❓ |
+| `floc_pump_running` | ❓ | ❓ | ✅ | ✅ | — | ❓ |
+| `flowrate_algicide` | ✅ | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | ❓ `decode_v7_routed_by_byte37` | ❓ `decode_v7_routed_by_byte37` |
+| `flowrate_chlor` | ✅ | ✅ | ❓ | — | ❓ | ❓ |
+| `flowrate_floc` | ✅ | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | ❓ `decode_v7_routed_by_byte37` | ❓ `decode_v7_routed_by_byte37` |
+| `flowrate_oxy` | — | — | — | ✅ | — | — |
+| `flowrate_ph_minus` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `heating_active` | ❓ | ❓ | ❓ | ❓ | — | ❓ |
+| `heating_control_enabled` | ✅ | ❓ | — | — | — | — |
+| `max_filling_time` | ❓ | ❓ | ✅ | ❓ | — | — |
+| `oxy_pump_running` | — | — | — | ✅ | — | — |
+| `ph` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `ph_minus_concentration` | ✅ | ✅ | ❓ | ❓ | — | ❓ |
+| `ph_minus_pump_running` | ❓ | ❓ | ❓ | ✅ | ✅ `decode_v7_net` | ❓ |
+| `pool_volume` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `redox` | ❓ | ❓ | ❓ | — | ❓ | ❓ |
+| `required_algicide` | ✅ | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | ❓ `decode_v7_routed_by_byte37` | — |
+| `required_cl_dose` | ❓ | ❓ | ❓ | — | ❓ | ❓ |
+| `required_cl_free` | ❓ | ❓ | ❓ | — | ❓ | ❓ |
+| `required_floc` | ✅ | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | ❓ `decode_v7_routed_by_byte37` | — |
+| `required_oxy_dose` | — | — | — | ✅ | — | — |
+| `required_ph` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `required_redox` | ❓ | ❓ | ❓ | — | ❓ | — |
+| `required_water_temperature` | ❓ | ❓ | ❓ | ❓ | ❓ | ❓ |
+| `salinity` | — | — | ✅ | — | — | — |
+| `serial_number` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `service_menu_open` | — | ✅ | ✅ | ❓ | — | ❓ |
+| `start1` | ❓ | ❓ | ❓ | ❓ | — | ❓ |
+| `start2` | ❓ | ❓ | ❓ | ❓ | — | ❓ |
+| `stop1` | ❓ | ❓ | ❓ | ❓ | — | ❓ |
+| `stop2` | ❓ | ❓ | ❓ | ❓ | — | ❓ |
+| `timestamp` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `vsp_pump_running` | ✅ | ✅ | ❓ | ❓ | — | ❓ |
+| `water_filling_active` | ✅ | ✅ | ❓ | ❓ | — | ❓ |
+| `water_flow_to_probes` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `water_level` | ✅ | ✅ | ❓ | ❓ | — | ❓ |
+| `water_level_filling_off` | ✅ | ✅ | ❓ | ❓ | — | ❓ |
+| `water_level_filling_on` | ✅ | ✅ | ❓ | ❓ | — | ❓ |
+| `water_level_high_alarm` | ✅ | ✅ | ❓ | ❓ | — | ❓ |
+| `water_level_low_alarm` | ✅ | ✅ | ❓ | ❓ | — | ❓ |
+| `water_temperature` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ## v8
 
@@ -145,35 +147,6 @@ Every entry below is read today without a confirming capture.  If you own one of
 - `floc_pump_running` — uncertain: byte[29] 0x20 assumed
 - `heating_active` — assumed: byte[29] 0x04 per JS-DE-Tech relay_byte bit 2
 - `heating_control_enabled` — unverified: byte[37] 0x08 read as on firmware A, no capture on B
-- `max_filling_time` — assumed: bytes 76-77, confirmed on SALT
-- `ph_minus_pump_running` — uncertain: byte[29] 0x80 assumed
-- `redox` — no evidence recorded
-- `required_cl_dose` — no evidence recorded
-- `required_cl_free` — no evidence recorded
-- `required_redox` — no evidence recorded
-- `required_water_temperature` — unverified: byte[55], read as-is
-- `start1` — no evidence recorded
-- `start2` — no evidence recorded
-- `stop1` — no evidence recorded
-- `stop2` — no evidence recorded
-
-### v7 HOME firmware not yet known
-
-- `alarm_rapid_ph_change` — unconfirmed: byte[13] 0x08 from error_codes.md, no capture
-- `algicide_pump_running` — uncertain: byte[29] 0x20 assumed
-- `antifreeze_enabled` — n/a: byte[37] is unset on every frame decoded with this profile
-- `backwash_active` — assumed: byte[29] 0x01, confirmed on SALT
-- `backwash_duration` — unverified: byte[71] * 10
-- `backwash_every_n_days` — unverified: byte[68]
-- `backwash_time` — unverified: bytes 69-70
-- `cl_free` — no evidence recorded
-- `cl_free_mv` — no evidence recorded
-- `cl_pump_running` — uncertain: byte[29] 0x40, port may be chlorine or OXY Pure
-- `filtration_pump_running` — uncertain: byte[29] 0x08 assumed from SALT / OXY
-- `filtration_schedule` — n/a: byte[37] is unset on every frame decoded with this profile
-- `floc_pump_running` — uncertain: byte[29] 0x20 assumed
-- `heating_active` — assumed: byte[29] 0x04 per JS-DE-Tech relay_byte bit 2
-- `heating_control_enabled` — n/a: byte[37] is unset on every frame decoded with this profile
 - `max_filling_time` — assumed: bytes 76-77, confirmed on SALT
 - `ph_minus_pump_running` — uncertain: byte[29] 0x80 assumed
 - `redox` — no evidence recorded
@@ -290,44 +263,6 @@ Every entry below is read today without a confirming capture.  If you own one of
 - `water_level_filling_on` — no evidence recorded
 - `water_level_high_alarm` — no evidence recorded
 - `water_level_low_alarm` — no evidence recorded
-
-### v7 unknown unit type
-
-- `alarm_no_flow_to_probes` — no evidence recorded
-- `alarm_orp_too_many_doses` — no evidence recorded
-- `alarm_ph_too_many_doses` — no evidence recorded
-- `alarm_rapid_ph_change` — no evidence recorded
-- `backwash_active` — no evidence recorded
-- `cl_free` — no evidence recorded
-- `cl_free_mv` — no evidence recorded
-- `configuration` — no evidence recorded
-- `delay_after_dose` — no evidence recorded
-- `delay_after_startup` — no evidence recorded
-- `flowrate_algicide` — no evidence recorded
-- `flowrate_chlor` — no evidence recorded
-- `flowrate_floc` — no evidence recorded
-- `flowrate_ph_minus` — no evidence recorded
-- `heating_active` — no evidence recorded
-- `ph` — no evidence recorded
-- `ph_minus_concentration` — no evidence recorded
-- `pool_volume` — no evidence recorded
-- `redox` — no evidence recorded
-- `required_cl_dose` — no evidence recorded
-- `required_cl_free` — no evidence recorded
-- `required_ph` — no evidence recorded
-- `required_redox` — no evidence recorded
-- `required_water_temperature` — no evidence recorded
-- `serial_number` — no evidence recorded
-- `timestamp` — no evidence recorded
-- `vsp_pump_running` — no evidence recorded
-- `water_filling_active` — no evidence recorded
-- `water_flow_to_probes` — no evidence recorded
-- `water_level` — no evidence recorded
-- `water_level_filling_off` — no evidence recorded
-- `water_level_filling_on` — no evidence recorded
-- `water_level_high_alarm` — no evidence recorded
-- `water_level_low_alarm` — no evidence recorded
-- `water_temperature` — no evidence recorded
 
 ### v8 NET
 

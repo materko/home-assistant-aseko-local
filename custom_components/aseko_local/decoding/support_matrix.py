@@ -15,7 +15,7 @@ from .decoders import ALL_FEATURES
 from .feature import Feature
 from .frame import Protocol
 from .profile import Profile
-from .profiles import ALL_PROFILES
+from .profiles import ALL_PROFILES, FALLBACK_PROFILES
 
 CONFIRMED = "✅"
 UNSURE = "❓"
@@ -40,7 +40,9 @@ def _status(profile: Profile, feature: type[Feature]) -> str:
 
 
 def _profiles_for(protocol: Protocol) -> list[Profile]:
-    return [p for p in ALL_PROFILES if p.protocol is protocol]
+    return [
+        p for p in ALL_PROFILES if p.protocol is protocol and p not in FALLBACK_PROFILES
+    ]
 
 
 def _features_for(protocol: Protocol) -> list[type[Feature]]:
@@ -79,6 +81,16 @@ def render() -> str:
     )
     w("| `decode_…` | the profile uses this reading instead of the protocol default |")
     w("")
+    w(
+        "Two further profiles exist that no unit is meant to decode with and that "
+        "the tables leave out: **"
+        + "** and **".join(p.name for p in FALLBACK_PROFILES)
+        + "**.  The first reads what both HOME firmware revisions share while a "
+        "frame with `byte[37]` unset cannot tell them apart; the second reads "
+        "everything that has a generic v7 reading so an unmapped unit shows as much "
+        "as possible in diagnostics, where it is reported as unrecognised."
+    )
+    w("")
 
     for protocol in Protocol:
         profiles = _profiles_for(protocol)
@@ -105,6 +117,8 @@ def render() -> str:
     )
     w("")
     for profile in ALL_PROFILES:
+        if profile in FALLBACK_PROFILES:
+            continue
         unsure = [
             f
             for f in ALL_FEATURES

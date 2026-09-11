@@ -139,6 +139,8 @@ Presence is sticky and entities can arrive late. The coordinator keeps a device'
 
 A HOME frame with `byte[37]` unset cannot be told apart between firmware A and B, so it decodes with a profile that lists only what both revisions share. Nothing gets an entity on the strength of a guess.
 
+A frame whose `byte[4]` maps to no model decodes with a profile that reads everything that has a generic v7 reading. It gets no entities, since nothing about it is verified, but the coordinator keeps it aside and the diagnostics download reports it under `unrecognised_devices` with the annotated raw frame and those generic values, which is what adding the model needs. Neither fallback profile appears in the support matrix tables, because no unit is meant to decode with them.
+
 ## Generated support matrix
 
 Because every profile carries `features`, `overrides` and `evidence`, a script can render a feature × profile matrix (confirmed / unconfirmed / not present, with the issue or serial that confirmed it). Every "unconfirmed" cell is a concrete request for a diagnostics dump, linkable from the README. Run it in CI as a check that fails when the committed matrix is out of date, rather than as a bot commit. The existing `docs/device analyzes/*.md` remain the evidence narrative the matrix links to.

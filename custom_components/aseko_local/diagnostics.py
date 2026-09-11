@@ -245,6 +245,120 @@ def _str_or_none(value: Any) -> str | None:
     return None if value is None else str(value)
 
 
+def _device_state(device: Any) -> dict[str, Any]:
+    """The decoded state of one unit, as the dump reports it."""
+    serial = device.serial_number
+    return {
+        "serial_number": serial,
+        "device_type": device.device_type.value if device.device_type else None,
+        # How the frame was read: which firmware variant detection settled
+        # on, which fields the chosen profile decodes, and the semantic
+        # flags it carries.  A field missing from "features" is one this
+        # model does not have, not one that failed to decode.
+        "firmware_variant": (
+            device.firmware_variant.value if device.firmware_variant else None
+        ),
+        "features": sorted(device.features),
+        "flags": sorted(flag.value for flag in device.flags),
+        "configuration": [p.value for p in (device.configuration or [])],
+        "online": device.online(),
+        "timestamp": str(device.timestamp),
+        "air_temperature": device.air_temperature,
+        "water_temperature": device.water_temperature,
+        "ph": device.ph,
+        "cl_free": device.cl_free,
+        "cl_free_mv": device.cl_free_mv,
+        "redox": device.redox,
+        "salinity": device.salinity,
+        "electrolyzer_power": device.electrolyzer_power,
+        "electrolyzer_active": device.electrolyzer_active,
+        "electrolyzer_direction": (
+            device.electrolyzer_direction.value
+            if device.electrolyzer_direction
+            else None
+        ),
+        "water_flow_to_probes": device.water_flow_to_probes,
+        "filtration_pump_running": device.filtration_pump_running,
+        "cl_pump_running": device.cl_pump_running,
+        "ph_minus_pump_running": device.ph_minus_pump_running,
+        "ph_plus_pump_running": device.ph_plus_pump_running,
+        "algicide_pump_running": device.algicide_pump_running,
+        "floc_pump_running": device.floc_pump_running,
+        "flowrate_chlor_ml_min": device.flowrate_chlor,
+        "flowrate_ph_minus_ml_min": device.flowrate_ph_minus,
+        "flowrate_ph_plus_ml_min": device.flowrate_ph_plus,
+        "flowrate_algicide_ml_min": device.flowrate_algicide,
+        "flowrate_floc_ml_min": device.flowrate_floc,
+        # Backwash: the live relay bit plus the observed history the
+        # BackwashTracker has built from it.  Without these a dump only
+        # carries the schedule config (bytes 68-71) and the raw byte[29],
+        # so answering "did a backwash run?" meant decoding bit 0x01 by
+        # hand across a series of dumps.  None = not yet observed.
+        "backwash_active": device.backwash_active,
+        "last_backwash": _str_or_none(device.last_backwash),
+        "last_scheduled_backwash": _str_or_none(device.last_scheduled_backwash),
+        "last_manual_backwash": _str_or_none(device.last_manual_backwash),
+        "last_backwash_trigger": (
+            device.last_backwash_trigger.value if device.last_backwash_trigger else None
+        ),
+        "next_scheduled_backwash": _str_or_none(device.next_scheduled_backwash),
+    }
+
+
+def _raw_frames(coordinator: Any, serial: int) -> dict[str, Any]:
+    """The last frames seen from one serial number, annotated for a GitHub issue."""
+    # --- Raw frame (v7 binary) ---
+    raw_info: dict[str, Any] = {"available": False}
+    raw = coordinator.get_raw_frame(serial)
+    if raw is not None:
+        raw_info = {
+            "available": True,
+            "hex_dump": raw.hex(),
+            "length_bytes": len(raw),
+            "byte_29_pump_state_hex": f"0x{raw[29]:02x}" if len(raw) > 29 else "n/a",
+            "byte_29_pump_state_bin": f"0b{raw[29]:08b}" if len(raw) > 29 else "n/a",
+            "byte_37_algicide_cfg_hex": f"0x{raw[37]:02x}" if len(raw) > 37 else "n/a",
+            "annotated_table": _annotated_frame(raw),
+        }
+
+    # --- Raw frame (v8 text) ---
+    v8_raw_info: dict[str, Any] = {"available": False}
+    v8_raw = coordinator.get_v8_frame(serial)
+    if v8_raw is not None:
+        parsed = _parse_v8_frame(v8_raw)
+        if parsed is not None:
+            v8_raw_info = {"available": True, **parsed}
+        else:
+            v8_raw_info = {
+                "available": True,
+                "raw_text": v8_raw.decode("ascii", errors="replace").strip(),
+                "length_bytes": len(v8_raw),
+                "parse_error": "Could not parse v8 frame structure",
+            }
+
+    # --- Partial frame (device sent fewer bytes than the expected 120) ---
+    partial_info: dict[str, Any] = {"available": False}
+    partial = coordinator.get_partial_frame(serial)
+    if partial is not None:
+        partial_info = {
+            "available": True,
+            "hex_dump": partial.hex(),
+            "length_bytes": len(partial),
+            "note": (
+                f"Device sent {len(partial)} bytes instead of the expected 120. "
+                "The frame could not be decoded. Please share this diagnostics "
+                "download in a GitHub issue to help add support for this device."
+            ),
+            "annotated_table": _annotated_frame(partial),
+        }
+
+    return {
+        "raw_frame_v7": raw_info,
+        "raw_frame_v8": v8_raw_info,
+        "partial_frame": partial_info,
+    }
+
+
 async def async_get_config_entry_diagnostics(
     hass: HomeAssistant,
     config_entry: AsekoLocalConfigEntry,
@@ -259,64 +373,7 @@ async def async_get_config_entry_diagnostics(
     for device in devices:
         serial = device.serial_number
 
-        # --- Decoded device state ---
-        device_state: dict[str, Any] = {
-            "serial_number": serial,
-            "device_type": device.device_type.value if device.device_type else None,
-            # How the frame was read: which firmware variant detection settled
-            # on, which fields the chosen profile decodes, and the semantic
-            # flags it carries.  A field missing from "features" is one this
-            # model does not have, not one that failed to decode.
-            "firmware_variant": (
-                device.firmware_variant.value if device.firmware_variant else None
-            ),
-            "features": sorted(device.features),
-            "flags": sorted(flag.value for flag in device.flags),
-            "configuration": [p.value for p in (device.configuration or [])],
-            "online": device.online(),
-            "timestamp": str(device.timestamp),
-            "air_temperature": device.air_temperature,
-            "water_temperature": device.water_temperature,
-            "ph": device.ph,
-            "cl_free": device.cl_free,
-            "cl_free_mv": device.cl_free_mv,
-            "redox": device.redox,
-            "salinity": device.salinity,
-            "electrolyzer_power": device.electrolyzer_power,
-            "electrolyzer_active": device.electrolyzer_active,
-            "electrolyzer_direction": (
-                device.electrolyzer_direction.value
-                if device.electrolyzer_direction
-                else None
-            ),
-            "water_flow_to_probes": device.water_flow_to_probes,
-            "filtration_pump_running": device.filtration_pump_running,
-            "cl_pump_running": device.cl_pump_running,
-            "ph_minus_pump_running": device.ph_minus_pump_running,
-            "ph_plus_pump_running": device.ph_plus_pump_running,
-            "algicide_pump_running": device.algicide_pump_running,
-            "floc_pump_running": device.floc_pump_running,
-            "flowrate_chlor_ml_min": device.flowrate_chlor,
-            "flowrate_ph_minus_ml_min": device.flowrate_ph_minus,
-            "flowrate_ph_plus_ml_min": device.flowrate_ph_plus,
-            "flowrate_algicide_ml_min": device.flowrate_algicide,
-            "flowrate_floc_ml_min": device.flowrate_floc,
-            # Backwash: the live relay bit plus the observed history the
-            # BackwashTracker has built from it.  Without these a dump only
-            # carries the schedule config (bytes 68-71) and the raw byte[29],
-            # so answering "did a backwash run?" meant decoding bit 0x01 by
-            # hand across a series of dumps.  None = not yet observed.
-            "backwash_active": device.backwash_active,
-            "last_backwash": _str_or_none(device.last_backwash),
-            "last_scheduled_backwash": _str_or_none(device.last_scheduled_backwash),
-            "last_manual_backwash": _str_or_none(device.last_manual_backwash),
-            "last_backwash_trigger": (
-                device.last_backwash_trigger.value
-                if device.last_backwash_trigger
-                else None
-            ),
-            "next_scheduled_backwash": _str_or_none(device.next_scheduled_backwash),
-        }
+        device_state = _device_state(device)
 
         # --- Consumption counters ---
         tracker = coordinator.get_tracker(serial) if serial is not None else None
@@ -328,67 +385,28 @@ async def async_get_config_entry_diagnostics(
                     "total_ml": round(tracker.get(key, "total"), 1),
                 }
 
-        # --- Raw frame (v7 binary) ---
-        raw_info: dict[str, Any] = {"available": False}
-        if serial is not None:
-            raw = coordinator.get_raw_frame(serial)
-            if raw is not None:
-                raw_info = {
-                    "available": True,
-                    "hex_dump": raw.hex(),
-                    "length_bytes": len(raw),
-                    "byte_29_pump_state_hex": f"0x{raw[29]:02x}"
-                    if len(raw) > 29
-                    else "n/a",
-                    "byte_29_pump_state_bin": f"0b{raw[29]:08b}"
-                    if len(raw) > 29
-                    else "n/a",
-                    "byte_37_algicide_cfg_hex": f"0x{raw[37]:02x}"
-                    if len(raw) > 37
-                    else "n/a",
-                    "annotated_table": _annotated_frame(raw),
-                }
-
-        # --- Raw frame (v8 text) ---
-        v8_raw_info: dict[str, Any] = {"available": False}
-        if serial is not None:
-            v8_raw = coordinator.get_v8_frame(serial)
-            if v8_raw is not None:
-                parsed = _parse_v8_frame(v8_raw)
-                if parsed is not None:
-                    v8_raw_info = {"available": True, **parsed}
-                else:
-                    v8_raw_info = {
-                        "available": True,
-                        "raw_text": v8_raw.decode("ascii", errors="replace").strip(),
-                        "length_bytes": len(v8_raw),
-                        "parse_error": "Could not parse v8 frame structure",
-                    }
-
-        # --- Partial frame (device sent fewer bytes than the expected 120) ---
-        partial_info: dict[str, Any] = {"available": False}
-        if serial is not None:
-            partial = coordinator.get_partial_frame(serial)
-            if partial is not None:
-                partial_info = {
-                    "available": True,
-                    "hex_dump": partial.hex(),
-                    "length_bytes": len(partial),
-                    "note": (
-                        f"Device sent {len(partial)} bytes instead of the expected 120. "
-                        "The frame could not be decoded. Please share this diagnostics "
-                        "download in a GitHub issue to help add support for this device."
-                    ),
-                    "annotated_table": _annotated_frame(partial),
-                }
+        frames = _raw_frames(coordinator, serial) if serial is not None else {}
 
         devices_info.append(
+            {"device": device_state, "consumption": consumption, **frames}
+        )
+
+    # Units whose type nobody has mapped get no entities, but they are the
+    # whole reason the annotated frame exists: with it, and the values the
+    # generic readings make of it, a new model can be added.
+    unrecognised_info: list[dict[str, Any]] = []
+    for device in coordinator.get_unrecognised_devices():
+        serial = device.serial_number
+        unrecognised_info.append(
             {
-                "device": device_state,
-                "consumption": consumption,
-                "raw_frame_v7": raw_info,
-                "raw_frame_v8": v8_raw_info,
-                "partial_frame": partial_info,
+                "note": (
+                    "Unit type byte[4] is not mapped to a model; no entities were "
+                    "created.  The decoded values below come from the generic v7 "
+                    "readings and are unverified.  Please share this download in "
+                    "a GitHub issue to help add support for this device."
+                ),
+                "device": _device_state(device),
+                **(_raw_frames(coordinator, serial) if serial is not None else {}),
             }
         )
 
@@ -398,4 +416,5 @@ async def async_get_config_entry_diagnostics(
             _REDACT,
         ),
         "devices": devices_info,
+        "unrecognised_devices": unrecognised_info,
     }
