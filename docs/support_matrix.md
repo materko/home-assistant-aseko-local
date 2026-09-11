@@ -162,12 +162,12 @@ Every entry below is read today without a confirming capture.  If you own one of
 
 ### v7 SALT
 
-- `alarm_rapid_ph_change` — unconfirmed: byte[13] 0x08 from error_codes.md; never set in the own SALT dumps, 37 frames 2026-08-08..28, checked against the unit by the maintainer
-- `flowrate_chlor` — unverified: byte[99]; 0xFF in every frame of the own SALT dumps, 37 frames 2026-08-08..28, checked against the unit by the maintainer (no chlorine pump on a SALT)
-- `heating_active` — assumed: byte[29] 0x04 per JS-DE-Tech relay_byte bit 2; never set in the own SALT dumps, 37 frames 2026-08-08..28, checked against the unit by the maintainer
-- `ph_minus_pump_running` — unconfirmed: byte[29] 0x80; the bit was never set in the own SALT dumps, 37 frames 2026-08-08..28, checked against the unit by the maintainer
-- `required_cl_dose` — unverified: byte[53] for a DOSE unit; neither unit of the own SALT dumps, 37 frames 2026-08-08..28, checked against the unit by the maintainer is one
-- `water_filling_active` — assumed: byte[29] 0x02, confirmed on HOME only; never set in the own SALT dumps, 37 frames 2026-08-08..28, checked against the unit by the maintainer
+- `alarm_rapid_ph_change` — unconfirmed: byte[13] 0x08 from error_codes.md; never set in the own SALT dumps, 37 frames 2026-08-08..28
+- `flowrate_chlor` — unverified: byte[99]; 0xFF in every frame of the own SALT dumps, 37 frames 2026-08-08..28 (no chlorine pump on a SALT)
+- `heating_active` — assumed: byte[29] 0x04 per JS-DE-Tech relay_byte bit 2; never set in the own SALT dumps, 37 frames 2026-08-08..28
+- `ph_minus_pump_running` — unconfirmed: byte[29] 0x80; the bit was never set in the own SALT dumps, 37 frames 2026-08-08..28
+- `required_cl_dose` — unverified: byte[53] for a DOSE unit; neither unit of the own SALT dumps, 37 frames 2026-08-08..28 is one
+- `water_filling_active` — assumed: byte[29] 0x02, confirmed on HOME only; never set in the own SALT dumps, 37 frames 2026-08-08..28
 
 ### v7 OXY
 
