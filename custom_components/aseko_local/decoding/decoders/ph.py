@@ -6,11 +6,13 @@ from typing import TYPE_CHECKING
 
 from ...aseko_data import AsekoProbeType
 from ..feature import Feature
+from ..presence import NOT_PRESENT
 from .configuration import Configuration
 
 if TYPE_CHECKING:
     from ...aseko_data import AsekoDevice
     from ..frame import V7Frame, V8Frame
+    from ..presence import NotPresent
 
 
 class Ph(Feature):
@@ -19,11 +21,11 @@ class Ph(Feature):
     field = "ph"
     depends_on = (Configuration,)
 
-    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> float | None:
+    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> float | NotPresent:
         if AsekoProbeType.PH not in device.configuration:
-            return None
+            return NOT_PRESENT
         return frame.word(14) / 100
 
-    def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> float | None:
+    def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> float | NotPresent:
         raw = frame.value("ains", 0)
-        return raw / 100 if raw is not None else None
+        return raw / 100 if raw is not None else NOT_PRESENT

@@ -15,11 +15,13 @@ from typing import TYPE_CHECKING
 
 from ...aseko_data import AsekoProbeType
 from ..feature import Feature
+from ..presence import NOT_PRESENT
 from .configuration import Configuration
 
 if TYPE_CHECKING:
     from ...aseko_data import AsekoDevice
     from ..frame import V7Frame, V8Frame
+    from ..presence import NotPresent
 
 
 class RequiredRedox(Feature):
@@ -28,10 +30,10 @@ class RequiredRedox(Feature):
     field = "required_redox"
     depends_on = (Configuration,)
 
-    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | None:
+    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | NotPresent:
         probes = device.configuration
         if AsekoProbeType.CLF in probes or AsekoProbeType.REDOX not in probes:
-            return None
+            return NOT_PRESENT
         return frame[53] * 10
 
     def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> int | None:

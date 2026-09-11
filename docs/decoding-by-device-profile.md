@@ -114,6 +114,7 @@ So: for a feature read the same way everywhere, the answer is the default varian
 | Which features a model has | four `*_TYPES` sets + `ACTUATOR_MASKS` + `byte37_routes_pump_type` | one ordered `features` list per profile |
 | How a model reads a feature | `if device_type == …` inside each `_fill_*` | variants in the feature's file, default per protocol; the profile names an override |
 | Pump presence for entities | `sensor.py` / `button.py` import v7 masks | `feature in device.features` |
+| Whether an entity is created | the first frame's value is not None | the field is in `device.features`: the model reads it *and* this unit has it; a None value then shows as "unknown" |
 | Meaning of `byte[37]` bit 0x04 | `device_type is SALT` check in `backwash_tracker` | profile flag, tracker reads the flag |
 | v8 decoding | separate decoder, one layout | same loop and same feature files; a v8 frame parser plus v8 variants inside each feature |
 | Public entry point | `AsekoDecoder.decode(bytes)` | kept, so the ~80 decoder tests stayed the regression oracle |
@@ -124,7 +125,19 @@ So: for a feature read the same way everywhere, the answer is the default varian
 
 **Features depend on each other.** Algicide pump state is only read when its flow rate was present. Filtration pump state on HOME B depends on `service_menu_open`. Setpoints depend on the probe configuration. Variants receive the partially filled device, and each feature declares `depends_on` so the loop can sort them. Registration by import order would lose that.
 
-**Probe configuration is a third axis, not a profile.** `byte[53]` is one of four setpoints depending on which probes the unit has, and that is per unit, not per model. Profiles list all four as possible; the variant returns nothing when the probe is absent.
+**Probe configuration is a third axis, not a profile.** `byte[53]` is one of four setpoints depending on which probes the unit has, and that is per unit, not per model. Profiles list all four as possible; the reading answers `NOT_PRESENT` for the ones this unit lacks.
+
+## Three states, not two
+
+A reading can answer with a value, with `None`, or with `NOT_PRESENT` (see `decoding/presence.py`). The engine drops `NOT_PRESENT` fields from `device.features` and stores None; a `None` answer keeps the field in `features`. The entity layer creates an entity for every field in `features` and nothing else, so:
+
+- a model that lacks a quantity (NET has no filtration) never gets the entity, because no NET profile lists the feature;
+- a unit that lacks it (a SALT with a REDOX probe has no free chlorine; a shared pump port routed to flocculant has no algicide) never gets the entity, because the reading answered `NOT_PRESENT`;
+- a unit that has it but whose first frame could not say (a SALT sending `byte[37] = 0xFF` at startup) gets the entity in state "unknown" instead of no entity until the next reload.
+
+One consequence is worth knowing: entities are still created when a unit is first seen, so a quantity that only becomes present later (the shared port gets configured, a firmware variant is recognised after an unset first frame) does not get an entity until the integration is reloaded. Adding entities to an already-known device is a possible next step; the allowlist makes it a small one.
+
+A HOME frame with `byte[37]` unset cannot be told apart between firmware A and B, so it decodes with a profile that lists only what both revisions share. Nothing gets an entity on the strength of a guess.
 
 ## Generated support matrix
 

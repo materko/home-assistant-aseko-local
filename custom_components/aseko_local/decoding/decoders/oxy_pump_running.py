@@ -10,11 +10,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ..feature import Feature
+from ..presence import NOT_PRESENT
 from .flowrate_oxy import FlowrateOxy
 
 if TYPE_CHECKING:
     from ...aseko_data import AsekoDevice
     from ..frame import V7Frame
+    from ..presence import NotPresent
 
 
 OXY_PUMP = 0x40  # confirmed, 2026-04-11
@@ -26,7 +28,7 @@ class OxyPumpRunning(Feature):
     field = "oxy_pump_running"
     depends_on = (FlowrateOxy,)
 
-    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool | None:
+    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool | NotPresent:
         if device.flowrate_oxy is None:
-            return None
+            return NOT_PRESENT
         return bool(frame[29] & OXY_PUMP)

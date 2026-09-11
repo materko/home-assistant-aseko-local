@@ -26,89 +26,106 @@ class AsekoLocalBinarySensorEntityDescription(BinarySensorEntityDescription):
 
     value_fn: Callable[[AsekoDevice], bool | None]
     enabled: bool = True
+    # The AsekoDevice field this sensor stands for; the entity exists when it
+    # is in ``device.features``, and reads "unknown" while the value is None.
+    feature: str = ""
 
 
 BINARY_SENSORS: tuple[AsekoLocalBinarySensorEntityDescription, ...] = (
     AsekoLocalBinarySensorEntityDescription(
         key="water_flow_to_probes",
+        feature="water_flow_to_probes",
         translation_key="water_flow_to_probes",
         icon="mdi:waves-arrow-right",
         value_fn=lambda device: device.water_flow_to_probes,
     ),
     AsekoLocalBinarySensorEntityDescription(
         key="electrolyzer_active",
+        feature="electrolyzer_active",
         translation_key="electrolyzer_active",
         icon="mdi:lightning-bolt",
         value_fn=lambda device: device.electrolyzer_active,
     ),
     AsekoLocalBinarySensorEntityDescription(
         key="pump_running",
+        feature="filtration_pump_running",
         translation_key="filtration_pump_running",
         icon="mdi:pump",
         value_fn=lambda device: device.filtration_pump_running,
     ),
     AsekoLocalBinarySensorEntityDescription(
         key="heating_active",
+        feature="heating_active",
         translation_key="heating_active",
         icon="mdi:radiator",
         value_fn=lambda device: device.heating_active,
     ),
     AsekoLocalBinarySensorEntityDescription(
         key="heating_control_enabled",
+        feature="heating_control_enabled",
         translation_key="heating_control_enabled",
         icon="mdi:radiator-off",
         value_fn=lambda device: device.heating_control_enabled,
     ),
     AsekoLocalBinarySensorEntityDescription(
         key="antifreeze_enabled",
+        feature="antifreeze_enabled",
         translation_key="antifreeze_enabled",
         icon="mdi:snowflake-thermometer",
         value_fn=lambda device: device.antifreeze_enabled,
     ),
     AsekoLocalBinarySensorEntityDescription(
         key="vsp_pump_running",
+        feature="vsp_pump_running",
         translation_key="vsp_pump_running",
         icon="mdi:pump",
         value_fn=lambda device: device.vsp_pump_running,
     ),
     AsekoLocalBinarySensorEntityDescription(
         key="cl_pump_running",
+        feature="cl_pump_running",
         translation_key="cl_pump_running",
         icon="mdi:water-pump",
         value_fn=lambda device: device.cl_pump_running,
     ),
     AsekoLocalBinarySensorEntityDescription(
         key="ph_minus_pump_running",
+        feature="ph_minus_pump_running",
         translation_key="ph_minus_pump_running",
         icon="mdi:water-pump",
         value_fn=lambda device: device.ph_minus_pump_running,
     ),
     AsekoLocalBinarySensorEntityDescription(
         key="ph_plus_pump_running",
+        feature="ph_plus_pump_running",
         translation_key="ph_plus_pump_running",
         icon="mdi:water-pump",
         value_fn=lambda device: device.ph_plus_pump_running,
     ),
     AsekoLocalBinarySensorEntityDescription(
         key="algicide_pump_running",
+        feature="algicide_pump_running",
         translation_key="algicide_pump_running",
         icon="mdi:water-pump",
         value_fn=lambda device: device.algicide_pump_running,
     ),
     AsekoLocalBinarySensorEntityDescription(
         key="floc_pump_running",
+        feature="floc_pump_running",
         translation_key="floc_pump_running",
         icon="mdi:water-pump",
         value_fn=lambda device: device.floc_pump_running,
     ),
     AsekoLocalBinarySensorEntityDescription(
         key="oxy_pump_running",
+        feature="oxy_pump_running",
         translation_key="oxy_pump_running",
         icon="mdi:water-pump",
         value_fn=lambda device: device.oxy_pump_running,
     ),
     AsekoLocalBinarySensorEntityDescription(
         key="water_filling_active",
+        feature="water_filling_active",
         translation_key="water_filling_active",
         icon="mdi:water-plus",
         value_fn=lambda device: device.water_filling_active,
@@ -118,36 +135,42 @@ BINARY_SENSORS: tuple[AsekoLocalBinarySensorEntityDescription, ...] = (
         # is on the unit sends nothing, so what is being done in there — to
         # filtration or anything else — cannot be seen from here.
         key="service_menu",
+        feature="service_menu_open",
         translation_key="service_menu",
         icon="mdi:tune",
         value_fn=lambda device: device.service_menu_open,
     ),
     AsekoLocalBinarySensorEntityDescription(
         key="alarm_ph_too_many_doses",
+        feature="alarm_ph_too_many_doses",
         translation_key="alarm_ph_too_many_doses",
         icon="mdi:alert",
         value_fn=lambda device: device.alarm_ph_too_many_doses,
     ),
     AsekoLocalBinarySensorEntityDescription(
         key="alarm_orp_too_many_doses",
+        feature="alarm_orp_too_many_doses",
         translation_key="alarm_orp_too_many_doses",
         icon="mdi:alert",
         value_fn=lambda device: device.alarm_orp_too_many_doses,
     ),
     AsekoLocalBinarySensorEntityDescription(
         key="alarm_no_flow_to_probes",
+        feature="alarm_no_flow_to_probes",
         translation_key="alarm_no_flow_to_probes",
         icon="mdi:waves-arrow-right",
         value_fn=lambda device: device.alarm_no_flow_to_probes,
     ),
     AsekoLocalBinarySensorEntityDescription(
         key="alarm_rapid_ph_change",
+        feature="alarm_rapid_ph_change",
         translation_key="alarm_rapid_ph_change",
         icon="mdi:alert",
         value_fn=lambda device: device.alarm_rapid_ph_change,
     ),
     AsekoLocalBinarySensorEntityDescription(
         key="backwash_active",
+        feature="backwash_active",
         translation_key="backwash_active",
         icon="mdi:water-pump",
         value_fn=lambda device: device.backwash_active,
@@ -258,10 +281,9 @@ def _build_binary_sensor_entities(
                 val,
             )
 
-            if val is None:
+            if description.feature not in device.features:
                 _LOGGER.debug(
-                    "   - Skipped non-available binary sensor: %s (value=None)",
-                    key,
+                    "   - Skipped binary sensor %s: not a feature of this unit", key
                 )
                 continue
             entity = AsekoLocalBinarySensorEntity(device, coordinator, description)

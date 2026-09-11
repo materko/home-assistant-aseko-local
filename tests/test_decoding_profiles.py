@@ -269,7 +269,7 @@ def test_detect_v7_model_from_byte4(unit_type: int, expected: Profile) -> None:
         (0x49, v7.HOME_A, AsekoFirmwareVariant.HOME_A),
         (0x01, v7.HOME_B, AsekoFirmwareVariant.HOME_B),
         (0x31, v7.HOME_B, AsekoFirmwareVariant.HOME_B),
-        (0xFF, v7.HOME_B, None),
+        (0xFF, v7.HOME_UNKNOWN_FIRMWARE, None),
     ],
 )
 def test_detect_home_firmware_from_byte37(
@@ -300,7 +300,7 @@ def test_memory_carries_the_firmware_over_an_unset_byte37() -> None:
     other[4] = 0x02
     other[37] = 0xFF
     profile, firmware = detect_profile(parse_v7(bytes(other)), memory)
-    assert (profile, firmware) == (v7.HOME_B, None)
+    assert (profile, firmware) == (v7.HOME_UNKNOWN_FIRMWARE, None)
 
 
 def test_detect_v8_model_from_header_type() -> None:
@@ -319,8 +319,10 @@ def test_parse_frame_picks_the_protocol() -> None:
     assert parse_frame(b"\n" + REFERENCE_FRAME).protocol is Protocol.V8
 
 
-def test_profile_for_home_without_a_firmware_is_the_bit_flag_profile() -> None:
-    assert profile_for(Protocol.V7, AsekoDeviceType.HOME) is v7.HOME_B
+def test_profile_for_home_without_a_firmware_reads_only_the_shared_part() -> None:
+    assert profile_for(Protocol.V7, AsekoDeviceType.HOME) is v7.HOME_UNKNOWN_FIRMWARE
+    assert ServiceMenuOpen not in v7.HOME_UNKNOWN_FIRMWARE.features
+    assert v7.HOME_UNKNOWN_FIRMWARE.feature_names <= v7.HOME_B.feature_names
     assert (
         profile_for(Protocol.V7, AsekoDeviceType.HOME, AsekoFirmwareVariant.HOME_A)
         is v7.HOME_A
@@ -335,7 +337,8 @@ def test_decoded_device_says_how_it_was_read() -> None:
     device = AsekoDecoder.decode(_home_bytes(0x43))
     assert device.device_type is AsekoDeviceType.HOME
     assert device.firmware_variant is AsekoFirmwareVariant.HOME_A
-    assert device.features == v7.HOME_A.feature_names
+    assert device.features <= v7.HOME_A.feature_names
+    assert "filtration_schedule" in device.features
     assert device.flags == frozenset()
 
     salt = AsekoDecoder.decode(bytes(_make_base_bytes()))
@@ -343,7 +346,8 @@ def test_decoded_device_says_how_it_was_read() -> None:
     assert AsekoProfileFlag.MENU_BIT_IS_PRESENCE_ONLY in salt.flags
 
     net_v8 = AsekoV8Decoder.decode(REFERENCE_FRAME)
-    assert net_v8.features == v8.NET.feature_names
+    assert net_v8.features <= v8.NET.feature_names
+    assert "ph" in net_v8.features
     assert "start1" not in net_v8.features
 
 
@@ -391,5 +395,69 @@ def test_entity_layer_reads_pump_presence_off_the_device() -> None:
     assert not device_has_pump(net, "ph_plus")  # nobody's feature
 
     salt = AsekoDecoder.decode(bytes(_make_base_bytes()))  # byte[37] = 0xFF
-    assert "algicide_pump_running" in salt.features
-    assert not device_has_pump(salt, "algicide")  # listed, but the port is unrouted
+    assert "algicide_pump_running" in v7.SALT.feature_names  # the model has it
+    assert "algicide_pump_running" not in salt.features  # this unit's port is unrouted
+    assert not device_has_pump(salt, "algicide")
+
+
+# ── the three states: value, unknown, not present ───────────────────────────
+
+
+def test_a_probe_the_unit_lacks_is_not_present() -> None:
+    """SALT with a REDOX probe: the model reads free chlorine, this unit has none."""
+    salt = AsekoDecoder.decode(bytes(_make_base_bytes()))  # byte[4] = 0x0E, REDOX
+    assert "cl_free" in v7.SALT.feature_names
+    assert "cl_free" not in salt.features
+    assert salt.cl_free is None
+    assert "redox" in salt.features
+    assert "required_redox" in salt.features
+    assert "required_cl_free" not in salt.features
+
+
+def test_a_setting_unset_on_the_unit_is_not_present() -> None:
+    data = _make_base_bytes()
+    data[68] = 0xFF  # backwash interval never configured
+    data[76:78] = b"\xff\xff"  # max filling time not implemented
+    device = AsekoDecoder.decode(bytes(data))
+    assert "backwash_every_n_days" not in device.features
+    assert "max_filling_time" not in device.features
+    assert "backwash_active" in device.features  # the valve itself is there
+
+
+def test_a_value_unknown_in_this_frame_stays_present() -> None:
+    """byte[37] unset: the unit has a schedule, this frame just does not say which."""
+    salt = AsekoDecoder.decode(bytes(_make_base_bytes()))  # byte[37] = 0xFF
+    assert "filtration_schedule" in salt.features
+    assert salt.filtration_schedule is None
+    assert "service_menu_open" in salt.features
+    assert salt.service_menu_open is None
+
+    home = AsekoDecoder.decode(_home_bytes(0xFF))
+    assert "heating_control_enabled" in home.features
+    assert home.heating_control_enabled is None
+    assert "service_menu_open" not in home.features  # firmware unknown: not guessed
+
+
+def test_shared_port_routing_decides_which_chemical_is_present() -> None:
+    data = _make_base_bytes()
+    data[101] = 40
+    data[37] = 0x43  # SALT, bit 0x80 clear: shared port routed to flocculant
+    device = AsekoDecoder.decode(bytes(data))
+    assert "flowrate_floc" in device.features
+    assert "floc_pump_running" in device.features
+    assert "flowrate_algicide" not in device.features
+    assert "algicide_pump_running" not in device.features
+
+    data[37] = 0xC3  # bit 0x80 set: routed to algicide
+    device = AsekoDecoder.decode(bytes(data))
+    assert "flowrate_algicide" in device.features
+    assert "flowrate_floc" not in device.features
+
+
+def test_v8_sentinel_means_not_present() -> None:
+    """v8 cannot tell an absent probe from an unreadable one; both are -500."""
+    frame = REFERENCE_FRAME.replace(b"ains: 708 708", b"ains: -500 708")
+    device = AsekoV8Decoder.decode(frame)
+    assert "ph" not in device.features
+    assert device.ph is None
+    assert "redox" in device.features

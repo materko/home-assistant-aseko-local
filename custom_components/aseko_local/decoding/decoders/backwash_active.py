@@ -9,8 +9,8 @@ actuator bit moved during it.  A "no flow to probes" condition (byte[13] bit
 0x04) was independently confirmed to go with byte[28] == 0, not with this
 bit (Issue #100, DomSchCoding capture).
 
-NET has no backwash valve, so no NET profile lists this feature: the field
-stays None and no entity is created.
+NET has no backwash valve, so no NET profile lists this feature and no
+entity is created for it.
 """
 
 from __future__ import annotations

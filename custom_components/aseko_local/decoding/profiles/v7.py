@@ -322,6 +322,25 @@ HOME_B = Profile(
     },
 )
 
+# A HOME frame with byte[37] unset says nothing about its firmware.  Read
+# what both revisions share and nothing that only one of them has, so that no
+# entity is created on the strength of a guess: service_menu_open exists only
+# on firmware B and is left out.  Every byte[37] reading returns "unknown"
+# on such a frame anyway, so the values cannot differ from either revision.
+HOME_UNKNOWN_FIRMWARE = Profile(
+    name="v7 HOME firmware not yet known",
+    protocol=Protocol.V7,
+    model=AsekoDeviceType.HOME,
+    features=_HOME_FEATURES,
+    overrides={Configuration: "decode_v7_by_unit_type_byte"},
+    evidence={
+        **_HOME_EVIDENCE,
+        FiltrationSchedule: "n/a: byte[37] is unset on every frame decoded with this profile",
+        HeatingControlEnabled: "n/a: byte[37] is unset on every frame decoded with this profile",
+        AntifreezeEnabled: "n/a: byte[37] is unset on every frame decoded with this profile",
+    },
+)
+
 # ---------------------------------------------------------------------------
 # OXY (ASIN AQUA Oxygen)
 # ---------------------------------------------------------------------------

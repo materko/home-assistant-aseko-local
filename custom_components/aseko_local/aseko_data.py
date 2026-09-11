@@ -154,9 +154,12 @@ class AsekoDevice:
     #
     # firmware_variant -- None where the model has a single known encoding,
     #     or where the frame did not allow the variant to be told apart.
-    # features -- names of the AsekoDevice fields the profile decodes at all.
-    #     A field not in here is one this model does not have; a field in
-    #     here that reads None is one whose value is unknown right now.
+    # features -- names of the AsekoDevice fields *this unit* has: the
+    #     profile's list minus the readings that answered "not present" for
+    #     this unit (probe not installed, shared port configured for the
+    #     other chemical, setting never made).  A field not in here gets no
+    #     entity; a field in here that reads None is unknown right now and
+    #     its entity shows "unknown".  See ``decoding.presence``.
     # flags -- semantic facts about the model, see ``AsekoProfileFlag``.
     firmware_variant: AsekoFirmwareVariant | None = None
     features: frozenset[str] = field(default_factory=frozenset)

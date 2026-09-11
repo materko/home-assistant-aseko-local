@@ -13,11 +13,12 @@ from datetime import time
 from typing import TYPE_CHECKING
 
 from ..feature import Feature
-from ..frame import decode_time
+from ..frame import time_or_absent
 
 if TYPE_CHECKING:
     from ...aseko_data import AsekoDevice
     from ..frame import V7Frame
+    from ..presence import NotPresent
 
 
 class Start2(Feature):
@@ -25,5 +26,5 @@ class Start2(Feature):
 
     field = "start2"
 
-    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> time | None:
-        return decode_time(frame[60:62])
+    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> time | NotPresent:
+        return time_or_absent(frame[60:62])

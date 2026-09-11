@@ -20,6 +20,7 @@ _LOGGER = logging.getLogger(__name__)
 ALL_PROFILES: tuple[Profile, ...] = (
     v7.HOME_A,
     v7.HOME_B,
+    v7.HOME_UNKNOWN_FIRMWARE,
     v7.SALT,
     v7.OXY,
     v7.NET,
@@ -37,15 +38,18 @@ def profile_for(
 ) -> Profile:
     """Return the profile for a known combination.
 
-    HOME with an unknown firmware variant resolves to the bit-flag profile
-    (firmware B): with byte[37] unset every reading that differs between the
-    two returns None anyway, so the choice cannot change a value, only which
-    plan runs.
+    HOME with the firmware variant not established resolves to a profile
+    of its own that reads only what both revisions share, so nothing gets
+    an entity on the strength of a guess.
     """
     if protocol is Protocol.V8:
         return v8.BY_MODEL[model]
     if model is AsekoDeviceType.HOME:
-        return v7.HOME_A if firmware is AsekoFirmwareVariant.HOME_A else v7.HOME_B
+        if firmware is AsekoFirmwareVariant.HOME_A:
+            return v7.HOME_A
+        if firmware is AsekoFirmwareVariant.HOME_B:
+            return v7.HOME_B
+        return v7.HOME_UNKNOWN_FIRMWARE
     return v7.BY_MODEL[model]
 
 

@@ -18,6 +18,7 @@ from typing import TypeVar
 import homeassistant.util
 
 from ..const import UNSPECIFIED_V8, UNSPECIFIED_VALUE, YEAR_OFFSET
+from .presence import NOT_PRESENT, NotPresent
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -99,9 +100,14 @@ def normalize_value(value: int | str | None, type_: type[T]) -> T | None:
     raise ValueError(f"Unsupported type {type_} or value {value}")
 
 
-def byte_or_none(value: int) -> int | None:
-    """Return ``value`` unless it is the 0xFF "unspecified" marker."""
-    return None if value == UNSPECIFIED_VALUE else value
+def byte_or_absent(value: int) -> int | NotPresent:
+    """Return ``value``, or NOT_PRESENT for the 0xFF "unspecified" marker.
+
+    For a configuration byte 0xFF means the setting was never made or the
+    input is not fitted, which is a fact about this unit rather than a value
+    that happens to be unknown -- see ``presence``.
+    """
+    return NOT_PRESENT if value == UNSPECIFIED_VALUE else value
 
 
 def decode_time(data: bytes) -> time | None:
@@ -117,6 +123,12 @@ def decode_time(data: bytes) -> time | None:
     except ValueError as e:
         _LOGGER.warning("Invalid time in frame (%s) - data=%s", e, data.hex())
         return None
+
+
+def time_or_absent(data: bytes) -> time | NotPresent:
+    """Like ``decode_time`` but NOT_PRESENT for an unset or invalid pair."""
+    value = decode_time(data)
+    return NOT_PRESENT if value is None else value
 
 
 def decode_timestamp(data: bytes) -> datetime:

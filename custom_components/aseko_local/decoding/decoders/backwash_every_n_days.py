@@ -12,11 +12,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ..feature import Feature
-from ..frame import byte_or_none
+from ..frame import byte_or_absent
 
 if TYPE_CHECKING:
     from ...aseko_data import AsekoDevice
     from ..frame import V7Frame
+    from ..presence import NotPresent
 
 
 class BackwashEveryNDays(Feature):
@@ -24,5 +25,5 @@ class BackwashEveryNDays(Feature):
 
     field = "backwash_every_n_days"
 
-    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | None:
-        return byte_or_none(frame[68])
+    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | NotPresent:
+        return byte_or_absent(frame[68])

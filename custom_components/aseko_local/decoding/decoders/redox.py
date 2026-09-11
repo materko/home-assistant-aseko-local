@@ -7,11 +7,13 @@ from typing import TYPE_CHECKING
 from ...aseko_data import AsekoProbeType
 from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
+from ..presence import NOT_PRESENT
 from .configuration import Configuration
 
 if TYPE_CHECKING:
     from ...aseko_data import AsekoDevice
     from ..frame import V7Frame, V8Frame
+    from ..presence import NotPresent
 
 
 class Redox(Feature):
@@ -20,12 +22,13 @@ class Redox(Feature):
     field = "redox"
     depends_on = (Configuration,)
 
-    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | None:
+    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | NotPresent:
         if AsekoProbeType.REDOX not in device.configuration:
-            return None
+            return NOT_PRESENT
         if frame[18] == UNSPECIFIED_VALUE and frame[19] == UNSPECIFIED_VALUE:
             return frame.word(16)
         return frame.word(18)
 
-    def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> int | None:
-        return frame.value("ains", 6)
+    def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> int | NotPresent:
+        raw = frame.value("ains", 6)
+        return NOT_PRESENT if raw is None else raw

@@ -298,7 +298,11 @@ async def test_async_setup_salt_redox(hass) -> None:
     #   +1 filtration_schedule sensor  — what the unit runs unattended
     #   +1 service_menu binary sensor  — bit 0x04, a device state, not a
     #      filtration one
-    assert len(added_entities) == 41
+    # + 1 last_seen: present on every unit, so it is created up front and
+    #   reads "unknown" until the coordinator stamps the first frame.  It used
+    #   to be skipped here only because this test hands the platform a device
+    #   the coordinator has not stamped yet.
+    assert len(added_entities) == 42
     # Nothing has been observed yet, so the history is unknown rather than
     # guessed from the schedule.
     backwash_history = {
@@ -429,7 +433,11 @@ async def test_async_setup_salt_clf(hass) -> None:
     #   +1 filtration_schedule sensor  — what the unit runs unattended
     #   +1 service_menu binary sensor  — bit 0x04, a device state, not a
     #      filtration one
-    assert len(added_entities) == 42
+    # + 1 last_seen: present on every unit, so it is created up front and
+    #   reads "unknown" until the coordinator stamps the first frame.  It used
+    #   to be skipped here only because this test hands the platform a device
+    #   the coordinator has not stamped yet.
+    assert len(added_entities) == 43
     assert any(
         getattr(e.entity_description, "key", None) != "water_flow_to_probes"
         for e in added_entities
@@ -536,7 +544,11 @@ async def test_async_setup_net_clf(hass) -> None:
     # carries non-0xFF data in those byte slots.  The history sensors are
     # gated on the device having a backwash valve, not on their own value,
     # so this stays true now that they start out unknown.
-    assert len(added_entities) == 23
+    # + 1 last_seen: present on every unit, so it is created up front and
+    #   reads "unknown" until the coordinator stamps the first frame.  It used
+    #   to be skipped here only because this test hands the platform a device
+    #   the coordinator has not stamped yet.
+    assert len(added_entities) == 24
     assert not any(
         getattr(e.entity_description, "key", None) == "backwash_every_n_days"
         for e in added_entities
@@ -701,7 +713,11 @@ async def test_async_setup_profi_clf_redox(hass) -> None:
     #   +1 filtration_schedule sensor  — what the unit runs unattended
     #   +1 service_menu binary sensor  — bit 0x04, a device state, not a
     #      filtration one
-    assert len(added_entities) == 44
+    # + 1 last_seen: present on every unit, so it is created up front and
+    #   reads "unknown" until the coordinator stamps the first frame.  It used
+    #   to be skipped here only because this test hands the platform a device
+    #   the coordinator has not stamped yet.
+    assert len(added_entities) == 45
     assert any(
         getattr(e.entity_description, "key", None) == "free_chlorine"
         for e in added_entities

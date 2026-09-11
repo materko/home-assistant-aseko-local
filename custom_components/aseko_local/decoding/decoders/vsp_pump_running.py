@@ -10,10 +10,12 @@ from typing import TYPE_CHECKING
 
 from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
+from ..presence import NOT_PRESENT
 
 if TYPE_CHECKING:
     from ...aseko_data import AsekoDevice
     from ..frame import V7Frame
+    from ..presence import NotPresent
 
 
 VSP_PUMP = 0x08
@@ -24,7 +26,7 @@ class VspPumpRunning(Feature):
 
     field = "vsp_pump_running"
 
-    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool | None:
+    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool | NotPresent:
         if frame[22] == UNSPECIFIED_VALUE:
-            return None
+            return NOT_PRESENT
         return bool(frame[22] & VSP_PUMP)

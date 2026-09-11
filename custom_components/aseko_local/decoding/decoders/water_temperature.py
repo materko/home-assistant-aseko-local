@@ -5,10 +5,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ..feature import Feature
+from ..presence import NOT_PRESENT
 
 if TYPE_CHECKING:
     from ...aseko_data import AsekoDevice
     from ..frame import V7Frame, V8Frame
+    from ..presence import NotPresent
 
 
 class WaterTemperature(Feature):
@@ -19,6 +21,6 @@ class WaterTemperature(Feature):
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> float:
         return frame.word(25) / 10
 
-    def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> float | None:
+    def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> float | NotPresent:
         raw = frame.value("ins", 0)
-        return raw / 10 if raw is not None else None
+        return raw / 10 if raw is not None else NOT_PRESENT

@@ -11,11 +11,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ..feature import Feature
+from ..presence import NOT_PRESENT
 from .flowrate_floc import FlowrateFloc
 
 if TYPE_CHECKING:
     from ...aseko_data import AsekoDevice
     from ..frame import V7Frame
+    from ..presence import NotPresent
 
 
 FLOC_PUMP = 0x20
@@ -27,7 +29,7 @@ class FlocPumpRunning(Feature):
     field = "floc_pump_running"
     depends_on = (FlowrateFloc,)
 
-    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool | None:
+    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool | NotPresent:
         if device.flowrate_floc is None:
-            return None
+            return NOT_PRESENT
         return bool(frame[29] & FLOC_PUMP)

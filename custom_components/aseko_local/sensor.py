@@ -44,17 +44,12 @@ class AsekoSensorEntityDescription(SensorEntityDescription):
 
     value_fn: Callable[[AsekoDevice], StateType]
     enabled: bool = True
-    # Decides whether the device has this sensor at all.  By default a sensor
-    # is created only when its value is already known, which is right for
-    # values read straight out of the frame: a None there means the device
-    # does not report that quantity.
-    #
-    # It is wrong for values that are legitimately unknown until an event is
-    # observed — the observed-backwash timestamps start out None on a device
-    # that does have a backwash valve, and without an explicit check their
-    # entities would never be created.  Set this to decide presence from
-    # something other than the current value.
-    supported_fn: Callable[[AsekoDevice], bool] | None = None
+    # The AsekoDevice field this sensor stands for.  The entity is created
+    # when that field is in ``device.features``, i.e. when the decoder says
+    # this unit has the quantity — whether or not its value is known yet.  A
+    # None value then shows as "unknown" rather than as a missing entity.
+    # Leave unset for sensors every device has (connection status, last seen).
+    feature: str | None = None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -81,19 +76,13 @@ PUMP_RUNNING_ATTR: dict[str, str] = {
 def device_has_pump(device: AsekoDevice, pump_key: str) -> bool:
     """Return True if this unit has the given chemical pump.
 
-    Two conditions, both answered by the decoder rather than by byte masks.
-    The pump's running-state field must be one this model reads at all
-    (``device.features``), and it must currently hold a value: a model can
-    read a field and still leave it None -- SALT's shared third port is
-    algicide *or* flocculant, and only the chemical the port is configured
-    for gets a state.  A pump nobody has mapped yet (pH+) is in no profile's
-    feature list and is skipped by the first check.
+    Answered by the decoder rather than by byte masks: the pump's
+    running-state field is in ``device.features`` when the model reads it
+    and this unit has the pump.  SALT's shared third port is algicide *or*
+    flocculant, so only the chemical the port is configured for is present;
+    a pump nobody has mapped yet (pH+) is in no profile's list at all.
     """
-    running_attr = PUMP_RUNNING_ATTR[pump_key]
-    return (
-        running_attr in device.features
-        and getattr(device, running_attr, None) is not None
-    )
+    return PUMP_RUNNING_ATTR[pump_key] in device.features
 
 
 CONSUMPTION_SENSORS: list[AsekoConsumptionSensorEntityDescription] = [
@@ -210,19 +199,10 @@ CONSUMPTION_SENSORS: list[AsekoConsumptionSensorEntityDescription] = [
 # ---------- Fixed (system-level) sensors ----------
 
 
-def _has_backwash(device: AsekoDevice) -> bool:
-    """Return True if the device has a backwash valve.
-
-    The profile lists ``backwash_active`` only for models with a backwash
-    output (NET has none), so its presence in ``device.features`` is the
-    answer, whether or not the valve is currently open.  See Issue #129.
-    """
-    return "backwash_active" in device.features
-
-
 SENSORS: list[AsekoSensorEntityDescription] = [
     AsekoSensorEntityDescription(
         key="airTemp",
+        feature="air_temperature",
         translation_key="air_temperature",
         device_class=SensorDeviceClass.TEMPERATURE,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
@@ -232,6 +212,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="electrolyzer",
+        feature="electrolyzer_power",
         translation_key="electrolyzer_power",
         native_unit_of_measurement="g/h",
         state_class=SensorStateClass.MEASUREMENT,
@@ -240,6 +221,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="electrolyzer_direction",
+        feature="electrolyzer_direction",
         translation_key="electrolyzer_direction",
         device_class=SensorDeviceClass.ENUM,
         options=[direction.value for direction in AsekoElectrolyzerDirection],
@@ -252,6 +234,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="free_chlorine",
+        feature="cl_free",
         translation_key="free_chlorine",
         native_unit_of_measurement="mg/l",
         state_class=SensorStateClass.MEASUREMENT,
@@ -260,6 +243,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="required_free_chlorine",
+        feature="required_cl_free",
         translation_key="required_free_chlorine",
         native_unit_of_measurement="mg/l",
         state_class=SensorStateClass.MEASUREMENT,
@@ -268,6 +252,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="free_chlorine_mv",
+        feature="cl_free_mv",
         translation_key="free_chlorine_mv",
         native_unit_of_measurement=UnitOfElectricPotential.MILLIVOLT,
         state_class=SensorStateClass.MEASUREMENT,
@@ -276,6 +261,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="ph",
+        feature="ph",
         translation_key="ph",
         device_class=SensorDeviceClass.PH,
         state_class=SensorStateClass.MEASUREMENT,
@@ -284,6 +270,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="required_ph",
+        feature="required_ph",
         translation_key="required_ph",
         device_class=SensorDeviceClass.PH,
         state_class=SensorStateClass.MEASUREMENT,
@@ -292,6 +279,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="ph_minus_concentration",
+        feature="ph_minus_concentration",
         translation_key="ph_minus_concentration",
         native_unit_of_measurement="%",
         state_class=SensorStateClass.MEASUREMENT,
@@ -300,6 +288,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="rx",
+        feature="redox",
         translation_key="redox",
         native_unit_of_measurement=UnitOfElectricPotential.MILLIVOLT,
         state_class=SensorStateClass.MEASUREMENT,
@@ -308,6 +297,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="required_rx",
+        feature="required_redox",
         translation_key="required_redox",
         native_unit_of_measurement=UnitOfElectricPotential.MILLIVOLT,
         state_class=SensorStateClass.MEASUREMENT,
@@ -316,6 +306,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="salinity",
+        feature="salinity",
         translation_key="salinity",
         native_unit_of_measurement="kg/m³",
         state_class=SensorStateClass.MEASUREMENT,
@@ -324,6 +315,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="waterTemp",
+        feature="water_temperature",
         translation_key="water_temperature",
         device_class=SensorDeviceClass.TEMPERATURE,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
@@ -333,6 +325,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="required_waterTemp",
+        feature="required_water_temperature",
         translation_key="required_water_temperature",
         device_class=SensorDeviceClass.TEMPERATURE,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
@@ -342,6 +335,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="water_level",
+        feature="water_level",
         translation_key="water_level",
         native_unit_of_measurement=UnitOfLength.CENTIMETERS,
         state_class=SensorStateClass.MEASUREMENT,
@@ -350,6 +344,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="water_level_low_alarm",
+        feature="water_level_low_alarm",
         translation_key="water_level_low_alarm",
         native_unit_of_measurement=UnitOfLength.CENTIMETERS,
         state_class=SensorStateClass.MEASUREMENT,
@@ -358,6 +353,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="water_level_filling_on",
+        feature="water_level_filling_on",
         translation_key="water_level_filling_on",
         native_unit_of_measurement=UnitOfLength.CENTIMETERS,
         state_class=SensorStateClass.MEASUREMENT,
@@ -366,6 +362,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="water_level_filling_off",
+        feature="water_level_filling_off",
         translation_key="water_level_filling_off",
         native_unit_of_measurement=UnitOfLength.CENTIMETERS,
         state_class=SensorStateClass.MEASUREMENT,
@@ -374,6 +371,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="water_level_high_alarm",
+        feature="water_level_high_alarm",
         translation_key="water_level_high_alarm",
         native_unit_of_measurement=UnitOfLength.CENTIMETERS,
         state_class=SensorStateClass.MEASUREMENT,
@@ -382,6 +380,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="max_filling_time",
+        feature="max_filling_time",
         translation_key="max_filling_time",
         device_class=SensorDeviceClass.DURATION,
         native_unit_of_measurement=UnitOfTime.SECONDS,
@@ -392,6 +391,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="required_algicide",
+        feature="required_algicide",
         translation_key="required_algicide",
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:pool",
@@ -399,6 +399,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="required_oxy_dose",
+        feature="required_oxy_dose",
         translation_key="required_oxy_dose",
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:pool",
@@ -406,6 +407,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="required_cl_dose",
+        feature="required_cl_dose",
         translation_key="required_cl_dose",
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:pool",
@@ -413,6 +415,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="required_floc",
+        feature="required_floc",
         translation_key="required_floc",
         native_unit_of_measurement="mL/h",
         state_class=SensorStateClass.MEASUREMENT,
@@ -421,6 +424,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="flowrate_chlor",
+        feature="flowrate_chlor",
         translation_key="flowrate_chlor",
         native_unit_of_measurement="mL/min",
         state_class=SensorStateClass.MEASUREMENT,
@@ -436,6 +440,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="flowrate_ph_minus",
+        feature="flowrate_ph_minus",
         translation_key="flowrate_ph_minus",
         native_unit_of_measurement="mL/min",
         state_class=SensorStateClass.MEASUREMENT,
@@ -451,6 +456,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="flowrate_ph_plus",
+        feature="flowrate_ph_plus",
         translation_key="flowrate_ph_plus",
         native_unit_of_measurement="mL/min",
         state_class=SensorStateClass.MEASUREMENT,
@@ -466,6 +472,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="flowrate_algicide",
+        feature="flowrate_algicide",
         translation_key="flowrate_algicide",
         native_unit_of_measurement="mL/min",
         state_class=SensorStateClass.MEASUREMENT,
@@ -481,6 +488,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="flowrate_floc",
+        feature="flowrate_floc",
         translation_key="flowrate_floc",
         native_unit_of_measurement="mL/min",
         state_class=SensorStateClass.MEASUREMENT,
@@ -496,6 +504,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="flowrate_oxy",
+        feature="flowrate_oxy",
         translation_key="flowrate_oxy",
         native_unit_of_measurement="mL/min",
         state_class=SensorStateClass.MEASUREMENT,
@@ -518,6 +527,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="filtration_1_start",
+        feature="start1",
         translation_key="filtration_1_start",
         icon="mdi:clock-start",
         value_fn=lambda device: (
@@ -526,6 +536,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="filtration_1_stop",
+        feature="stop1",
         translation_key="filtration_1_stop",
         icon="mdi:clock-end",
         value_fn=lambda device: (
@@ -534,6 +545,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="filtration_2_start",
+        feature="start2",
         translation_key="filtration_2_start",
         icon="mdi:clock-start",
         value_fn=lambda device: (
@@ -542,6 +554,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="filtration_2_stop",
+        feature="stop2",
         translation_key="filtration_2_stop",
         icon="mdi:clock-end",
         value_fn=lambda device: (
@@ -550,6 +563,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="filtration_schedule",
+        feature="filtration_schedule",
         translation_key="filtration_schedule",
         icon="mdi:calendar-clock",
         device_class=SensorDeviceClass.ENUM,
@@ -568,6 +582,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="pool_volume",
+        feature="pool_volume",
         translation_key="pool_volume",
         native_unit_of_measurement=UnitOfVolume.CUBIC_METERS,
         state_class=SensorStateClass.MEASUREMENT,
@@ -576,6 +591,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="delay_after_startup",
+        feature="delay_after_startup",
         translation_key="delay_after_startup",
         device_class=SensorDeviceClass.DURATION,
         native_unit_of_measurement=UnitOfTime.SECONDS,
@@ -586,6 +602,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="delay_after_dose",
+        feature="delay_after_dose",
         translation_key="delay_after_dose",
         device_class=SensorDeviceClass.DURATION,
         native_unit_of_measurement=UnitOfTime.SECONDS,
@@ -596,6 +613,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="backwash_every_n_days",
+        feature="backwash_every_n_days",
         translation_key="backwash_every_n_days",
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:calendar-refresh",
@@ -603,6 +621,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="backwash_time",
+        feature="backwash_time",
         translation_key="backwash_time",
         icon="mdi:clock-start",
         value_fn=lambda device: (
@@ -613,15 +632,16 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="backwash_duration",
+        feature="backwash_duration",
         translation_key="backwash_duration",
         native_unit_of_measurement=UnitOfTime.SECONDS,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:timer-sand",
         value_fn=lambda device: device.backwash_duration,
     ),
-    # Observed backwash history.  All four are gated on _has_backwash rather
-    # than on their own value, because they are unknown until a cycle has
-    # actually been seen — see supported_fn.
+    # Observed backwash history.  Present on every unit with a backwash
+    # valve (feature backwash_active), unknown until a cycle has actually
+    # been seen.
     #
     # last_backwash is the *observed* one: the integration watched the backwash
     # valve stay open, so the cycle definitely happened.
@@ -634,31 +654,31 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     # measured.  See backwash_tracker.BackwashTracker._classify.
     AsekoSensorEntityDescription(
         key="last_backwash",
+        feature="backwash_active",
         translation_key="last_backwash",
         device_class=SensorDeviceClass.TIMESTAMP,
         icon="mdi:clock-check-outline",
         value_fn=lambda device: device.last_backwash,
-        supported_fn=_has_backwash,
     ),
     # last_scheduled_backwash is not here: it is a writable datetime entity
     # (see datetime.py) so it can be set from the UI in one click, rather than
     # a read-only sensor plus a helper and a script to feed it.
     AsekoSensorEntityDescription(
         key="last_manual_backwash",
+        feature="backwash_active",
         translation_key="last_manual_backwash",
         device_class=SensorDeviceClass.TIMESTAMP,
         icon="mdi:hand-back-right-outline",
         value_fn=lambda device: device.last_manual_backwash,
-        supported_fn=_has_backwash,
     ),
     AsekoSensorEntityDescription(
         # Renamed from "next_backwash" — see MIGRATED_UNIQUE_ID_SUFFIXES.
         key="next_scheduled_backwash",
+        feature="backwash_active",
         translation_key="next_scheduled_backwash",
         device_class=SensorDeviceClass.TIMESTAMP,
         icon="mdi:clock-alert-outline",
         value_fn=lambda device: device.next_scheduled_backwash,
-        supported_fn=_has_backwash,
         # No source attribute: this is always projected from
         # last_scheduled_backwash, so that sensor's source is this one's too.
     ),
@@ -814,6 +834,11 @@ async def async_setup_entry(
     )
 
 
+def _is_present(description: AsekoSensorEntityDescription, device: AsekoDevice) -> bool:
+    """Return True if this unit has the quantity the description stands for."""
+    return description.feature is None or description.feature in device.features
+
+
 def _build_sensor_entities(
     devices: list[AsekoDevice],
     coordinator: AsekoLocalDataUpdateCoordinator,
@@ -837,21 +862,11 @@ def _build_sensor_entities(
                 val,
             )
 
-            # Without a supported_fn, a value of None means "device does not
-            # report this".  With one, the device decides presence and the
-            # sensor may legitimately start out unknown.
-            if description.supported_fn is not None:
-                if not description.supported_fn(device):
-                    _LOGGER.debug(
-                        "   - Skipped unsupported sensor: %s",
-                        key,
-                    )
-                    continue
-            elif val is None:
-                _LOGGER.debug(
-                    "   - Skipped non-available sensor: %s (value=None)",
-                    key,
-                )
+            # The decoder, not the current value, says whether this unit has
+            # the quantity: a field missing from device.features is one the
+            # unit does not have, a field in it that reads None is unknown.
+            if not _is_present(description, device):
+                _LOGGER.debug("   - Skipped sensor %s: not a feature of this unit", key)
                 continue
             entity = AsekoLocalSensorEntity(device, coordinator, description)
             entities.append(entity)

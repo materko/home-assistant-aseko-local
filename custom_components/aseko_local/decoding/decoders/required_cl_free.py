@@ -13,11 +13,13 @@ from typing import TYPE_CHECKING
 
 from ...aseko_data import AsekoProbeType
 from ..feature import Feature
+from ..presence import NOT_PRESENT
 from .configuration import Configuration
 
 if TYPE_CHECKING:
     from ...aseko_data import AsekoDevice
     from ..frame import V7Frame
+    from ..presence import NotPresent
 
 
 class RequiredClFree(Feature):
@@ -26,7 +28,7 @@ class RequiredClFree(Feature):
     field = "required_cl_free"
     depends_on = (Configuration,)
 
-    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> float | None:
+    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> float | NotPresent:
         if AsekoProbeType.CLF not in device.configuration:
-            return None
+            return NOT_PRESENT
         return frame[53] / 10

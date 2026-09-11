@@ -13,10 +13,12 @@ from typing import TYPE_CHECKING
 
 from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
+from ..presence import NOT_PRESENT
 
 if TYPE_CHECKING:
     from ...aseko_data import AsekoDevice
     from ..frame import V7Frame
+    from ..presence import NotPresent
 
 
 class BackwashDuration(Feature):
@@ -24,7 +26,7 @@ class BackwashDuration(Feature):
 
     field = "backwash_duration"
 
-    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | None:
+    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | NotPresent:
         if frame[71] == UNSPECIFIED_VALUE:
-            return None
+            return NOT_PRESENT
         return frame[71] * 10

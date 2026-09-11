@@ -22,10 +22,12 @@ from typing import TYPE_CHECKING
 
 from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
+from ..presence import NOT_PRESENT
 
 if TYPE_CHECKING:
     from ...aseko_data import AsekoDevice
     from ..frame import V7Frame
+    from ..presence import NotPresent
 
 
 # Units without an air probe report an open-circuit value here (-40.0 C and
@@ -41,12 +43,12 @@ class AirTemperature(Feature):
 
     field = "air_temperature"
 
-    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> float | None:
+    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> float | NotPresent:
         raw = frame[23:25]
         if all(byte == UNSPECIFIED_VALUE for byte in raw):
-            return None
+            return NOT_PRESENT
 
         value = int.from_bytes(raw, "big", signed=True) / 10
         if not AIR_TEMPERATURE_MIN <= value <= AIR_TEMPERATURE_MAX:
-            return None
+            return NOT_PRESENT
         return value

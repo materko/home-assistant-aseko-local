@@ -15,11 +15,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ..feature import Feature
+from ..presence import NOT_PRESENT
 from .flowrate_algicide import FlowrateAlgicide
 
 if TYPE_CHECKING:
     from ...aseko_data import AsekoDevice
     from ..frame import V7Frame
+    from ..presence import NotPresent
 
 
 ALGICIDE_PUMP = 0x20  # SALT confirmed (PR #87), HOME uncertain
@@ -32,12 +34,12 @@ class AlgicidePumpRunning(Feature):
     field = "algicide_pump_running"
     depends_on = (FlowrateAlgicide,)
 
-    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool | None:
+    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool | NotPresent:
         if device.flowrate_algicide is None:
-            return None
+            return NOT_PRESENT
         return bool(frame[29] & ALGICIDE_PUMP)
 
-    def decode_v7_oxy(self, frame: V7Frame, device: AsekoDevice) -> bool | None:
+    def decode_v7_oxy(self, frame: V7Frame, device: AsekoDevice) -> bool | NotPresent:
         if device.flowrate_algicide is None:
-            return None
+            return NOT_PRESENT
         return bool(frame[29] & ALGICIDE_PUMP_OXY)

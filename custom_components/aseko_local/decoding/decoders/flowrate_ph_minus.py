@@ -9,11 +9,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ..feature import Feature
-from ..frame import byte_or_none
+from ..frame import byte_or_absent
 
 if TYPE_CHECKING:
     from ...aseko_data import AsekoDevice
     from ..frame import V7Frame, V8Frame
+    from ..presence import NotPresent
 
 
 ASSUMED_V8_FLOWRATE = 60
@@ -24,8 +25,8 @@ class FlowratePhMinus(Feature):
 
     field = "flowrate_ph_minus"
 
-    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | None:
-        return byte_or_none(frame[95])
+    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | NotPresent:
+        return byte_or_absent(frame[95])
 
     def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> int:
         return ASSUMED_V8_FLOWRATE

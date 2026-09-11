@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from ..aseko_data import AsekoDevice
 from .frame import parse_frame
+from .presence import NOT_PRESENT
 from .profiles import detect_profile
 
 if TYPE_CHECKING:
@@ -26,15 +27,26 @@ def decode(
     ``firmware`` is what detection actually established for this frame; it
     can differ from ``profile.firmware`` when the frame did not allow the
     variant to be told apart and the profile is a fallback.
+
+    ``device.features`` ends up as the fields *this unit* has: the profile's
+    list minus every reading that answered ``NOT_PRESENT`` (see
+    ``presence``).  A field the unit has but could not read in this frame is
+    in ``features`` with the value None.
     """
     device = AsekoDevice(
         device_type=profile.model,
         firmware_variant=firmware,
-        features=profile.feature_names,
         flags=profile.flags,
     )
+    present: set[str] = set()
     for feature, read in profile.plan:
-        setattr(device, feature.field, read(frame, device))
+        value = read(frame, device)
+        if value is NOT_PRESENT:
+            value = None
+        else:
+            present.add(feature.field)
+        setattr(device, feature.field, value)
+    device.features = frozenset(present)
     return device
 
 
