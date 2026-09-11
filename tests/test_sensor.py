@@ -240,6 +240,9 @@ async def test_async_setup_salt_redox(hass) -> None:
         def async_add_new_device_listener(self, listener):
             return lambda: None
 
+        def async_add_new_features_listener(self, listener):
+            return lambda: None
+
     # Create a MagicMock for ConfigEntry with runtime_data attribute
     dummy_entry = MagicMock(spec=ConfigEntry)
     # entry_id is an instance attribute, so spec= does not provide it, but
@@ -376,6 +379,9 @@ async def test_async_setup_salt_clf(hass) -> None:
         def async_add_new_device_listener(self, listener):
             return lambda: None
 
+        def async_add_new_features_listener(self, listener):
+            return lambda: None
+
     # Create a MagicMock for ConfigEntry with runtime_data attribute
     dummy_entry = MagicMock(spec=ConfigEntry)
     # entry_id is an instance attribute, so spec= does not provide it, but
@@ -488,6 +494,9 @@ async def test_async_setup_net_clf(hass) -> None:
             return None
 
         def async_add_new_device_listener(self, listener):
+            return lambda: None
+
+        def async_add_new_features_listener(self, listener):
             return lambda: None
 
     # Create a MagicMock for ConfigEntry with runtime_data attribute
@@ -627,6 +636,9 @@ async def test_async_setup_profi_clf_redox(hass) -> None:
             return None
 
         def async_add_new_device_listener(self, listener):
+            return lambda: None
+
+        def async_add_new_features_listener(self, listener):
             return lambda: None
 
     # Create a MagicMock for ConfigEntry with runtime_data attribute

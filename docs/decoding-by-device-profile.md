@@ -135,7 +135,7 @@ A reading can answer with a value, with `None`, or with `NOT_PRESENT` (see `deco
 - a unit that lacks it (a SALT with a REDOX probe has no free chlorine; a shared pump port routed to flocculant has no algicide) never gets the entity, because the reading answered `NOT_PRESENT`;
 - a unit that has it but whose first frame could not say (a SALT sending `byte[37] = 0xFF` at startup) gets the entity in state "unknown" instead of no entity until the next reload.
 
-One consequence is worth knowing: entities are still created when a unit is first seen, so a quantity that only becomes present later (the shared port gets configured, a firmware variant is recognised after an unset first frame) does not get an entity until the integration is reloaded. Adding entities to an already-known device is a possible next step; the allowlist makes it a small one.
+Presence is sticky and entities can arrive late. The coordinator keeps a device's feature set as the union of everything the unit has ever shown, and when a frame adds to it (the shared port gets configured, a setting is made, a firmware variant is recognised after an unset first frame) it calls the platforms' new-features listeners with just the added fields. Each platform builds the entities for those fields and nothing else, so a quantity that only becomes present after the device was first seen still gets its entity, without a reload. Entities are never removed: a quantity that stops being readable keeps its entity and shows "unknown".
 
 A HOME frame with `byte[37]` unset cannot be told apart between firmware A and B, so it decodes with a profile that lists only what both revisions share. Nothing gets an entity on the strength of a guess.
 

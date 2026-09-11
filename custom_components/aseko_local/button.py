@@ -12,7 +12,7 @@ from . import AsekoLocalConfigEntry
 from .aseko_data import AsekoDevice
 from .coordinator import AsekoLocalDataUpdateCoordinator
 from .entity import AsekoLocalEntity
-from .sensor import device_has_pump
+from .sensor import PUMP_RUNNING_ATTR, device_has_pump
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -80,21 +80,40 @@ async def async_setup_entry(
         if new_entities:
             async_add_entities(new_entities)
 
+    @callback
+    def _async_add_new_features(device: AsekoDevice, features: frozenset[str]) -> None:
+        new_entities = _build_button_entities([device], coordinator, features)
+        if new_entities:
+            async_add_entities(new_entities)
+
     config_entry.async_on_unload(
         coordinator.async_add_new_device_listener(_async_add_new_device)
+    )
+    config_entry.async_on_unload(
+        coordinator.async_add_new_features_listener(_async_add_new_features)
     )
 
 
 def _build_button_entities(
     devices: list[AsekoDevice],
     coordinator: AsekoLocalDataUpdateCoordinator,
+    features: frozenset[str] | None = None,
 ) -> list[ButtonEntity]:
-    """Create button entities for the given list of devices."""
+    """Create button entities for the given devices.
+
+    With ``features`` given, only the buttons for pumps in that set are
+    built -- the ones a known device has just started showing.
+    """
     entities: list[ButtonEntity] = []
 
     for device in devices:
         for description in RESET_BUTTONS:
             if not device_has_pump(device, description.pump_key):
+                continue
+            if (
+                features is not None
+                and PUMP_RUNNING_ATTR[description.pump_key] not in features
+            ):
                 continue
             entities.append(AsekoResetButtonEntity(device, coordinator, description))
 

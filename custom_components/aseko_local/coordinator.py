@@ -40,6 +40,7 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         super().__init__(
             hass,
             _LOGGER,
+            config_entry=config_entry,
             name=f"{HOMEASSISTANT_DOMAIN} ({config_entry.unique_id})",
         )
         # One tracker per device serial number
@@ -56,6 +57,11 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         self._stale_check_unsub: Callable[[], None] | None = None
         # Per-platform listeners called whenever a brand-new device is discovered
         self._new_device_listeners: list[Callable[[AsekoDevice], None]] = []
+        # Per-platform listeners called when a known device shows features it
+        # has not shown before, with the names of those features
+        self._new_features_listeners: list[
+            Callable[[AsekoDevice, frozenset[str]], None]
+        ] = []
 
     def devices_update_callback(self, device: AsekoDevice) -> None:
         """Receive callback with device update."""
@@ -80,12 +86,15 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         _LOGGER.debug("🔎 Before update: known serials=%s", existing_serials)
 
         is_new_device = False
+        grown: frozenset[str] = frozenset()
 
         if device.serial_number is not None:
-            is_new_device = new_data.get(device.serial_number) is None
+            existing = new_data.get(device.serial_number)
+            is_new_device = existing is None
             _LOGGER.debug(
                 "➡️ Device %s is_new_device=%s", device.serial_number, is_new_device
             )
+            grown = self._merge_features(device, existing)
 
             # Fill the observed-backwash fields *before* handing the device to
             # AsekoData.set(): for an already-known device, set() copies the
@@ -135,6 +144,46 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
                         listener,
                         device.serial_number,
                     )
+        elif grown:
+            # The unit has shown quantities it had not shown before -- the
+            # shared pump port got configured, a setting was made, byte[37]
+            # became readable.  Hand the platforms the stored device (the
+            # object the existing entities read) so they can add the missing
+            # entities without a reload.
+            stored = new_data.get(device.serial_number)
+            _LOGGER.debug(
+                "🧩 Device %s shows new features: %s",
+                device.serial_number,
+                sorted(grown),
+            )
+            for listener in list(self._new_features_listeners):
+                try:
+                    listener(stored, grown)
+                except Exception:
+                    _LOGGER.exception(
+                        "❌ New-features listener %r failed for device serial=%s",
+                        listener,
+                        device.serial_number,
+                    )
+
+    @staticmethod
+    def _merge_features(
+        device: AsekoDevice, existing: AsekoDevice | None
+    ) -> frozenset[str]:
+        """Make presence sticky and return what this frame added.
+
+        Once a unit has shown a quantity it has it, whatever a later frame
+        could or could not read (a shared port reconfigured, a probe briefly
+        unreadable), so the stored device's feature set only ever grows.  The
+        returned set is what the entity platforms have not been told about
+        yet; empty for a device seen for the first time, whose whole feature
+        set goes out through the new-device listeners instead.
+        """
+        if existing is None:
+            return frozenset()
+        grown = device.features - existing.features
+        device.features = device.features | existing.features
+        return grown
 
     def _update_backwash(self, device: AsekoDevice) -> None:
         """Feed the frame to the device's BackwashTracker and publish its state.
@@ -242,6 +291,24 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
 
         def _unsub() -> None:
             self._new_device_listeners.remove(listener)
+
+        return _unsub
+
+    def async_add_new_features_listener(
+        self, listener: Callable[[AsekoDevice, frozenset[str]], None]
+    ) -> Callable[[], None]:
+        """Register a callback for a known device that shows new features.
+
+        Called with the stored device and the names of the AsekoDevice fields
+        that were not in its feature set before this frame.  Platforms build
+        just the entities for those fields, so a quantity that only becomes
+        present after the device was first seen still gets its entity.
+        Returns an unsubscribe callable, like ``async_add_new_device_listener``.
+        """
+        self._new_features_listeners.append(listener)
+
+        def _unsub() -> None:
+            self._new_features_listeners.remove(listener)
 
         return _unsub
 

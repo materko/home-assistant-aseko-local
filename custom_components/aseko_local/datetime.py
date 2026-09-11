@@ -52,20 +52,34 @@ async def async_setup_entry(
         if new_entities:
             async_add_entities(new_entities)
 
+    @callback
+    def _async_add_new_features(device: AsekoDevice, features: frozenset[str]) -> None:
+        new_entities = _build_entities([device], coordinator, features)
+        if new_entities:
+            async_add_entities(new_entities)
+
     config_entry.async_on_unload(
         coordinator.async_add_new_device_listener(_async_add_new_device)
+    )
+    config_entry.async_on_unload(
+        coordinator.async_add_new_features_listener(_async_add_new_features)
     )
 
 
 def _build_entities(
     devices: list[AsekoDevice],
     coordinator: AsekoLocalDataUpdateCoordinator,
+    features: frozenset[str] | None = None,
 ) -> list[DateTimeEntity]:
     """Create one entity per device that has a backwash valve.
 
     The decoder lists ``backwash_active`` in ``device.features`` only for
-    units with that output (NET has none).  See Issue #129.
+    units with that output (NET has none).  See Issue #129.  With
+    ``features`` given, only when the valve is among what the device has
+    just started showing.
     """
+    if features is not None and "backwash_active" not in features:
+        return []
     return [
         AsekoLastScheduledBackwashEntity(device, coordinator, LAST_SCHEDULED_BACKWASH)
         for device in devices

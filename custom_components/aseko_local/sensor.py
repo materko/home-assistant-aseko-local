@@ -829,8 +829,23 @@ async def async_setup_entry(
             )
             async_add_entities(new_entities)
 
+    @callback
+    def _async_add_new_features(device: AsekoDevice, features: frozenset[str]) -> None:
+        new_entities = _build_sensor_entities([device], coordinator, features)
+        if new_entities:
+            _LOGGER.debug(
+                ">>> [sensor] Adding %s sensors for new features %s of device %s",
+                len(new_entities),
+                sorted(features),
+                device.serial_number,
+            )
+            async_add_entities(new_entities)
+
     config_entry.async_on_unload(
         coordinator.async_add_new_device_listener(_async_add_new_device)
+    )
+    config_entry.async_on_unload(
+        coordinator.async_add_new_features_listener(_async_add_new_features)
     )
 
 
@@ -839,11 +854,27 @@ def _is_present(description: AsekoSensorEntityDescription, device: AsekoDevice) 
     return description.feature is None or description.feature in device.features
 
 
+def _wanted(feature: str | None, features: frozenset[str] | None) -> bool:
+    """Return True if ``feature`` is among the ones being built right now.
+
+    ``features`` is None when a device is set up for the first time and
+    everything it has gets an entity; otherwise it is the set of fields the
+    device has just started showing, and only their entities are built.
+    """
+    return features is None or feature in features
+
+
 def _build_sensor_entities(
     devices: list[AsekoDevice],
     coordinator: AsekoLocalDataUpdateCoordinator,
+    features: frozenset[str] | None = None,
 ) -> list[SensorEntity]:
-    """Create sensor entities for the given list of devices."""
+    """Create sensor entities for the given devices.
+
+    With ``features`` given, only the entities for those fields are built --
+    the ones a known device has just started showing.  Without it, every
+    entity the device has, for a device seen for the first time.
+    """
     entities: list[SensorEntity] = []
 
     for device in devices:
@@ -868,6 +899,8 @@ def _build_sensor_entities(
             if not _is_present(description, device):
                 _LOGGER.debug("   - Skipped sensor %s: not a feature of this unit", key)
                 continue
+            if not _wanted(description.feature, features):
+                continue
             entity = AsekoLocalSensorEntity(device, coordinator, description)
             entities.append(entity)
             _LOGGER.debug(
@@ -879,6 +912,8 @@ def _build_sensor_entities(
         for description in CONSUMPTION_SENSORS:
             if not device_has_pump(device, description.pump_key):
                 continue
+            if not _wanted(PUMP_RUNNING_ATTR[description.pump_key], features):
+                continue
             entity = AsekoConsumptionSensorEntity(device, coordinator, description)
             entities.append(entity)
             _LOGGER.debug(
@@ -887,12 +922,14 @@ def _build_sensor_entities(
                 entity.unique_id,
             )
 
-        # Connection status sensor – always added, overrides available to show offline state
-        entities.append(
-            AsekoConnectionStatusSensorEntity(
-                device, coordinator, CONNECTION_STATUS_SENSOR
+        # Connection status sensor – every device has one, so it is added
+        # when the device is first set up and never again
+        if features is None:
+            entities.append(
+                AsekoConnectionStatusSensorEntity(
+                    device, coordinator, CONNECTION_STATUS_SENSOR
+                )
             )
-        )
 
     return entities
 

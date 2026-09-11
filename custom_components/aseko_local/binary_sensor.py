@@ -253,16 +253,37 @@ async def async_setup_entry(
             )
             async_add_entities(new_entities)
 
+    @callback
+    def _async_add_new_features(device: AsekoDevice, features: frozenset[str]) -> None:
+        new_entities = _build_binary_sensor_entities([device], coordinator, features)
+        if new_entities:
+            _LOGGER.debug(
+                ">>> [sensor] Adding %s binary sensors for new features %s of device %s",
+                len(new_entities),
+                sorted(features),
+                device.serial_number,
+            )
+            async_add_entities(new_entities)
+
     config_entry.async_on_unload(
         coordinator.async_add_new_device_listener(_async_add_new_device)
+    )
+    config_entry.async_on_unload(
+        coordinator.async_add_new_features_listener(_async_add_new_features)
     )
 
 
 def _build_binary_sensor_entities(
     devices: list[AsekoDevice],
     coordinator: AsekoLocalDataUpdateCoordinator,
+    features: frozenset[str] | None = None,
 ) -> list[BinarySensorEntity]:
-    """Create binary sensor entities for the given list of devices."""
+    """Create binary sensor entities for the given devices.
+
+    With ``features`` given, only the entities for those fields are built --
+    the ones a known device has just started showing.  Without it, every
+    entity the device has, for a device seen for the first time.
+    """
     entities: list[BinarySensorEntity] = []
 
     for device in devices:
@@ -285,6 +306,8 @@ def _build_binary_sensor_entities(
                 _LOGGER.debug(
                     "   - Skipped binary sensor %s: not a feature of this unit", key
                 )
+                continue
+            if features is not None and description.feature not in features:
                 continue
             entity = AsekoLocalBinarySensorEntity(device, coordinator, description)
             entities.append(entity)
