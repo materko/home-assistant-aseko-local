@@ -49,8 +49,9 @@ def _profiles_for(protocol: Protocol) -> list[Profile]:
 
 
 def _features_for(protocol: Protocol) -> list[type[Feature]]:
+    """Every feature some real profile of ``protocol`` lists, by field name."""
     listed = {f for p in _profiles_for(protocol) for f in p.features}
-    return [f for f in ALL_FEATURES if f in listed]
+    return sorted(listed, key=lambda f: f.field)
 
 
 def _help_section(w, mark: str) -> None:
@@ -58,11 +59,10 @@ def _help_section(w, mark: str) -> None:
     for profile in ALL_PROFILES:
         if profile in FALLBACK_PROFILES:
             continue
-        listed = [
-            f
-            for f in ALL_FEATURES
-            if f in profile.features and _status(profile, f).startswith(mark)
-        ]
+        listed = sorted(
+            (f for f in profile.features if _status(profile, f).startswith(mark)),
+            key=lambda f: f.field,
+        )
         if not listed:
             continue
         w(f"### {profile.name}")
@@ -154,7 +154,9 @@ def render() -> str:
     w("")
     _help_section(w, OBSERVED)
 
-    unmapped = [f for f in ALL_FEATURES if not f.protocols()]
+    unmapped = sorted(
+        (f for f in ALL_FEATURES if not f.protocols()), key=lambda f: f.field
+    )
     if unmapped:
         w("## Not mapped on any protocol")
         w("")
