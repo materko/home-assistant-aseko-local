@@ -26,8 +26,8 @@ Two further profiles exist that no unit is meant to decode with and that the tab
 | `antifreeze_enabled` | ✅ | ❓ | — | — | — | — |
 | `backwash_active` | ❓ | ❓ | ✅ | ❓ | — | ❓ |
 | `backwash_duration` | ❓ | ❓ | ✅ | ❓ | — | ❓ |
-| `backwash_every_n_days` | ❓ | ❓ | ❓ | ❓ | — | ❓ |
-| `backwash_time` | ❓ | ❓ | ❓ | ❓ | — | ❓ |
+| `backwash_every_n_days` | ❓ | ❓ | ✅ | ❓ | — | ❓ |
+| `backwash_time` | ❓ | ❓ | ✅ | ❓ | — | ❓ |
 | `cl_free` | ❓ | ❓ | ❓ | — | ✅ | ❓ |
 | `cl_free_mv` | ❓ | ❓ | ❓ | — | ✅ | ❓ |
 | `cl_pump_running` | ❓ | ❓ | — | — | ✅ `decode_v7_net` | ❓ |
@@ -162,8 +162,6 @@ Every entry below is read today without a confirming capture.  If you own one of
 ### v7 SALT
 
 - `alarm_rapid_ph_change` — unconfirmed: byte[13] 0x08 from error_codes.md, no capture
-- `backwash_every_n_days` — unverified: byte[68]
-- `backwash_time` — unverified: bytes 69-70
 - `cl_free` — no evidence recorded
 - `cl_free_mv` — no evidence recorded
 - `electrolyzer_direction` — tentative: 0x50 = left from a single Apr 2 frame
