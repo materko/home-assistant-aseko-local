@@ -32,7 +32,7 @@ from custom_components.aseko_local.decoding.decoders import (
     FlowrateAlgicide,
     Ph,
     ServiceMenuOpen,
-    Start2,
+    FiltrationStart2,
 )
 from custom_components.aseko_local.decoding.feature import Feature
 from custom_components.aseko_local.decoding.frame import (
@@ -150,7 +150,7 @@ def test_overrides_pick_the_named_reading() -> None:
 
 
 def test_a_feature_absent_from_a_profile_is_a_model_without_it() -> None:
-    assert Start2 not in v7.NET.features
+    assert FiltrationStart2 not in v7.NET.features
     assert ServiceMenuOpen not in v7.HOME_A.features
     assert ServiceMenuOpen in v7.HOME_B.features
     assert "backwash_active" not in v7.NET.feature_names
@@ -348,7 +348,7 @@ def test_decoded_device_says_how_it_was_read() -> None:
     net_v8 = AsekoV8Decoder.decode(REFERENCE_FRAME)
     assert net_v8.features <= v8.NET.feature_names
     assert "ph" in net_v8.features
-    assert "start1" not in net_v8.features
+    assert "filtration_start1" not in net_v8.features
 
 
 def test_facades_are_the_engine() -> None:
@@ -362,8 +362,8 @@ def test_a_field_outside_the_profile_stays_none_whatever_the_frame_says() -> Non
     data = _make_base_bytes()
     data[4] = 0x09  # NET
     device = AsekoDecoder.decode(bytes(data))
-    assert "start1" not in device.features
-    assert device.start1 is None
+    assert "filtration_start1" not in device.features
+    assert device.filtration_start1 is None
     assert device.filtration_pump_running is None
 
 

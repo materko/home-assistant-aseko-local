@@ -225,10 +225,10 @@ class AsekoDevice:
 
     required_water_temperature: int | None = None  # byte 55
 
-    start1: time | None = None  # byte 56 & 57
-    stop1: time | None = None  # byte 58 & 59
-    start2: time | None = None  # byte 60 & 61
-    stop2: time | None = None  # byte 62 & 63
+    filtration_start1: time | None = None  # byte 56 & 57
+    filtration_stop1: time | None = None  # byte 58 & 59
+    filtration_start2: time | None = None  # byte 60 & 61
+    filtration_stop2: time | None = None  # byte 62 & 63
 
     backwash_every_n_days: int | None = None  # byte 68
     backwash_time: time | None = None  # byte 69 & 70

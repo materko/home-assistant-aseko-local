@@ -42,7 +42,7 @@ def test_unknown_type_reads_everything_generic() -> None:
     # the generic readings did their job on the base frame
     assert device.ph == 0.0  # bytes 14-15 are zero in the base frame
     assert device.water_temperature == 24.5
-    assert device.start1 is not None
+    assert device.filtration_start1 is not None
     assert device.backwash_every_n_days == 3
     assert "filtration_pump_running" in device.features
     # and nothing model-specific was guessed

@@ -1,4 +1,4 @@
-"""Period 2 stop of the filtration timer.  v7: bytes 62-63 (hour, minute).
+"""Period 1 start of the filtration timer.  v7: bytes 56-57 (hour, minute).
 
 Filtration periods share bytes 56-63 on every model with a filtration output.
 The unit keeps sending the last configured period-2 times even after period
@@ -21,10 +21,10 @@ if TYPE_CHECKING:
     from ..presence import NotPresent
 
 
-class Stop2(Feature):
-    """v7: bytes 62-63."""
+class FiltrationStart1(Feature):
+    """v7: bytes 56-57."""
 
-    field = "stop2"
+    field = "filtration_start1"
 
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> time | NotPresent:
-        return time_or_absent(frame[62:64])
+        return time_or_absent(frame[56:58])

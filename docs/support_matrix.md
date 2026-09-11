@@ -66,10 +66,10 @@ Two further profiles exist that no unit is meant to decode with and that the tab
 | `salinity` | — | — | ✅ | — | — | — |
 | `serial_number` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `service_menu_open` | — | ✅ | ✅ | 👁 | — | ❓ |
-| `start1` | ✅ | ✅ | ✅ | 👁 | — | ❓ |
-| `start2` | ✅ | ✅ | ✅ | 👁 | — | ❓ |
-| `stop1` | ✅ | ✅ | ✅ | 👁 | — | ❓ |
-| `stop2` | ✅ | ✅ | ✅ | 👁 | — | ❓ |
+| `filtration_start1` | ✅ | ✅ | ✅ | 👁 | — | ❓ |
+| `filtration_start2` | ✅ | ✅ | ✅ | 👁 | — | ❓ |
+| `filtration_stop1` | ✅ | ✅ | ✅ | 👁 | — | ❓ |
+| `filtration_stop2` | ✅ | ✅ | ✅ | 👁 | — | ❓ |
 | `timestamp` | ✅ | ✅ | ✅ | ✅ | ❓ | ❓ |
 | `vsp_pump_running` | ✅ | ✅ | ✅ | ❓ | — | ❓ |
 | `water_filling_active` | ✅ | ✅ | ❓ | ❓ | — | ❓ |
@@ -214,10 +214,10 @@ Every entry below is read today without a confirming capture.  If you own one of
 - `required_ph` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `required_water_temperature` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `service_menu_open` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
-- `start1` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
-- `start2` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
-- `stop1` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
-- `stop2` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `filtration_start1` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `filtration_start2` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `filtration_stop1` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `filtration_stop2` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `timestamp` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `vsp_pump_running` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `water_filling_active` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
@@ -276,10 +276,10 @@ Values captured from real units that nobody has yet checked against the unit dis
 - `required_ph` — observed: byte[52] / 10 = 7.2 on the Winnetoux OXY (serial 110157165); not compared with the app
 - `required_water_temperature` — observed: byte[55] = 25 C on the Winnetoux OXY (serial 110157165); not compared with the app
 - `service_menu_open` — observed: byte[37] bit 0x04 clear in every OXY frame; the menu never captured open
-- `start1` — observed: bytes 56-57 = 08:00 in every frame on the Winnetoux OXY (serial 110157165); not compared with the app
-- `start2` — observed: bytes 60-61 = 18:00 in every frame on the Winnetoux OXY (serial 110157165); not compared with the app
-- `stop1` — observed: bytes 58-59 = 16:00 in every frame on the Winnetoux OXY (serial 110157165); not compared with the app
-- `stop2` — observed: bytes 62-63 = 22:00 in every frame on the Winnetoux OXY (serial 110157165); not compared with the app
+- `filtration_start1` — observed: bytes 56-57 = 08:00 in every frame on the Winnetoux OXY (serial 110157165); not compared with the app
+- `filtration_start2` — observed: bytes 60-61 = 18:00 in every frame on the Winnetoux OXY (serial 110157165); not compared with the app
+- `filtration_stop1` — observed: bytes 58-59 = 16:00 in every frame on the Winnetoux OXY (serial 110157165); not compared with the app
+- `filtration_stop2` — observed: bytes 62-63 = 22:00 in every frame on the Winnetoux OXY (serial 110157165); not compared with the app
 - `water_flow_to_probes` — observed: byte[28] = 0xAA on the Winnetoux OXY (serial 110157165); not compared with the app
 - `water_temperature` — observed: bytes 25-26 = 9.5 C on the Winnetoux OXY (serial 110157165); not compared with the app
 

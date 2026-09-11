@@ -40,14 +40,14 @@ def _make_base_bytes(size: int = 120) -> bytearray:
         5  # required dosing rate (byte 54); algicide or floc depending on byte[37]
     )
     data[55] = 28  # required_water_temperature
-    data[56] = 8  # start1 hour
-    data[57] = 0  # start1 min
-    data[58] = 10  # stop1 hour
-    data[59] = 0  # stop1 min
-    data[60] = 14  # start2 hour
-    data[61] = 0  # start2 min
-    data[62] = 16  # stop2 hour
-    data[63] = 0  # stop2 min
+    data[56] = 8  # filtration_start1 hour
+    data[57] = 0  # filtration_start1 min
+    data[58] = 10  # filtration_stop1 hour
+    data[59] = 0  # filtration_stop1 min
+    data[60] = 14  # filtration_start2 hour
+    data[61] = 0  # filtration_start2 min
+    data[62] = 16  # filtration_stop2 hour
+    data[63] = 0  # filtration_stop2 min
     data[68] = 3  # backwash_every_n_days
     data[69] = 2  # backwash_time hour
     data[70] = 30  # backwash_time min
@@ -126,10 +126,10 @@ def test_decode_home() -> None:
     assert device.max_filling_time == 3600  # bytes 76-77, raw
     assert device.delay_after_startup == 120
     assert device.delay_after_dose == 30
-    assert device.start1 == time(8, 0)
-    assert device.stop1 == time(10, 0)
-    assert device.start2 == time(14, 0)
-    assert device.stop2 == time(16, 0)
+    assert device.filtration_start1 == time(8, 0)
+    assert device.filtration_stop1 == time(10, 0)
+    assert device.filtration_start2 == time(14, 0)
+    assert device.filtration_stop2 == time(16, 0)
     assert device.backwash_every_n_days == 3
     assert device.backwash_time == time(2, 30)
     assert device.backwash_duration == 20
@@ -160,7 +160,7 @@ def test_decode_home() -> None:
 def test_decode_filtration_period2_disabled() -> None:
     """Period 2 times are still populated when disabled, but the mode is P1 only.
 
-    Issue #133: pre-fix, the decoder returned ``None`` for start2/stop2 when
+    Issue #133: pre-fix, the decoder returned ``None`` for filtration_start2/filtration_stop2 when
     byte[37] bit 0x20 was clear, which made already-registered entities go
     ``unknown`` once the user switched the controller back to "P1 only"
     (Home Assistant protects the entity registry, so the entity stays).
@@ -177,13 +177,13 @@ def test_decode_filtration_period2_disabled() -> None:
     device = AsekoDecoder.decode(bytes(data))
 
     # Period 1 is still parsed.
-    assert device.start1 == time(8, 0)
-    assert device.stop1 == time(10, 0)
+    assert device.filtration_start1 == time(8, 0)
+    assert device.filtration_stop1 == time(10, 0)
     # Period 2 times ARE populated (bytes 60-63 are stable) — but the mode
     # entity correctly reports TIMER_PERIOD_1 so the user knows the schedule
     # is not active.
-    assert device.start2 == time(14, 0)
-    assert device.stop2 == time(16, 0)
+    assert device.filtration_start2 == time(14, 0)
+    assert device.filtration_stop2 == time(16, 0)
     assert device.filtration_schedule == AsekoFiltrationSchedule.TIMER_PERIOD_1
 
 
@@ -194,14 +194,14 @@ def test_decode_filtration_period2_enabled() -> None:
 
     device = AsekoDecoder.decode(bytes(data))
 
-    assert device.start2 == time(14, 0)
-    assert device.stop2 == time(16, 0)
+    assert device.filtration_start2 == time(14, 0)
+    assert device.filtration_stop2 == time(16, 0)
     assert device.filtration_schedule == AsekoFiltrationSchedule.TIMER_PERIOD_1_AND_2
 
 
 def test_decode_filtration_period2_bytes_unspecified() -> None:
     """When bytes 60-63 themselves are 0xFF (no schedule ever configured),
-    start2 / stop2 stay None — the lazy-creation guard in sensor.py then
+    filtration_start2 / filtration_stop2 stay None — the lazy-creation guard in sensor.py then
     skips registering the entity.  This is the key branch that keeps
     devices without a filtration output (NET) from ever surfacing
     Period 2 entities (Issue #133 contract).
@@ -212,12 +212,12 @@ def test_decode_filtration_period2_bytes_unspecified() -> None:
     data[37] = 0xB7  # SALT algicide routing — bit 0x20 set, but no schedule
 
     device = AsekoDecoder.decode(bytes(data))
-    assert device.start2 is None
-    assert device.stop2 is None
+    assert device.filtration_start2 is None
+    assert device.filtration_stop2 is None
 
 
 def test_decode_filtration_period2_none_for_net() -> None:
-    """NET has no filtration output — start1/2 / stop1/2 are all None
+    """NET has no filtration output — filtration_start1/2 / filtration_stop1/2 are all None
     even if the frame happens to carry non-0xFF values in bytes 56-63.
     Issue #133 contract: lazy creation in sensor.py never registers the
     entities for NET.
@@ -230,10 +230,10 @@ def test_decode_filtration_period2_none_for_net() -> None:
 
     device = AsekoDecoder.decode(bytes(data))
     assert device.device_type == AsekoDeviceType.NET
-    assert device.start1 is None
-    assert device.stop1 is None
-    assert device.start2 is None
-    assert device.stop2 is None
+    assert device.filtration_start1 is None
+    assert device.filtration_stop1 is None
+    assert device.filtration_start2 is None
+    assert device.filtration_stop2 is None
 
 
 def test_decode_filtration_period2_real_dtpugh_frames() -> None:
@@ -308,14 +308,18 @@ def test_decode_filtration_period2_real_dtpugh_frames() -> None:
 
         device = AsekoDecoder.decode(frame)
         # Period 1 is always there.
-        assert device.start1 is not None, f"{filename}: start1 unexpectedly None"
-        assert device.stop1 is not None, f"{filename}: stop1 unexpectedly None"
-        # Period 2 is ALSO always there after the fix (entity stays populated).
-        assert device.start2 is not None, (
-            f"{filename}: start2 is None — entity would go 'unknown' (Issue #133)"
+        assert device.filtration_start1 is not None, (
+            f"{filename}: filtration_start1 unexpectedly None"
         )
-        assert device.stop2 is not None, (
-            f"{filename}: stop2 is None — entity would go 'unknown' (Issue #133)"
+        assert device.filtration_stop1 is not None, (
+            f"{filename}: filtration_stop1 unexpectedly None"
+        )
+        # Period 2 is ALSO always there after the fix (entity stays populated).
+        assert device.filtration_start2 is not None, (
+            f"{filename}: filtration_start2 is None — entity would go 'unknown' (Issue #133)"
+        )
+        assert device.filtration_stop2 is not None, (
+            f"{filename}: filtration_stop2 is None — entity would go 'unknown' (Issue #133)"
         )
         # The schedule entity reports which schedule is configured...
         assert device.filtration_schedule == expected_schedule, (
@@ -418,10 +422,10 @@ def test_decode_net() -> None:
     assert device.device_type == AsekoDeviceType.NET
     # NET (Aqua NET) has no filtration output → no schedule is reported (PR #122),
     # even though the frame carries values in the schedule bytes.
-    assert device.start1 is None
-    assert device.stop1 is None
-    assert device.start2 is None
-    assert device.stop2 is None
+    assert device.filtration_start1 is None
+    assert device.filtration_stop1 is None
+    assert device.filtration_start2 is None
+    assert device.filtration_stop2 is None
     # Issue #129: NET has no backwash valve, so the schedule must stay None
     # regardless of what the frame carries in bytes 68-71.
     assert device.backwash_every_n_days is None
@@ -1092,15 +1096,15 @@ def test_decode_home_clf_real_frame() -> None:
     )  # byte[72] = 0x00 = 0 ml/m³/d (was None before fix)
     assert device.required_water_temperature == 25
     # Schedule
-    assert device.start1 == time(8, 0)
-    assert device.stop1 == time(16, 0)
+    assert device.filtration_start1 == time(8, 0)
+    assert device.filtration_stop1 == time(16, 0)
     # Issue #133: Period 2 times are now always populated for any device in
     # FILTRATION_TYPES (HOME here).  The mode entity tells the user which
     # schedule is active — on this frame byte[37] = 0x43 (firmware A) so the
     # mode is NONSTOP_24H, but bytes 60-63 still report the last-configured
     # Period 2 times.  Pre-fix, the assertions below were ``is None``.
-    assert device.start2 == time(18, 0)
-    assert device.stop2 == time(22, 0)
+    assert device.filtration_start2 == time(18, 0)
+    assert device.filtration_stop2 == time(22, 0)
     assert device.filtration_schedule == AsekoFiltrationSchedule.NONSTOP_24H
     # Backwash
     assert device.backwash_every_n_days == 3

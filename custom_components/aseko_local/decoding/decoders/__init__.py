@@ -31,6 +31,10 @@ from .electrolyzer_direction import ElectrolyzerDirection
 from .electrolyzer_power import ElectrolyzerPower
 from .filtration_pump_running import FiltrationPumpRunning
 from .filtration_schedule import FiltrationSchedule
+from .filtration_start1 import FiltrationStart1
+from .filtration_start2 import FiltrationStart2
+from .filtration_stop1 import FiltrationStop1
+from .filtration_stop2 import FiltrationStop2
 from .floc_pump_running import FlocPumpRunning
 from .flowrate_algicide import FlowrateAlgicide
 from .flowrate_chlor import FlowrateChlor
@@ -59,10 +63,6 @@ from .required_water_temperature import RequiredWaterTemperature
 from .salinity import Salinity
 from .serial_number import SerialNumber
 from .service_menu_open import ServiceMenuOpen
-from .start1 import Start1
-from .start2 import Start2
-from .stop1 import Stop1
-from .stop2 import Stop2
 from .timestamp import Timestamp
 from .vsp_pump_running import VspPumpRunning
 from .water_filling_active import WaterFillingActive
@@ -125,10 +125,10 @@ ALL_FEATURES: tuple[type[Feature], ...] = (
     Salinity,
     SerialNumber,
     ServiceMenuOpen,
-    Start1,
-    Start2,
-    Stop1,
-    Stop2,
+    FiltrationStart1,
+    FiltrationStart2,
+    FiltrationStop1,
+    FiltrationStop2,
     Timestamp,
     VspPumpRunning,
     WaterFillingActive,
@@ -193,10 +193,10 @@ __all__ = [
     "Salinity",
     "SerialNumber",
     "ServiceMenuOpen",
-    "Start1",
-    "Start2",
-    "Stop1",
-    "Stop2",
+    "FiltrationStart1",
+    "FiltrationStart2",
+    "FiltrationStop1",
+    "FiltrationStop2",
     "Timestamp",
     "VspPumpRunning",
     "WaterFillingActive",

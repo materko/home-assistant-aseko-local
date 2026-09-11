@@ -527,38 +527,46 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="filtration_1_start",
-        feature="start1",
+        feature="filtration_start1",
         translation_key="filtration_1_start",
         icon="mdi:clock-start",
         value_fn=lambda device: (
-            device.start1.strftime("%H:%M") if device.start1 is not None else None
+            device.filtration_start1.strftime("%H:%M")
+            if device.filtration_start1 is not None
+            else None
         ),
     ),
     AsekoSensorEntityDescription(
         key="filtration_1_stop",
-        feature="stop1",
+        feature="filtration_stop1",
         translation_key="filtration_1_stop",
         icon="mdi:clock-end",
         value_fn=lambda device: (
-            device.stop1.strftime("%H:%M") if device.stop1 is not None else None
+            device.filtration_stop1.strftime("%H:%M")
+            if device.filtration_stop1 is not None
+            else None
         ),
     ),
     AsekoSensorEntityDescription(
         key="filtration_2_start",
-        feature="start2",
+        feature="filtration_start2",
         translation_key="filtration_2_start",
         icon="mdi:clock-start",
         value_fn=lambda device: (
-            device.start2.strftime("%H:%M") if device.start2 is not None else None
+            device.filtration_start2.strftime("%H:%M")
+            if device.filtration_start2 is not None
+            else None
         ),
     ),
     AsekoSensorEntityDescription(
         key="filtration_2_stop",
-        feature="stop2",
+        feature="filtration_stop2",
         translation_key="filtration_2_stop",
         icon="mdi:clock-end",
         value_fn=lambda device: (
-            device.stop2.strftime("%H:%M") if device.stop2 is not None else None
+            device.filtration_stop2.strftime("%H:%M")
+            if device.filtration_stop2 is not None
+            else None
         ),
     ),
     AsekoSensorEntityDescription(
