@@ -19,89 +19,89 @@ Two further profiles exist that no unit is meant to decode with and that the tab
 | field | HOME firmware A | HOME firmware B | SALT | OXY | NET | PROFI |
 |---|---|---|---|---|---|---|
 | `air_temperature` | — | — | ✅ | — | — | — |
-| `alarm_no_flow_to_probes` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `alarm_orp_too_many_doses` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `alarm_ph_too_many_doses` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `alarm_no_flow_to_probes` | ✅ | ✅ | ✅ | ❓ | ✅ | ❓ |
+| `alarm_orp_too_many_doses` | ✅ | ✅ | ✅ | ❓ | ❓ | ❓ |
+| `alarm_ph_too_many_doses` | ✅ | ✅ | ✅ | ❓ | ❓ | ❓ |
 | `alarm_rapid_ph_change` | ❓ | ❓ | ❓ | ❓ | ❓ | ❓ |
 | `algicide_pump_running` | ❓ | ❓ | ✅ | ✅ `decode_v7_oxy` | — | — |
 | `antifreeze_enabled` | ✅ | ❓ | — | — | — | — |
 | `backwash_active` | ❓ | ❓ | ✅ | ❓ | — | ❓ |
-| `backwash_duration` | ❓ | ❓ | ✅ | ❓ | — | ❓ |
-| `backwash_every_n_days` | ❓ | ❓ | ✅ | ❓ | — | ❓ |
-| `backwash_time` | ❓ | ❓ | ✅ | ❓ | — | ❓ |
-| `cl_free` | ❓ | ❓ | ✅ | — | ✅ | ❓ |
-| `cl_free_mv` | ❓ | ❓ | ✅ | — | ✅ | ❓ |
+| `backwash_duration` | ✅ | ✅ | ✅ | 👁 | — | ❓ |
+| `backwash_every_n_days` | ✅ | ✅ | ✅ | 👁 | — | ❓ |
+| `backwash_time` | ✅ | ✅ | ✅ | 👁 | — | ❓ |
+| `cl_free` | ✅ | ✅ | ✅ | — | ✅ | ❓ |
+| `cl_free_mv` | ✅ | ✅ | ✅ | — | ✅ | ❓ |
 | `cl_pump_running` | ❓ | ❓ | — | — | ✅ `decode_v7_net` | ❓ |
 | `configuration` | ✅ `decode_v7_by_unit_type_byte` | ✅ `decode_v7_by_unit_type_byte` | ✅ | ✅ `decode_v7_ph_and_oxy` | ✅ | ❓ `decode_v7_without_dose` |
-| `delay_after_dose` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `delay_after_startup` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `delay_after_dose` | ✅ | ✅ | ✅ | 👁 | 👁 | ❓ |
+| `delay_after_startup` | ✅ | ✅ | ✅ | 👁 | 👁 | ❓ |
 | `electrolyzer_active` | — | — | ✅ | — | — | — |
 | `electrolyzer_direction` | — | — | ✅ | — | — | — |
 | `electrolyzer_power` | — | — | ✅ | — | — | — |
-| `filtration_pump_running` | ❓ | ✅ `decode_v7_menu_override` | ✅ | ✅ | — | ❓ |
-| `filtration_schedule` | ✅ `decode_v7_home_a` | ✅ | ✅ | ❓ | — | ❓ |
+| `filtration_pump_running` | 👁 | ✅ `decode_v7_menu_override` | ✅ | ✅ | — | ❓ |
+| `filtration_schedule` | ✅ `decode_v7_home_a` | ✅ | ✅ | 👁 | — | ❓ |
 | `floc_pump_running` | ❓ | ❓ | ✅ | ✅ | — | ❓ |
 | `flowrate_algicide` | ✅ | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | ❓ `decode_v7_routed_by_byte37` | ❓ `decode_v7_routed_by_byte37` |
-| `flowrate_chlor` | ✅ | ✅ | ❓ | — | ❓ | ❓ |
+| `flowrate_chlor` | ✅ | ✅ | ❓ | — | ✅ | ❓ |
 | `flowrate_floc` | ✅ | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | ❓ `decode_v7_routed_by_byte37` | ❓ `decode_v7_routed_by_byte37` |
 | `flowrate_oxy` | — | — | — | ✅ | — | — |
-| `flowrate_ph_minus` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `flowrate_ph_minus` | ✅ | ✅ | ✅ | ✅ | ✅ | ❓ |
 | `heating_active` | ❓ | ❓ | ❓ | ❓ | — | ❓ |
 | `heating_control_enabled` | ✅ | ❓ | — | — | — | — |
 | `max_filling_time` | ❓ | ❓ | ✅ | ❓ | — | — |
 | `oxy_pump_running` | — | — | — | ✅ | — | — |
-| `ph` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `ph` | ✅ | ✅ | ✅ | 👁 | ✅ | ❓ |
 | `ph_minus_concentration` | ✅ | ✅ | ✅ | ❓ | — | ❓ |
 | `ph_minus_pump_running` | ❓ | ❓ | ❓ | ✅ | ✅ `decode_v7_net` | ❓ |
-| `pool_volume` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `pool_volume` | ✅ | ✅ | ✅ | 👁 | 👁 | ❓ |
 | `redox` | ❓ | ❓ | ✅ | — | ❓ | ❓ |
 | `required_algicide` | ✅ | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | ❓ `decode_v7_routed_by_byte37` | — |
-| `required_cl_dose` | ❓ | ❓ | ❓ | — | ❓ | ❓ |
-| `required_cl_free` | ❓ | ❓ | ✅ | — | ❓ | ❓ |
+| `required_cl_dose` | ❓ | ❓ | ❓ | — | 👁 | ❓ |
+| `required_cl_free` | ✅ | ✅ | ✅ | — | 👁 | ❓ |
 | `required_floc` | ✅ | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | ❓ `decode_v7_routed_by_byte37` | — |
 | `required_oxy_dose` | — | — | — | ✅ | — | — |
-| `required_ph` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `required_ph` | ✅ | ✅ | ✅ | 👁 | ✅ | ❓ |
 | `required_redox` | ❓ | ❓ | ✅ | — | ❓ | — |
-| `required_water_temperature` | ❓ | ❓ | ✅ | ❓ | ❓ | ❓ |
+| `required_water_temperature` | ✅ | ✅ | ✅ | 👁 | ❓ | ❓ |
 | `salinity` | — | — | ✅ | — | — | — |
 | `serial_number` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `service_menu_open` | — | ✅ | ✅ | ❓ | — | ❓ |
-| `start1` | ❓ | ❓ | ✅ | ❓ | — | ❓ |
-| `start2` | ❓ | ❓ | ✅ | ❓ | — | ❓ |
-| `stop1` | ❓ | ❓ | ✅ | ❓ | — | ❓ |
-| `stop2` | ❓ | ❓ | ✅ | ❓ | — | ❓ |
-| `timestamp` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `service_menu_open` | — | ✅ | ✅ | 👁 | — | ❓ |
+| `start1` | ✅ | ✅ | ✅ | 👁 | — | ❓ |
+| `start2` | ✅ | ✅ | ✅ | 👁 | — | ❓ |
+| `stop1` | ✅ | ✅ | ✅ | 👁 | — | ❓ |
+| `stop2` | ✅ | ✅ | ✅ | 👁 | — | ❓ |
+| `timestamp` | ✅ | ✅ | ✅ | ✅ | ❓ | ❓ |
 | `vsp_pump_running` | ✅ | ✅ | ✅ | ❓ | — | ❓ |
 | `water_filling_active` | ✅ | ✅ | ❓ | ❓ | — | ❓ |
-| `water_flow_to_probes` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `water_flow_to_probes` | ✅ | ✅ | ✅ | 👁 | ✅ | ❓ |
 | `water_level` | ✅ | ✅ | ✅ | ❓ | — | ❓ |
 | `water_level_filling_off` | ✅ | ✅ | ✅ | ❓ | — | ❓ |
-| `water_level_filling_on` | ✅ | ✅ | ✅ | ❓ | — | ❓ |
+| `water_level_filling_on` | ❓ | ❓ | ✅ | ❓ | — | ❓ |
 | `water_level_high_alarm` | ✅ | ✅ | ✅ | ❓ | — | ❓ |
 | `water_level_low_alarm` | ✅ | ✅ | ✅ | ❓ | — | ❓ |
-| `water_temperature` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `water_temperature` | ✅ | ✅ | ✅ | 👁 | ✅ | ❓ |
 
 ## v8
 
 | field | NET | SALT |
 |---|---|---|
-| `cl_pump_running` | ✅ | ✅ |
+| `cl_pump_running` | ❓ | ❓ |
 | `configuration` | ✅ | ❓ |
-| `delay_after_dose` | ✅ | ✅ |
-| `delay_after_startup` | ✅ | ✅ |
-| `filtration_pump_running` | ✅ | ✅ |
+| `delay_after_dose` | ✅ | ❓ |
+| `delay_after_startup` | ✅ | ❓ |
+| `filtration_pump_running` | ✅ | ❓ |
 | `flowrate_chlor` | ❓ | ❓ |
 | `flowrate_ph_minus` | ❓ | ❓ |
-| `ph` | ✅ | ✅ |
-| `ph_minus_pump_running` | ✅ | ✅ |
-| `pool_volume` | ✅ | ✅ |
-| `redox` | ✅ | ✅ |
-| `required_ph` | ✅ | ✅ |
-| `required_redox` | ✅ | ✅ |
+| `ph` | ✅ | ❓ |
+| `ph_minus_pump_running` | ❓ | ❓ |
+| `pool_volume` | ✅ | ❓ |
+| `redox` | ✅ | ❓ |
+| `required_ph` | ✅ | ❓ |
+| `required_redox` | ✅ | ❓ |
 | `serial_number` | ✅ | ✅ |
-| `timestamp` | ✅ | ✅ |
-| `water_flow_to_probes` | ✅ | ✅ |
-| `water_temperature` | ✅ | ✅ |
+| `timestamp` | ✅ | ❓ |
+| `water_flow_to_probes` | ✅ | ❓ |
+| `water_temperature` | ✅ | ❓ |
 
 ## Help wanted
 
@@ -109,56 +109,35 @@ Every entry below is read today without a confirming capture.  If you own one of
 
 ### v7 HOME firmware A
 
-- `alarm_rapid_ph_change` — unconfirmed: byte[13] 0x08 from error_codes.md, no capture
+- `alarm_rapid_ph_change` — unconfirmed: byte[13] 0x08 was set on serial 110128063 with no matching alarm known in the app
 - `algicide_pump_running` — uncertain: byte[29] 0x20 assumed
 - `backwash_active` — assumed: byte[29] 0x01, confirmed on SALT
-- `backwash_duration` — unverified: byte[71] * 10
-- `backwash_every_n_days` — unverified: byte[68]
-- `backwash_time` — unverified: bytes 69-70
-- `cl_free` — no evidence recorded
-- `cl_free_mv` — no evidence recorded
 - `cl_pump_running` — uncertain: byte[29] 0x40, port may be chlorine or OXY Pure
-- `filtration_pump_running` — uncertain: byte[29] 0x08 assumed from SALT / OXY
 - `floc_pump_running` — uncertain: byte[29] 0x20 assumed
-- `heating_active` — assumed: byte[29] 0x04 per JS-DE-Tech relay_byte bit 2
-- `max_filling_time` — assumed: bytes 76-77, confirmed on SALT
+- `heating_active` — assumed: byte[29] 0x04 per JS-DE-Tech relay_byte bit 2; no HOME frame with the heater running (open item 9)
+- `max_filling_time` — assumed: bytes 76-77 = 10800 s on serial 110128063, plausible (180 min); verified on SALT only
 - `ph_minus_pump_running` — uncertain: byte[29] 0x80 assumed
 - `redox` — no evidence recorded
 - `required_cl_dose` — no evidence recorded
-- `required_cl_free` — no evidence recorded
 - `required_redox` — no evidence recorded
-- `required_water_temperature` — unverified: byte[55], read as-is
-- `start1` — no evidence recorded
-- `start2` — no evidence recorded
-- `stop1` — no evidence recorded
-- `stop2` — no evidence recorded
+- `water_level_filling_on` — unconfirmed: byte[103] = 33 on serial 110128063 is read both as this threshold (cm) and as flowrate_algicide (ml/min); the two mappings cannot both be right
 
 ### v7 HOME firmware B
 
-- `alarm_rapid_ph_change` — unconfirmed: byte[13] 0x08 from error_codes.md, no capture
+- `alarm_rapid_ph_change` — unconfirmed: byte[13] 0x08 was set on serial 110128063 with no matching alarm known in the app
 - `algicide_pump_running` — uncertain: byte[29] 0x20 assumed
 - `antifreeze_enabled` — unverified: byte[37] 0x80 read as on firmware A, no capture on B
 - `backwash_active` — assumed: byte[29] 0x01, confirmed on SALT
-- `backwash_duration` — unverified: byte[71] * 10
-- `backwash_every_n_days` — unverified: byte[68]
-- `backwash_time` — unverified: bytes 69-70
-- `cl_free` — no evidence recorded
-- `cl_free_mv` — no evidence recorded
 - `cl_pump_running` — uncertain: byte[29] 0x40, port may be chlorine or OXY Pure
 - `floc_pump_running` — uncertain: byte[29] 0x20 assumed
-- `heating_active` — assumed: byte[29] 0x04 per JS-DE-Tech relay_byte bit 2
+- `heating_active` — assumed: byte[29] 0x04 per JS-DE-Tech relay_byte bit 2; no HOME frame with the heater running (open item 9)
 - `heating_control_enabled` — unverified: byte[37] 0x08 read as on firmware A, no capture on B
-- `max_filling_time` — assumed: bytes 76-77, confirmed on SALT
+- `max_filling_time` — assumed: bytes 76-77 = 10800 s on serial 110128063, plausible (180 min); verified on SALT only
 - `ph_minus_pump_running` — uncertain: byte[29] 0x80 assumed
 - `redox` — no evidence recorded
 - `required_cl_dose` — no evidence recorded
-- `required_cl_free` — no evidence recorded
 - `required_redox` — no evidence recorded
-- `required_water_temperature` — unverified: byte[55], read as-is
-- `start1` — no evidence recorded
-- `start2` — no evidence recorded
-- `stop1` — no evidence recorded
-- `stop2` — no evidence recorded
+- `water_level_filling_on` — unconfirmed: byte[103] = 33 on serial 110128063 is read both as this threshold (cm) and as flowrate_algicide (ml/min); the two mappings cannot both be right
 
 ### v7 SALT
 
@@ -171,94 +150,146 @@ Every entry below is read today without a confirming capture.  If you own one of
 
 ### v7 OXY
 
-- `alarm_rapid_ph_change` — unconfirmed: byte[13] 0x08 from error_codes.md, no capture
+- `alarm_no_flow_to_probes` — unconfirmed: byte[13] was 0x00 in every OXY frame; confirmed on NET and HOME only
+- `alarm_orp_too_many_doses` — unconfirmed: bytes 12-13 were 0x00 in every OXY frame; HOME encoding assumed
+- `alarm_ph_too_many_doses` — unconfirmed: bytes 12-13 were 0x00 in every OXY frame; HOME encoding assumed
+- `alarm_rapid_ph_change` — unconfirmed: byte[13] 0x08 from error_codes.md; never set in the OXY frames
 - `backwash_active` — assumed: byte[29] 0x01, confirmed on SALT
-- `backwash_duration` — no evidence recorded
-- `backwash_every_n_days` — no evidence recorded
-- `backwash_time` — no evidence recorded
-- `filtration_schedule` — assumed: bit flags as on SALT, no OXY capture of a transition
 - `heating_active` — assumed: byte[29] 0x04 per JS-DE-Tech relay_byte bit 2
-- `max_filling_time` — assumed: bytes 76-77, confirmed on SALT
+- `max_filling_time` — assumed: bytes 76-77 = 3600 s on the Winnetoux OXY, plausible (60 min); verified on SALT only
 - `ph_minus_concentration` — assumed: byte[112], confirmed on HOME
-- `required_water_temperature` — unverified: byte[55], read as-is
-- `service_menu_open` — assumed: byte[37] 0x04 as on SALT
-- `start1` — no evidence recorded
-- `start2` — no evidence recorded
-- `stop1` — no evidence recorded
-- `stop2` — no evidence recorded
 - `vsp_pump_running` — assumed: byte[22] 0x08, confirmed on HOME
 - `water_filling_active` — assumed: byte[29] 0x02, confirmed on HOME
 - `water_level` — assumed: byte[27], confirmed on HOME
 - `water_level_filling_off` — no evidence recorded
-- `water_level_filling_on` — no evidence recorded
+- `water_level_filling_on` — unconfirmed: byte[103] is flowrate_algicide on OXY (confirmed, 60 ml/min); reading it as a level threshold too cannot be right
 - `water_level_high_alarm` — no evidence recorded
 - `water_level_low_alarm` — no evidence recorded
 
 ### v7 NET
 
-- `alarm_rapid_ph_change` — unconfirmed: byte[13] 0x08 from error_codes.md, no capture
-- `flowrate_algicide` — unverified: byte[101] via byte[37] 0x80, as on SALT
-- `flowrate_chlor` — unverified: byte[99]
-- `flowrate_floc` — unverified: byte[101] via byte[37] 0x80 clear, as on SALT
+- `alarm_orp_too_many_doses` — unconfirmed: byte[12] is 0x00 on NET; HOME encodings assumed
+- `alarm_ph_too_many_doses` — unconfirmed: byte[12] is 0x00 on NET; HOME encodings assumed
+- `alarm_rapid_ph_change` — unconfirmed: byte[13] 0x08 from error_codes.md; never set on NET
+- `flowrate_algicide` — unverified: byte[37] and byte[101] are 0xFF on every NET frame; no third pump
+- `flowrate_floc` — unverified: byte[37] and byte[101] are 0xFF on every NET frame; no third pump
 - `redox` — no evidence recorded
-- `required_algicide` — unverified: byte[54] via byte[37] 0x80, as on SALT
-- `required_cl_dose` — no evidence recorded
-- `required_cl_free` — no evidence recorded
-- `required_floc` — unverified: byte[54] via byte[37] 0x80 clear, as on SALT
-- `required_redox` — no evidence recorded
-- `required_water_temperature` — unverified: byte[55], read as-is
+- `required_algicide` — unverified: byte[37] is 0xFF on every NET frame, so the shared-port reading never applies
+- `required_floc` — unverified: byte[37] is 0xFF on every NET frame, so the shared-port reading never applies
+- `required_redox` — unverified: byte[53] * 10 on a REDOX NET; no such frame captured
+- `required_water_temperature` — n/a: byte[55] is 0xFF on NET, which has no water temperature setpoint
+- `timestamp` — n/a: bytes 6-11 are 0xFF on every NET frame, Home Assistant's clock is used instead
 
 ### v7 PROFI
 
-- `alarm_rapid_ph_change` — unconfirmed: byte[13] 0x08 from error_codes.md, no capture
-- `backwash_active` — no evidence recorded
-- `backwash_duration` — no evidence recorded
-- `backwash_every_n_days` — no evidence recorded
-- `backwash_time` — no evidence recorded
-- `cl_free` — no evidence recorded
-- `cl_free_mv` — no evidence recorded
-- `cl_pump_running` — uncertain: byte[29] 0x40 assumed
-- `configuration` — uncertain: unit type 0x10 itself is unconfirmed; no DOSE bit
-- `filtration_pump_running` — uncertain: byte[29] 0x08 assumed
-- `filtration_schedule` — no evidence recorded
-- `floc_pump_running` — uncertain: byte[29] 0x20 assumed
-- `flowrate_algicide` — unverified: byte[101] via byte[37] 0x80, as on SALT
-- `flowrate_chlor` — no evidence recorded
-- `flowrate_floc` — unverified: byte[101] via byte[37] 0x80 clear, as on SALT
-- `heating_active` — no evidence recorded
-- `ph_minus_concentration` — no evidence recorded
-- `ph_minus_pump_running` — uncertain: byte[29] 0x80 assumed
-- `redox` — uncertain: bytes 18-19
-- `required_cl_dose` — no evidence recorded
-- `required_cl_free` — no evidence recorded
-- `required_water_temperature` — unverified: byte[55], read as-is
-- `service_menu_open` — no evidence recorded
-- `start1` — no evidence recorded
-- `start2` — no evidence recorded
-- `stop1` — no evidence recorded
-- `stop2` — no evidence recorded
-- `vsp_pump_running` — no evidence recorded
-- `water_filling_active` — no evidence recorded
-- `water_level` — no evidence recorded
-- `water_level_filling_off` — no evidence recorded
-- `water_level_filling_on` — no evidence recorded
-- `water_level_high_alarm` — no evidence recorded
-- `water_level_low_alarm` — no evidence recorded
+- `alarm_no_flow_to_probes` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `alarm_orp_too_many_doses` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `alarm_ph_too_many_doses` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `alarm_rapid_ph_change` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `backwash_active` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `backwash_duration` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `backwash_every_n_days` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `backwash_time` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `cl_free` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `cl_free_mv` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `cl_pump_running` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `configuration` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `delay_after_dose` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `delay_after_startup` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `filtration_pump_running` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `filtration_schedule` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `floc_pump_running` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `flowrate_algicide` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `flowrate_chlor` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `flowrate_floc` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `flowrate_ph_minus` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `heating_active` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `ph` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `ph_minus_concentration` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `ph_minus_pump_running` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `pool_volume` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `redox` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `required_cl_dose` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `required_cl_free` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `required_ph` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `required_water_temperature` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `service_menu_open` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `start1` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `start2` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `stop1` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `stop2` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `timestamp` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `vsp_pump_running` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `water_filling_active` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `water_flow_to_probes` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `water_level` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `water_level_filling_off` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `water_level_filling_on` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `water_level_high_alarm` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `water_level_low_alarm` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `water_temperature` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 
 ### v8 NET
 
+- `cl_pump_running` — unconfirmed: outs[9] per the current decoder; net_v8_device_analysis.md lists outs[0] / outs[1] as candidates and no frame shows a pump running
 - `flowrate_chlor` — assumed: not transmitted, 60 ml/min taken for consumption
 - `flowrate_ph_minus` — assumed: not transmitted, 60 ml/min taken for consumption
+- `ph_minus_pump_running` — unconfirmed: outs[8] per the current decoder; net_v8_device_analysis.md lists outs[0] / outs[1] as candidates and no frame shows a pump running
 
 ### v8 SALT
 
-- `configuration` — assumed: same layout as NET; header type 105 only tells the model
-- `flowrate_chlor` — assumed: not transmitted, 60 ml/min taken for consumption
-- `flowrate_ph_minus` — assumed: not transmitted, 60 ml/min taken for consumption
+- `cl_pump_running` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
+- `configuration` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
+- `delay_after_dose` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
+- `delay_after_startup` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
+- `filtration_pump_running` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
+- `flowrate_chlor` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
+- `flowrate_ph_minus` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
+- `ph` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
+- `ph_minus_pump_running` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
+- `pool_volume` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
+- `redox` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
+- `required_ph` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
+- `required_redox` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
+- `timestamp` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
+- `water_flow_to_probes` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
+- `water_temperature` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
 
 ## Seen, not compared
 
 Values captured from real units that nobody has yet checked against the unit display or the app.  If you own one of these units, comparing the entity with what the unit shows is all it takes.
+
+### v7 HOME firmware A
+
+- `filtration_pump_running` — observed: byte[29] 0x08 clear while Aseko Live showed STOP, serial 110128063; the set state was not captured on firmware A
+
+### v7 OXY
+
+- `backwash_duration` — observed: byte[71] * 10 = 100 s on the Winnetoux OXY (serial 110157165); not compared with the app
+- `backwash_every_n_days` — observed: byte[68] = 0 (disabled) on the Winnetoux OXY (serial 110157165); not compared with the app
+- `backwash_time` — observed: bytes 69-70 = 12:30 on the Winnetoux OXY (serial 110157165); not compared with the app
+- `delay_after_dose` — observed: bytes 106-107 = 120 s on the Winnetoux OXY (serial 110157165); not compared with the app
+- `delay_after_startup` — observed: bytes 74-75 = 240 s on the Winnetoux OXY; the analysis document mislabels byte[73]
+- `filtration_schedule` — observed: byte[37] = 0x03 reads nonstop while the Winnetoux OXY ran filtration 24 h; no schedule transition captured
+- `ph` — observed: bytes 14-15 = 7.17 on the Winnetoux OXY (serial 110157165); not compared with the app
+- `pool_volume` — observed: bytes 92-93 = 41 m3 on the Winnetoux OXY (serial 110157165); not compared with the app
+- `required_ph` — observed: byte[52] / 10 = 7.2 on the Winnetoux OXY (serial 110157165); not compared with the app
+- `required_water_temperature` — observed: byte[55] = 25 C on the Winnetoux OXY (serial 110157165); not compared with the app
+- `service_menu_open` — observed: byte[37] bit 0x04 clear in every OXY frame; the menu never captured open
+- `start1` — observed: bytes 56-57 = 08:00 in every frame on the Winnetoux OXY (serial 110157165); not compared with the app
+- `start2` — observed: bytes 60-61 = 18:00 in every frame on the Winnetoux OXY (serial 110157165); not compared with the app
+- `stop1` — observed: bytes 58-59 = 16:00 in every frame on the Winnetoux OXY (serial 110157165); not compared with the app
+- `stop2` — observed: bytes 62-63 = 22:00 in every frame on the Winnetoux OXY (serial 110157165); not compared with the app
+- `water_flow_to_probes` — observed: byte[28] = 0xAA on the Winnetoux OXY (serial 110157165); not compared with the app
+- `water_temperature` — observed: bytes 25-26 = 9.5 C on the Winnetoux OXY (serial 110157165); not compared with the app
+
+### v7 NET
+
+- `delay_after_dose` — observed: bytes 106-107 on the Issue #66 NET; not compared with the app
+- `delay_after_startup` — observed: bytes 74-75 on the Issue #66 NET; not compared with the app
+- `pool_volume` — observed: bytes 92-93 on the Issue #66 NET; not compared with the app
+- `required_cl_dose` — observed: byte[53] = 5 ml/m3/h in DOSE mode (2026-04-07 capture); not compared with the app
+- `required_cl_free` — observed: byte[53] / 10 on the Issue #66 NET; not compared with the app
 
 ## Not mapped on any protocol
 

@@ -117,8 +117,7 @@ Seg3 (bytes 80–119): 06 90 6b bf  02 02  1a 04 1c 08 1b 07
 | 72      | `00`     | 0       | required_algicide             | **0 ml/m³/day** | 0 ml/m³/day     | ✓      |
 | 73      | `28`     | 40      | Unknown                       | —              | —                 | ?      |
 | 74–75   | `01e0`   | 480     | delay_after_startup (s)       | **480 s = 8 min** | 8 min          | ✓      |
-| 76      | `2a`     | 42      | Unknown                       | —              | —                 | ?      |
-| 77      | `30`     | 48      | Unknown                       | —              | —                 | ?      |
+| 76–77   | `2a30`   | 10800   | max_filling_time (s)          | **10800 s = 180 min** | —          | ✓ (bytes verified on SALT vs Aseko Live, v1.9) |
 | 78      | `a0`     | 160     | Unknown                       | —              | —                 | ?      |
 | 79      | `d8`     | 216     | Unknown                       | —              | —                 | ?      |
 
@@ -139,7 +138,7 @@ Seg3 (bytes 80–119): 06 90 6b bf  02 02  1a 04 1c 08 1b 07
 | 85      | `02`     | 2       | Segment marker               | Segment 3      | —                 | ✓      |
 | 86–91   | `1a 04 1c 08 1b 07` | — | Timestamp (repeated)      | 2026-04-28 08:27:07 | —            | ✓      |
 | 92–93   | `003c`   | 60      | pool_volume (big-endian)     | **60 m³**      | 60 m³             | ✓      |
-| 94–95   | `003c`   | 60      | max_filling_time (big-endian) | **60 min**    | —                 | ✓      |
+| 94–95   | `003c`   | 60      | Unknown (read as max_filling_time before v1.9; that value is bytes 76–77) | — | —     | ?      |
 | 96      | `00`     | 0       | Unknown                      | —              | —                 | ?      |
 | 97      | `3c`     | 60      | flowrate_ph_plus? (unconf.)  | —              | —                 | ?      |
 | 98      | `00`     | 0       | Unknown                      | —              | —                 | ?      |
@@ -481,7 +480,8 @@ brand selection itself may be stored only in the Aseko cloud/app, not in the
 |---|-------------|
 | 3 | `required_water_temperature` vs app "---" — partially resolved by Issue #135: `byte[55]` is confirmed as the heating setpoint on serial 110175608 (REDOX HOME, heating ON frame). A frame from a device where the app actively shows a target temperature (not "---") would further validate this. |
 | 7 | `byte[29]` per-pump bits for HOME (algicide, flocculant, cl, pH−) are unconfirmed. The masks in `ACTUATOR_MASKS[HOME]` are placeholders matching OXY/NET. Capturing frames with a single HOME pump running (e.g. algicide only) would pin down the per-pump bit. Until then, `algicide_pump_running` and `floc_pump_running` may report incorrectly on HOME. |
-| 8 | `max_filling_time` overlap with `flowrate_ph_minus` (both use `byte[95]`). If `byte[94]` ever becomes non-zero, `max_filling_time` is inflated. Only a frame with a non-zero `byte[94]` would prove or disprove the assumption. |
+| 8 | ~~`max_filling_time` overlap with `flowrate_ph_minus`~~ — resolved: `max_filling_time` is bytes 76–77 in seconds (verified on SALT against Aseko Live, v1.9); bytes 94–95 are back to unknown. |
+| 12 | `byte[103]` is read both as `flowrate_algicide` (33 ml/min) and as `water_level_filling_on` (33 cm) on serial 110128063. One byte cannot carry both; a frame where the two settings differ in the app would show which mapping is right. |
 | 9 | `heating_active` binary sensor (`byte[29]` bit `0x04`) — needs a frame captured while the heat pump / electric heater is actually running. The `heating_control_enabled` field (byte[37] bit 3) is the **master enable**, separate from the actual heating output state in byte[29] bit 2. A frame with `byte[29]` bit 2 set would confirm this as the running-state indicator. |
 | 10 | Bytes 31, 38, 65 in the firmware B OFF frame all rise by ~1 (0x00→0x02, 0x02→0x03, 0xa3→0xa4) — possible additional "manual override active" sub-flags, not used by the decoder today. Single observation, no meaning assigned. |
 | 11 | `byte[78]` pump brand correlation (Issue #137): Speck and Uwe EO PM share `0x22` (same as OFF), Pentair and Dab E.SWIM share `0x26`. Needs a diagnostic captured while switching between two same-value brands (e.g. Speck → Uwe) without turning the pump off to confirm whether byte[78] is a brand ID or a pump parameter. |

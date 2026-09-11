@@ -87,7 +87,8 @@ Checksum bytes (39, 79, 119) and timestamp second (byte[11]) change as expected.
 | `[69:71]` | `0c 1e` | Backwash time = 12:30 | |
 | `[71]` | `0x0a` | Backwash duration = 100 s | ×10 |
 | `[72]` | `0x0f` = 15 | Required Algicide = **15 ml/m³/d** | ✓ Confirmed 2026-04-11 (Winnetoux) |
-| `[73]` | `0x28` = 40 s | Delay after startup | |
+| `[74:76]` | `00 f0` = 240 s | Delay after startup | byte[73] = `0x28` is unknown |
+| `[76:78]` | `0e 10` = 3600 s | Max filling time (60 min) | bytes verified on SALT vs Aseko Live, v1.9 |
 
 ## Byte Map – Sub-frame 3 (flow rates)
 

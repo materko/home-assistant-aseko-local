@@ -63,32 +63,30 @@ _FEATURES = (
     DelayAfterDose,
 )
 
-_EVIDENCE = {
-    SerialNumber: "confirmed: header token 2 on every captured frame",
-    WaterTemperature: "confirmed: ins[0] on fekberg frames (Sep 2025, Apr 2026) vs app",
-    Ph: "confirmed: ains[0] on fekberg frames vs app",
-    Redox: "confirmed: ains[6] on fekberg frames vs app",
-    FiltrationPumpRunning: "confirmed: outs[2]",
-    PhMinusPumpRunning: "confirmed: outs[8]",
-    ClPumpRunning: "confirmed: outs[9]",
-    FlowratePhMinus: "assumed: not transmitted, 60 ml/min taken for consumption",
-    FlowrateChlor: "assumed: not transmitted, 60 ml/min taken for consumption",
-    RequiredPh: "confirmed: areqs[0] / 10",
-    RequiredRedox: "confirmed: areqs[1] * 10",
-    PoolVolume: "confirmed: areqs[14]",
-    DelayAfterStartup: "confirmed: areqs[17]",
-    DelayAfterDose: "confirmed: areqs[18]",
-    Timestamp: "confirmed: ins[16] hour, ins[17] minute; date taken from HA",
-    WaterFlowToProbes: "confirmed: ins[8]",
-    Configuration: "derived: a probe is installed when its ains slot is not -500",
-}
-
 NET = Profile(
     name="v8 NET",
     protocol=Protocol.V8,
     model=AsekoDeviceType.NET,
     features=_FEATURES,
-    evidence=_EVIDENCE,
+    evidence={
+        ClPumpRunning: "unconfirmed: outs[9] per the current decoder; net_v8_device_analysis.md lists outs[0] / outs[1] as candidates and no frame shows a pump running",
+        Configuration: "derived: a probe is installed when its ains slot is not -500",
+        DelayAfterDose: "confirmed: areqs[18] = 2 min vs the app",
+        DelayAfterStartup: "confirmed: areqs[17] = 2 min vs the app",
+        FiltrationPumpRunning: "confirmed: outs[2] = 1 while the app showed 'Pump: ON / NONSTOP' (2026-04-13)",
+        FlowrateChlor: "assumed: not transmitted, 60 ml/min taken for consumption",
+        FlowratePhMinus: "assumed: not transmitted, 60 ml/min taken for consumption",
+        Ph: "confirmed: ains[0] / 100 vs the app (6.49 vs 6.56, later reading), serial 110203680",
+        PhMinusPumpRunning: "unconfirmed: outs[8] per the current decoder; net_v8_device_analysis.md lists outs[0] / outs[1] as candidates and no frame shows a pump running",
+        PoolVolume: "confirmed: areqs[14] = 45 m3 vs the app",
+        Redox: "confirmed: ains[6] = 809 mV vs 848 mV in the app (later reading), serial 110203680",
+        RequiredPh: "confirmed: areqs[0] / 10 = 7.4 vs the app",
+        RequiredRedox: "confirmed: areqs[1] * 10 = 740 mV vs the app",
+        SerialNumber: "confirmed: header token 2, serial 110203680",
+        Timestamp: "confirmed: ins[16] hour, ins[17] minute match the HA log; date taken from HA",
+        WaterFlowToProbes: "confirmed: ins[8] = 1 while the app showed 'Water flow: YES'",
+        WaterTemperature: "confirmed: ins[0] / 10 = 31.4 C (Sep 2025) and 18.0 C (Apr 2026) vs the app",
+    },
 )
 
 SALT = Profile(
@@ -97,8 +95,23 @@ SALT = Profile(
     model=AsekoDeviceType.SALT,
     features=_FEATURES,
     evidence={
-        **_EVIDENCE,
-        Configuration: "assumed: same layout as NET; header type 105 only tells the model",
+        ClPumpRunning: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",
+        Configuration: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",
+        DelayAfterDose: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",
+        DelayAfterStartup: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",
+        FiltrationPumpRunning: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",
+        FlowrateChlor: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",
+        FlowratePhMinus: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",
+        Ph: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",
+        PhMinusPumpRunning: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",
+        PoolVolume: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",
+        Redox: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",
+        RequiredPh: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",
+        RequiredRedox: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",
+        SerialNumber: "confirmed: bytes 0-3, repeated in every segment header",
+        Timestamp: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",
+        WaterFlowToProbes: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",
+        WaterTemperature: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",
     },
 )
 
