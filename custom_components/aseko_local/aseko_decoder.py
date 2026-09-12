@@ -549,6 +549,28 @@ class AsekoDecoder:
         unit.ph_minus_concentration = data[112]
 
     @staticmethod
+    def _fill_max_ph_doses(unit: AsekoDevice, data: bytes) -> None:
+        """Decode the "Max. number of doses of pH" safety setting.
+
+        byte[115] = how many pH doses the unit may give without the pH moving
+        before it stops dosing and raises "Too many doses of pH".
+
+        Confirmed on an ASIN AQUA Salt: changing the setting from 20 to 17 on
+        the unit's Safety Functions screen moved byte[115] from 0x14 to 0x11 in
+        the next frame, and 17 appears nowhere else in that frame.  A second
+        SALT reads 40, the HOME frame in home_device_analysis.md 20 and the OXY
+        frames 30 -- all plausible values for the same setting.
+
+        Decoded for HOME, SALT, OXY, PROFI. NET not supported: byte[115] is
+        0xFF in every NET frame captured so far.
+        """
+        if unit.device_type == AsekoDeviceType.NET:
+            return
+        if data[115] == UNSPECIFIED_VALUE:
+            return
+        unit.max_ph_doses = data[115]
+
+    @staticmethod
     def _fill_backwash_active(unit: AsekoDevice, data: bytes) -> None:
         """Decode the backwash relay state from byte[29] bit 0x01.
 
@@ -928,6 +950,7 @@ class AsekoDecoder:
         AsekoDecoder._fill_heating_demand(device, data)
         AsekoDecoder._fill_vsp_pump(device, data)
         AsekoDecoder._fill_ph_minus_concentration(device, data)
+        AsekoDecoder._fill_max_ph_doses(device, data)
         AsekoDecoder._fill_backwash_active(device, data)
         # The backwash history fields are deliberately NOT derived from the
         # schedule here: the frame carries the *configuration* (bytes 68-71),

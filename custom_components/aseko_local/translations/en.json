@@ -121,6 +121,9 @@
       "ph_minus_concentration": {
         "name": "pH- concentration"
       },
+      "max_ph_doses": {
+        "name": "Max. pH doses"
+      },
       "air_temperature": {
         "name": "Air temperature"
       },
