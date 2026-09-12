@@ -359,6 +359,54 @@ from different days and are listed only to show the encoding, not the number.
 | `heating_active` | False | display "Heating control OFF", app "Heating ---" | consistent; the running state itself never captured |
 | `water_level` | 31 cm (Aug) | 30 cm, "Filling OFF – Level OK" | ✓ encoding; the status text is derived from the thresholds |
 
+### The unit's INFO screen is not in the frame (checked 2026-09-12)
+
+The unit's INFO screen (serial 110195262, photographed at 19:05) shows a
+firmware version, the last dose of each chemical with a full timestamp and an
+amount, and the controller's own temperature:
+
+| INFO screen line | Value |
+|---|---|
+| Firmware | v 5.08 |
+| Last dose of DESINFEKTION | 12.09.26 18:56:09 — 237 |
+| Last dose of pH− | 20.06.26 9:37:41 — 10 |
+| Last dose of ALGICIDE | 12.09.26 8:07:56 — 200 |
+| Device temperature | 27.0 °C |
+
+**None of it appears in the 19:47 frame taken 42 minutes later.** Searched as
+single bytes and as 16-bit big-endian words, in the obvious scalings: 237, 200
+and 10 for the dose amounts, 27 and 270 for the temperature, 508 and 0x0508 for
+the firmware, and each dose timestamp as the 6-byte `year−2000, month, day,
+hour, minute, second` sequence the frame itself uses. The only hits were the
+frame's own three segment timestamps.
+
+There is no room for it either. Of the 120 bytes, 36 are the three segment
+headers and ~54 are mapped; of the ~30 left, 15 are constant on this unit
+across five weeks of captures, three are the per-segment trailers, and four
+track measurements already decoded (see below). Eight varying bytes cannot hold
+three timestamps.
+
+So the INFO screen is device-local or cloud-side. The dose history would have
+to be rebuilt from the live pump bits, which is what `consumption_tracker.py`
+and `backwash_tracker.py` already do for consumption and backwash. **The
+firmware version is the loss that matters**: the decoder infers the HOME
+firmware variant from `byte[37]`'s encoding precisely because no frame carries
+a version number, and this confirms it is not simply hiding elsewhere.
+
+### What the remaining unknown bytes do (110195262, 28 frames, Aug–Sep 2026)
+
+| Bytes | Behaviour | Reading |
+|---|---|---|
+| 64–65 | Tracks `ph` (bytes 14–15): equal in most frames, otherwise up to 0.70 pH away | the pH the regulation is working from — a lagging or smoothed copy, not new information |
+| 66–67 | Tracks `water_temperature` (bytes 25–26): equal in most frames, otherwise up to 1.6 °C away | same, for the temperature |
+| 39, 79, 119 | Last byte of each 40-byte segment, changes with every frame | checksum; not a plain sum of the segment payload |
+| 32–36, 94, 100 | Always 0 | — |
+| 72 | Always `0xFF` on SALT | `required_algicide` on the independent-port models; a SALT has no such port |
+| 73, 108, 109–110, 111, 113, 116, 117, 118 | Constant on **both** SALT units (20, 10, 3000, 15, 1, 0xFF, 252, 1) and different on HOME/OXY | settings or model constants; changing one setting at a time per download would map them |
+| 30, 31, 38, 78, 96, 97, 98, 114 | Vary frame to frame | the only bytes left that could carry anything live |
+
+---
+
 ### Visible on the unit or in the app, not decoded
 
 | App / display item | Where it might live | What would settle it |
@@ -369,8 +417,8 @@ from different days and are listed only to show the encoding, not the number.
 | Status **Pool flow OVERFLOW** (overflow vs. skimmer pool) | unknown | a download after switching the pool type |
 | Status **Pump speed ON** | not `byte[22]` bit 0x08: that bit is clear on this unit while the app shows ON | unknown |
 | Consumption page: electrolyser efficiency / production kg/week, canister levels, pump lifetimes, water filled m³, heating kWh | cloud aggregates, not frame fields; production could be integrated locally from `electrolyzer_power` | — |
-| Constant unknown bytes on both SALT units: `byte[73]` = 20 (HOME/OXY: 40), bytes 109–110 = 3000 (HOME: 600), `byte[111]` = 15, `byte[113]` = 1, `byte[117]` = 252 | settings of some kind: identical on both units, different on HOME | change candidate settings on the unit and diff |
-| Slowly varying unknowns: `byte[114]` (35–198 over August), `byte[96]`, `byte[98]`, bytes 38–39 (357 on this unit, ~8250 on the other), bytes 64–65 (~700), bytes 66–67 (270–312, tracks the water temperature) | measurements or counters | correlate with the app's history |
+| Firmware version (INFO screen: v 5.08), last-dose timestamps and amounts, controller temperature | nowhere — see §"The unit's INFO screen is not in the frame" | nothing in the v7 frame; the cloud or a v8 unit would be the only source |
+| The eight bytes that still vary: 30, 31, 38, 78, 96, 97, 98, 114 | measurements or counters — see the table above | correlate with the app's history |
 
 ---
 
@@ -378,6 +426,8 @@ from different days and are listed only to show the encoding, not the number.
 
 | Question | Status |
 |---|---|
+| Is the firmware version in the frame? | ✅ Answered 2026-09-12 — **no**; the INFO screen's v 5.08 appears nowhere, which is why HOME's firmware variant is inferred from `byte[37]` |
+| Are the last-dose timestamps/amounts in the frame? | ✅ Answered 2026-09-12 — **no**; there are not enough varying bytes to hold them |
 | pH− pump mask in byte[29]? | ⏳ Candidate `0x80` — consistent with HOME/OXY; awaiting frame |
 | Electrolyzer LEFT mask? | ⚠️ Tentative `0x40` — single frame, April 2, 2026 |
 | byte[37] full field layout? | ⏳ Bits 0–6 partially known; full semantics not confirmed |
