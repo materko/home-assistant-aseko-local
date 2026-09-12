@@ -355,6 +355,7 @@ from different days and are listed only to show the encoding, not the number.
 | `salinity` | 4.0 kg/m³ (Aug) | 4.4 kg/m³ (Sep) | ✓ encoding; different day |
 | `air_temperature` | None (open-circuit value) | display "air OFF", app "Air ---" | ✓ no probe → no value |
 | `vsp_pump_running` (byte[22] bit 0x08) | False | display "VS Pump OFF" | ✓; the second unit (110194590) has the bit set |
+| `max_ph_doses` (byte[115]) | 20 | display "20 × Max. number of doses of pH" | ✓ — and changing it to 17 on 2026-09-12 moved the byte to 0x11 |
 | `heating_active` | False | display "Heating control OFF", app "Heating ---" | consistent; the running state itself never captured |
 | `water_level` | 31 cm (Aug) | 30 cm, "Filling OFF – Level OK" | ✓ encoding; the status text is derived from the thresholds |
 
@@ -362,7 +363,6 @@ from different days and are listed only to show the encoding, not the number.
 
 | App / display item | Where it might live | What would settle it |
 |---|---|---|
-| Safety functions: **Max. number of doses of pH = 20** | `byte[115]` = 20 on this unit, **40** on serial 110194590, 20 on the HOME frame in `home_device_analysis.md` (listed there as unknown) | change the setting 20 → 19 on the unit, take a diagnostics download, expect `byte[115]` = 19 |
 | Timeline error **"Low pH under 6,7 – increase pH"** | the HOME frame with pH 6.29 in `home_device_analysis.md` carries `byte[13]` = 0x28, i.e. bits 0x08 and 0x20 while the pH was under 6.7; the decoder currently calls 0x08 "rapid pH change" on the strength of error_codes.md alone | a download taken while the app shows this error; bytes 12–13 |
 | Timeline error **"Water level too high"** | unknown; the level bytes are thresholds and the live level, not an alarm bit | a download during the alarm (the level above `water_level_high_alarm`); bytes 12–13 |
 | Config toggles **Heating control**, **Winter mode**, **Waterlevel**, **Flow detection**, **VS Pump**, **Filter backwash**, **Timer filtration**, **Water flow meter** | on HOME firmware A, heating control is `byte[37]` bit 0x08 and antifreeze bit 0x80; on SALT bit 0x80 is the algicide routing, so winter mode must live elsewhere. `byte[37]` bit 0x08 was never set on this unit (heating control OFF) — consistent but unproven | toggle one setting at a time, one download per state |
@@ -383,7 +383,7 @@ from different days and are listed only to show the encoding, not the number.
 | byte[37] full field layout? | ⏳ Bits 0–6 partially known; full semantics not confirmed |
 | byte[37] routing for Issue #84 firmware? | ⚠️ `0x13` = algicide but bit 7 NOT set — different firmware variant |
 | byte[103] semantics? | ⏳ Always mirrors byte[101] on SALT — may be a duplicate or separate pump |
-| `byte[115]` = max. number of pH doses? | ⏳ Candidate — 20 on 110195262 (display shows 20), 40 on 110194590; see §Ground truth 2026-09-11 |
+| `byte[115]` = max. number of pH doses? | ✅ Confirmed 2026-09-12 — the setting was changed 20 → 17 on the unit and byte[115] went 0x14 → 0x11, the only 17 in the frame.  Decoded as `max_ph_doses`. |
 | Which `byte[13]` bit is "Low pH under 6,7"? | ⏳ 0x08 or 0x20 — the HOME frame with pH 6.29 had both set; 0x08 is currently read as rapid pH change |
 | "Water level too high" alarm bit? | ⏳ Unknown — needs a download during the alarm |
 | Config toggles (heating control, winter mode, waterlevel, flow detection, VS pump, filter backwash, water flow meter) and pool flow type? | ⏳ Unknown bytes — one toggle per download would map them |

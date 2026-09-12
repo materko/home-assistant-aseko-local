@@ -188,6 +188,9 @@
       "max_filling_time": {
         "name": "Maximale Befüllungszeit"
       },
+      "max_ph_doses": {
+        "name": "Max. pH-Dosierungen"
+      },
       "required_algicide": {
         "name": "Benötigte Dosis Algizid",
         "unit_of_measurement": "ml/m³/Tag"

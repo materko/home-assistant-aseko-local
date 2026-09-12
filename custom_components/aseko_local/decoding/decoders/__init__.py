@@ -45,6 +45,7 @@ from .flowrate_ph_plus import FlowratePhPlus
 from .heating_active import HeatingActive
 from .heating_control_enabled import HeatingControlEnabled
 from .max_filling_time import MaxFillingTime
+from .max_ph_doses import MaxPhDoses
 from .oxy_pump_running import OxyPumpRunning
 from .ph import Ph
 from .ph_minus_concentration import PhMinusConcentration
@@ -111,6 +112,7 @@ ALL_FEATURES: tuple[type[Feature], ...] = (
     HeatingActive,
     HeatingControlEnabled,
     MaxFillingTime,
+    MaxPhDoses,
     OxyPumpRunning,
     Ph,
     PhMinusConcentration,
@@ -179,6 +181,7 @@ __all__ = [
     "HeatingActive",
     "HeatingControlEnabled",
     "MaxFillingTime",
+    "MaxPhDoses",
     "OxyPumpRunning",
     "Ph",
     "PhMinusConcentration",

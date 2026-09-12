@@ -156,7 +156,7 @@ Seg3 (bytes 80–119): 06 90 6b bf  02 02  1a 04 1c 08 1b 07
 | 112     | `0f`     | 15      | **ph_minus_concentration**   | **5%**         | **5%**           | ✓ (Issue #139) |
 | 113     | `0f`     | 15      | Unknown                      | —              | —                 | ?      |
 | 114     | `1e`     | 30      | Unknown                      | —              | —                 | ?      |
-| 115     | `14`     | 20      | Unknown                      | —              | —                 | ?      |
+| 115     | `14`     | 20      | **max_ph_doses** (safety: max. number of pH doses) | **20** | —      | ✓ position confirmed on SALT 2026-09-12; HOME value not compared |
 | 116     | `ff`     | —       | UNSPECIFIED / padding        | —              | —                 | —      |
 | 117     | `bc`     | 188     | Unknown                      | —              | —                 | ?      |
 | 118–119 | `0271`   | 625     | Unknown (checksum?)          | —              | —                 | ?      |

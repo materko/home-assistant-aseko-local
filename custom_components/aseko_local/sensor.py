@@ -390,6 +390,14 @@ SENSORS: list[AsekoSensorEntityDescription] = [
         value_fn=lambda device: device.max_filling_time,
     ),
     AsekoSensorEntityDescription(
+        key="max_ph_doses",
+        feature="max_ph_doses",
+        translation_key="max_ph_doses",
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:counter",
+        value_fn=lambda device: device.max_ph_doses,
+    ),
+    AsekoSensorEntityDescription(
         key="required_algicide",
         feature="required_algicide",
         translation_key="required_algicide",

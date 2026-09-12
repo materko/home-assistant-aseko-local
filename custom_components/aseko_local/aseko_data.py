@@ -245,6 +245,7 @@ class AsekoDevice:
 
     pool_volume: int | None = None  # byte 92 & 93
     max_filling_time: int | None = None  # bytes 76-77, seconds
+    max_ph_doses: int | None = None  # byte 115, safety function
 
     air_temperature: float | None = None  # byte 23 & 24 (signed, ÷10 = °C)
 

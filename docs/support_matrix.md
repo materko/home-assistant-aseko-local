@@ -53,6 +53,7 @@ Two further profiles exist that no unit is meant to decode with and that the tab
 | `heating_active` | ❓ | ❓ | ❓ | ❓ | — | ❓ |
 | `heating_control_enabled` | ✅ | ❓ | — | — | — | — |
 | `max_filling_time` | ❓ | ❓ | ✅ | ❓ | — | — |
+| `max_ph_doses` | 👁 | 👁 | ✅ | 👁 | — | — |
 | `oxy_pump_running` | — | — | — | ✅ | — | — |
 | `ph` | ✅ | ✅ | ✅ | 👁 | ✅ | ❓ |
 | `ph_minus_concentration` | ✅ | ✅ | ✅ | ❓ | — | ❓ |
@@ -262,6 +263,11 @@ Values captured from real units that nobody has yet checked against the unit dis
 ### v7 HOME firmware A
 
 - `filtration_pump_running` — observed: byte[29] 0x08 clear while Aseko Live showed STOP, serial 110128063; the set state was not captured on firmware A
+- `max_ph_doses` — observed: byte[115] = 20 on serial 110128063; the position is confirmed on SALT, the HOME setting was never compared
+
+### v7 HOME firmware B
+
+- `max_ph_doses` — observed: byte[115] = 20 on serial 110128063; the position is confirmed on SALT, the HOME setting was never compared
 
 ### v7 OXY
 
@@ -275,6 +281,7 @@ Values captured from real units that nobody has yet checked against the unit dis
 - `filtration_start2` — observed: bytes 60-61 = 18:00 in every frame on the Winnetoux OXY (serial 110157165); not compared with the app
 - `filtration_stop1` — observed: bytes 58-59 = 16:00 in every frame on the Winnetoux OXY (serial 110157165); not compared with the app
 - `filtration_stop2` — observed: bytes 62-63 = 22:00 in every frame on the Winnetoux OXY (serial 110157165); not compared with the app
+- `max_ph_doses` — observed: byte[115] = 30 on the Winnetoux OXY; the position is confirmed on SALT, the OXY setting was never compared
 - `ph` — observed: bytes 14-15 = 7.17 on the Winnetoux OXY (serial 110157165); not compared with the app
 - `pool_volume` — observed: bytes 92-93 = 41 m3 on the Winnetoux OXY (serial 110157165); not compared with the app
 - `required_ph` — observed: byte[52] / 10 = 7.2 on the Winnetoux OXY (serial 110157165); not compared with the app
@@ -300,7 +307,7 @@ Fields that exist on `AsekoDevice` but that nothing knows how to read yet.
 
 ## Totals
 
-- features known: 64
-- with a v7 reading: 62
+- features known: 65
+- with a v7 reading: 63
 - with a v8 reading: 17
 - profiles: 10
