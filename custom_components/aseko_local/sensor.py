@@ -307,6 +307,13 @@ SENSORS: list[AsekoSensorEntityDescription] = [
         value_fn=lambda device: device.ph_minus_concentration,
     ),
     AsekoSensorEntityDescription(
+        key="max_ph_doses",
+        translation_key="max_ph_doses",
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:counter",
+        value_fn=lambda device: device.max_ph_doses,
+    ),
+    AsekoSensorEntityDescription(
         key="rx",
         translation_key="redox",
         native_unit_of_measurement=UnitOfElectricPotential.MILLIVOLT,

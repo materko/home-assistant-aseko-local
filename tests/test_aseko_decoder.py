@@ -534,6 +534,30 @@ def test_decode_net_no_backwash_with_garbage_bytes() -> None:
     assert device.max_filling_time is None
 
 
+def test_decode_max_ph_doses() -> None:
+    """byte[115] is the "Max. number of doses of pH" safety setting.
+
+    Confirmed on an ASIN AQUA Salt: changing the setting from 20 to 17 on the
+    unit moved byte[115] from 0x14 to 0x11, the only 17 in the next frame.
+    """
+    data = _make_base_bytes()  # SALT
+    data[115] = 17
+    assert AsekoDecoder.decode(bytes(data)).max_ph_doses == 17
+
+    data[115] = 0xFF  # never set
+    assert AsekoDecoder.decode(bytes(data)).max_ph_doses is None
+
+
+def test_max_ph_doses_not_decoded_for_net() -> None:
+    """NET sends 0xFF in byte[115]; anything else there is not this setting."""
+    data = _make_base_bytes()
+    data[4] = 0x09  # NET
+    data[115] = 20
+    device = AsekoDecoder.decode(bytes(data))
+    assert device.device_type == AsekoDeviceType.NET
+    assert device.max_ph_doses is None
+
+
 def test_max_filling_time_unspecified_sentinel() -> None:
     """Issue #129: 0xFFFF in bytes 76-77 must decode to None, not 65535.
 
