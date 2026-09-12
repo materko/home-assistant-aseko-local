@@ -541,7 +541,7 @@ def test_decode_net_no_backwash_with_garbage_bytes() -> None:
 def test_decode_max_ph_doses() -> None:
     """byte[115] is the "Max. number of doses of pH" safety setting.
 
-    Confirmed on an ASIN AQUA Salt (serial 110195262): the setting was changed
+    Confirmed on an ASIN AQUA Salt: the setting was changed
     from 20 to 17 on the unit and the next frame (2026-09-12 19:47) carried
     byte[115] = 0x11, with no other byte in the frame equal to 17.
     """
@@ -2048,7 +2048,7 @@ def test_home_issue_110_frame() -> None:
 
 # --- Air temperature (bytes 23-24) --------------------------------------
 #
-# Two diagnostics dumps from the same unit — ASIN AQUA Salt, serial 110194590
+# Two diagnostics dumps from the same unit — an ASIN AQUA Salt
 # (type byte 0x0d).  Both were checked against the values shown on the device:
 #
 #   2026-08-11 10:33 → 0x0168 = 36.0 °C air | 0x0128 = 29.6 °C water

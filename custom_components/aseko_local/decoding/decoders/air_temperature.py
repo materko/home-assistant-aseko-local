@@ -1,8 +1,8 @@
 """Measured air (ambient) temperature (degrees C).
 
 16-bit big-endian two's complement at bytes 23-24, / 10 -- the same encoding
-as water_temperature, which sits directly after it.  Confirmed on an ASIN AQUA
-Salt (serial 110194590) against two diagnostics dumps, both matching the unit
+as water_temperature, which sits directly after it.  Confirmed on an ASIN
+AQUA Salt against two diagnostics dumps, both matching the unit
 display:
 
     2026-08-11 10:33 -> 0x0168 = 36.0 C air | 0x0128 = 29.6 C water

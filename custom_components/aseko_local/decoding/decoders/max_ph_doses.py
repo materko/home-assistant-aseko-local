@@ -1,13 +1,14 @@
-"""Safety function: the maximum number of pH doses before the unit stops dosing
+"""Safety function: the maximum number of pH doses.
 
-and raises "Too many doses of pH".
+After this many doses without the pH moving, the unit stops dosing and
+raises "Too many doses of pH".
 
-v7: byte[115].  Confirmed on the maintainer's ASIN AQUA Salt (serial
-110195262) on 2026-09-12: the setting was changed from 20 to 17 on the unit's
-Safety Functions screen and byte[115] followed (0x14 -> 0x11) while every
-other unmapped byte stayed put.  Reads 40 on a second SALT, 20 on the HOME
-frame in home_device_analysis.md, 30 on the OXY frames and 0xFF on every NET
-frame captured so far.
+v7: byte[115].  Confirmed on the maintainer's ASIN AQUA Salt on 2026-09-12:
+the setting was changed from 20 to 17 on the unit's Safety Functions screen
+and byte[115] followed (0x14 -> 0x11) while every other unmapped byte stayed
+put.  Reads 40 on the maintainer's other SALT, 20 on the HOME frame in
+home_device_analysis.md, 30 on the OXY frames and 0xFF on every NET frame
+captured so far.
 """
 
 from __future__ import annotations

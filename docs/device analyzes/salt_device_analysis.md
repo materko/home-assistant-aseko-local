@@ -6,7 +6,7 @@
 |---|---|
 | Model | ASIN AQUA Salt |
 | Firmware | 5.x – 7.x |
-| Source | PR #87 live captures 2026-04-04; earlier frames 2026-04-02, 2026-04-03; Issue #84; maintainer's units 110195262 and 110194590, 37 diagnostics downloads Aug 2026 and an app + display review 2026-09-11 |
+| Source | PR #87 live captures 2026-04-04; earlier frames 2026-04-02, 2026-04-03; Issue #84; maintainer's two units (one REDOX, one CLF), 37 diagnostics downloads Aug 2026 and an app + display review 2026-09-11 |
 | byte[4] | `0x0E` (Redox) or `0x0D` (CLF) or `0x0f` (DOSE) → `(data[4] & 0x0C) == 0x0C` → **SALT** |
 
 ---
@@ -71,7 +71,7 @@ complement value, `value / 10` = °C — the same encoding as the water
 temperature that follows it in bytes 25-26. The field was previously listed as
 "unknown".
 
-**Evidence** — two diagnostics dumps from serial 110194590 (ASIN AQUA Salt,
+**Evidence** — two diagnostics dumps from an ASIN AQUA Salt (
 type byte `0x0d`), both matching the readings shown on the unit:
 
 | Captured | Bytes 23-24 | Air | Bytes 25-26 | Water |
@@ -325,7 +325,7 @@ AsekoDeviceType.SALT: AsekoActuatorMasks(
 
 ## Ground truth 2026-09-11 — Aseko Live app and unit display vs decoded frames
 
-Serial 110195262 (REDOX probe). Settings compared against the last captured
+The maintainer's REDOX unit. Settings compared against the last captured
 frame (2026-08-28); the settings had not changed in between. Live values are
 from different days and are listed only to show the encoding, not the number.
 
@@ -354,14 +354,14 @@ from different days and are listed only to show the encoding, not the number.
 | `electrolyzer_direction` / `electrolyzer_power` | waiting / 0 | display "Power 0 g/h WAITING"; app "STOP WAITING" | ✓ |
 | `salinity` | 4.0 kg/m³ (Aug) | 4.4 kg/m³ (Sep) | ✓ encoding; different day |
 | `air_temperature` | None (open-circuit value) | display "air OFF", app "Air ---" | ✓ no probe → no value |
-| `vsp_pump_running` (byte[22] bit 0x08) | False | display "VS Pump OFF" | ✓; the second unit (110194590) has the bit set |
+| `vsp_pump_running` (byte[22] bit 0x08) | False | display "VS Pump OFF" | ✓; the maintainer's other SALT has the bit set |
 | `max_ph_doses` (byte[115]) | 20 | display "20 × Max. number of doses of pH" | ✓ — and changing it to 17 on 2026-09-12 moved the byte to 0x11 |
 | `heating_active` | False | display "Heating control OFF", app "Heating ---" | consistent; the running state itself never captured |
 | `water_level` | 31 cm (Aug) | 30 cm, "Filling OFF – Level OK" | ✓ encoding; the status text is derived from the thresholds |
 
 ### The unit's INFO screen is not in the frame (checked 2026-09-12)
 
-The unit's INFO screen (serial 110195262, photographed at 19:05) shows a
+The unit's INFO screen, read at 19:05, shows a
 firmware version, the last dose of each chemical with a full timestamp and an
 amount, and the controller's own temperature:
 
@@ -393,7 +393,7 @@ firmware version is the loss that matters**: the decoder infers the HOME
 firmware variant from `byte[37]`'s encoding precisely because no frame carries
 a version number, and this confirms it is not simply hiding elsewhere.
 
-### What the remaining unknown bytes do (110195262, 28 frames, Aug–Sep 2026)
+### What the remaining unknown bytes do (28 frames from one SALT, Aug–Sep 2026)
 
 | Bytes | Behaviour | Reading |
 |---|---|---|
