@@ -19,7 +19,7 @@ Two further profiles exist that no unit is meant to decode with and that the tab
 
 | field | HOME firmware A | HOME firmware B | SALT | OXY | NET | PROFI |
 |---|---|---|---|---|---|---|
-| `air_temperature` | ❓ | ❓ | ✅ | ❓ | — | ❓ |
+| `air_temperature` | ❓ | ❓ | ✅ | ❓ | — | — |
 | `alarm_no_flow_to_probes` | ✅ | ✅ | ✅ | ❓ | ✅ | ❓ |
 | `alarm_orp_too_many_doses` | ✅ | ✅ | ✅ | ❓ | ❓ | ❓ |
 | `alarm_ph_too_many_doses` | ✅ | ✅ | ✅ | ❓ | ❓ | ❓ |
@@ -53,7 +53,7 @@ Two further profiles exist that no unit is meant to decode with and that the tab
 | `flowrate_ph_minus` | ✅ | ✅ | ✅ | ✅ | ✅ | ❓ |
 | `heating_active` | ❓ | ❓ | ❓ | ❓ | — | ❓ |
 | `heating_control_enabled` | ✅ | ❓ | 🔍 | 🔍 | — | — |
-| `max_filling_time` | ❓ | ❓ | ✅ | ❓ | — | — |
+| `max_filling_time` | ❓ | ❓ | ✅ | ❓ | — | ❓ |
 | `max_ph_doses` | 👁 | 👁 | ✅ | 👁 | — | ❓ |
 | `oxy_pump_running` | — | — | — | ✅ | — | — |
 | `ph` | ✅ | ✅ | ✅ | 👁 | ✅ | ❓ |
@@ -64,7 +64,7 @@ Two further profiles exist that no unit is meant to decode with and that the tab
 | `required_algicide` | ✅ | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | — | — |
 | `required_cl_dose` | ❓ | ❓ | ❓ | — | 👁 | ❓ |
 | `required_cl_free` | ✅ | ✅ | ✅ | — | 👁 | ❓ |
-| `required_floc` | ✅ | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | — | — |
+| `required_floc` | ✅ | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | — | ❓ `decode_v7_routed_by_byte37` |
 | `required_oxy_dose` | — | — | — | ✅ | — | — |
 | `required_ph` | ✅ | ✅ | ✅ | 👁 | ✅ | ❓ |
 | `required_redox` | ❓ | ❓ | ✅ | — | ❓ | — |
@@ -73,7 +73,7 @@ Two further profiles exist that no unit is meant to decode with and that the tab
 | `serial_number` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `service_menu_open` | — | ✅ | ✅ | 👁 | — | ❓ |
 | `timestamp` | ✅ | ✅ | ✅ | ✅ | ❓ | ❓ |
-| `vsp_pump_running` | ✅ | ✅ | ✅ | ❓ | — | ❓ |
+| `vsp_pump_running` | ✅ | ✅ | ✅ | ❓ | — | — |
 | `water_filling_active` | ✅ | ✅ | ❓ | ❓ | — | ❓ |
 | `water_flow_to_probes` | ✅ | ✅ | ✅ | 👁 | ✅ | ❓ |
 | `water_level` | ✅ | ✅ | ✅ | ❓ | — | ❓ |
@@ -182,7 +182,6 @@ Every entry below is read today without a confirming capture.  If you own one of
 
 ### v7 PROFI
 
-- `air_temperature` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md); the Aseko Live app shows air temperature on Profi units
 - `alarm_no_flow_to_probes` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `alarm_orp_too_many_doses` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `alarm_ph_too_many_doses` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
@@ -208,6 +207,7 @@ Every entry below is read today without a confirming capture.  If you own one of
 - `flowrate_floc` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `flowrate_ph_minus` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `heating_active` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `max_filling_time` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md); the 2021 PROFI manual lists a max. filling time
 - `max_ph_doses` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `ph` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `ph_minus_concentration` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
@@ -216,11 +216,11 @@ Every entry below is read today without a confirming capture.  If you own one of
 - `redox` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `required_cl_dose` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `required_cl_free` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `required_floc` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md); the PROFI setpoints screen has a flocculant dose (ml/24 h m3) on its shared flocculant / algicide output
 - `required_ph` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `required_water_temperature` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `service_menu_open` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `timestamp` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
-- `vsp_pump_running` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `water_filling_active` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `water_flow_to_probes` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `water_level` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
