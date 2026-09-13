@@ -201,3 +201,25 @@ async def test_waiting_for_the_next_frame() -> None:
 
     assert await coordinator.async_wait_for_frame(0.01) is False
     assert coordinator._frame_waiters == []  # noqa: SLF001
+
+
+def test_mark_dump_notification_says_whether_the_marker_is_written() -> None:
+    from custom_components.aseko_local import _mark_dump_message
+
+    written = {
+        "marker": 3,
+        "time": "2026-09-13T12:01:05+02:00",
+        "seconds_since_last_frame": {110000001: 0.2},
+        "waited_for_frame": True,
+        "seconds_after_tap": 7.1,
+    }
+    text = _mark_dump_message([written], wait=True, label=" (heating ON)")
+    assert "Marker **3** (heating ON) written at 12:01:05" in text
+    assert "7.1 s after the tap" in text
+    assert "change the unit again" in text
+
+    timed_out = {**written, "waited_for_frame": False}
+    assert "No frame within 60 s" in _mark_dump_message([timed_out], True, "")
+
+    immediate = {**written, "waited_for_frame": None}
+    assert "last frame 0.2 s before" in _mark_dump_message([immediate], False, "")

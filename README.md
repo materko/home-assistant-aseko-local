@@ -56,7 +56,7 @@ The diagnostics file contains an annotated table of every byte in the raw data f
 It also carries a **frame log**: every frame received over roughly the last five days, kept compressed and capped at 256 kB so it never grows past that, and kept across Home Assistant restarts. To show which frames go with what the unit displayed:
 
 1. Change the setting on the unit.
-2. Call the `aseko_local.mark_dump` action (for example from a dashboard button on your phone), optionally with a short `note` such as "Heating control ON". With `wait_for_next_frame: true` it writes the marker only once the next frame has arrived (at most 60 seconds), so the marker lands right after the first frame that can carry the change. It returns the marker number and how many seconds ago each unit's last frame arrived.
+2. Call the `aseko_local.mark_dump` action (for example from a dashboard button on your phone), optionally with a short `note` such as "Heating control ON". With `wait_for_next_frame: true` it writes the marker only once the next frame has arrived (at most 60 seconds), so the marker lands right after the first frame that can carry the change. It returns the marker number and how many seconds ago each unit's last frame arrived, and a Home Assistant notification (the bell, also on the phone) shows the state as it goes: *waiting for a frame* while the marker is not written yet, then *written* with the marker number -- only then change the unit again.
 3. Photograph the unit's display right after.
 4. Repeat for each change, then download diagnostics and attach it to the issue together with the photos.
 

@@ -7,6 +7,8 @@ import logging
 
 import voluptuous as vol
 
+from homeassistant.components import persistent_notification
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT, Platform
 from homeassistant.core import (
@@ -83,6 +85,9 @@ MARK_DUMP_SCHEMA = vol.Schema(
 )
 # A unit sends every ten seconds or so; give up well after a missed frame.
 MARK_DUMP_WAIT_TIMEOUT = 60
+# One notification, rewritten as a mark_dump call progresses, so the phone
+# shows whether the marker is written yet before the setting is changed back.
+MARK_DUMP_NOTIFICATION_ID = f"{DOMAIN}_mark_dump"
 
 type AsekoLocalConfigEntry = ConfigEntry["AsekoLocalRuntimeData"]
 
@@ -94,6 +99,33 @@ class AsekoLocalRuntimeData:
     mirror: AsekoCloudMirror | None = None
     mirror_v8: AsekoCloudMirror | None = None
     server: AsekoDeviceServer | None = None
+
+
+def _mark_dump_message(markers: list[dict], wait: bool, label: str) -> str:
+    """Say which markers were written and how they relate to the frames."""
+    lines = []
+    for m in markers:
+        when = dt_util.parse_datetime(m["time"])
+        clock = when.strftime("%H:%M:%S") if when else m["time"]
+        ages = ", ".join(f"{age} s" for age in m["seconds_since_last_frame"].values())
+        if wait and m["waited_for_frame"]:
+            lines.append(
+                f"Marker **{m['marker']}**{label} written at {clock}, right after "
+                f"a frame that arrived {m['seconds_after_tap']} s after the tap. "
+                "You can change the unit again."
+            )
+        elif wait:
+            lines.append(
+                f"No frame within {MARK_DUMP_WAIT_TIMEOUT} s: marker "
+                f"**{m['marker']}**{label} written at {clock} without one. Is "
+                "the unit still sending?"
+            )
+        else:
+            lines.append(
+                f"Marker **{m['marker']}**{label} written at {clock}; last frame "
+                f"{ages or 'never'} before."
+            )
+    return "\n\n".join(lines)
 
 
 async def async_setup_entry(
@@ -319,6 +351,18 @@ async def async_setup_entry(
             if not loaded:
                 raise ServiceValidationError("No Aseko Local entry is loaded")
 
+            tapped = dt_util.utcnow()
+            label = f" ({note})" if note else ""
+            if wait:
+                persistent_notification.async_create(
+                    hass,
+                    f"Waiting for the next frame{label}, at most "
+                    f"{MARK_DUMP_WAIT_TIMEOUT} s. The marker is **not written "
+                    "yet** -- leave the unit as it is.",
+                    title="Aseko mark: waiting for a frame",
+                    notification_id=MARK_DUMP_NOTIFICATION_ID,
+                )
+
             async def mark(entry: ConfigEntry) -> dict:
                 coordinator = entry.runtime_data.coordinator
                 waited = None
@@ -333,10 +377,23 @@ async def async_setup_entry(
                     "time": dt_util.as_local(marker["time"]).isoformat(),
                     "seconds_since_last_frame": marker["seconds_since_last_frame"],
                     "waited_for_frame": waited,
+                    "seconds_after_tap": round(
+                        (marker["time"] - tapped).total_seconds(), 1
+                    ),
                 }
 
-            markers = await asyncio.gather(*(mark(entry) for entry in loaded))
-            return {"markers": list(markers)}
+            markers = list(await asyncio.gather(*(mark(entry) for entry in loaded)))
+            persistent_notification.async_create(
+                hass,
+                _mark_dump_message(markers, wait, label),
+                title=(
+                    "Aseko mark: no frame arrived"
+                    if wait and not all(m["waited_for_frame"] for m in markers)
+                    else "Aseko mark: written"
+                ),
+                notification_id=MARK_DUMP_NOTIFICATION_ID,
+            )
+            return {"markers": markers}
 
         hass.services.async_register(
             DOMAIN,
