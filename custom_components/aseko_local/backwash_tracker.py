@@ -7,7 +7,7 @@ activations (e.g. menu navigation, output-test mode) are ignored.
 That much is observed fact.  Everything else here is derived from it.
 
 Each recorded cycle is *classified* as scheduled or manual by comparing the
-moment the relay opened against the unit's configured ``backwash_time``:
+moment the relay opened against the unit's configured ``backwash_start_time``:
 
     * within ±``SCHEDULED_MATCH_TOLERANCE`` of the configured time, on a unit
       whose schedule is enabled  →  SCHEDULED (the unit ran it itself)
@@ -118,7 +118,7 @@ MIN_BACKWASH_DURATION = timedelta(seconds=60)
 MAX_FRAME_GAP = timedelta(minutes=5)
 
 # How far the observed relay-on start may drift from the configured
-# ``backwash_time`` and still count as the unit's own scheduled cycle.
+# ``backwash_start_time`` and still count as the unit's own scheduled cycle.
 # The unit fires on its own clock, which can be a few minutes off from HA's,
 # and the frame that first reports the relay as on can lag the actual start
 # by one transmit interval (~30 s).  15 minutes absorbs both while staying
@@ -326,9 +326,9 @@ class BackwashTracker:
 
         Call this from the coordinator after every received frame.  No-op
         for devices that do not have a backwash valve (NET — where
-        ``backwash_active`` is ``None``).
+        ``backwash_running`` is ``None``).
         """
-        if device.backwash_active is None:
+        if device.backwash_running is None:
             # NET or unknown — nothing to track.
             return
 
@@ -355,7 +355,7 @@ class BackwashTracker:
         self._last_frame_at = now
 
         # Step 2: if the relay is on, start (or continue) a new window.
-        if device.backwash_active:
+        if device.backwash_running:
             if self._relay_on_since is None:
                 self._relay_on_since = now
                 self._service_menu_in_window = False
@@ -408,7 +408,7 @@ class BackwashTracker:
             or self._last_manual_backwash is not None
         ):
             return
-        if device.backwash_time is None:
+        if device.backwash_start_time is None:
             # No schedule in this frame — try again on the next one.
             return
 
@@ -513,7 +513,7 @@ class BackwashTracker:
         * A cycle started by hand within the tolerance window of the scheduled
           time is reported as scheduled (unless ``service_menu_observed``).
         * Only the time of day is checked, not the day itself — a manual cycle
-          at exactly ``backwash_time`` on a day the interval does not fall on
+          at exactly ``backwash_start_time`` on a day the interval does not fall on
           still counts as scheduled.  Checking the day would need the schedule
           phase, which is precisely what we are trying to establish, and would
           break whenever the user changes the interval.
@@ -523,15 +523,15 @@ class BackwashTracker:
           fault) is reported as manual.
 
         Classification uses the schedule as it was in the frame at the time of
-        the cycle, and is never revisited: changing ``backwash_time`` later
+        the cycle, and is never revisited: changing ``backwash_start_time`` later
         does not reclassify history.
         """
         if service_menu_observed:
             # Observed fact rather than inference: a person was at the unit.
             return AsekoBackwashTrigger.MANUAL
 
-        scheduled_time = device.backwash_time
-        interval = device.backwash_every_n_days
+        scheduled_time = device.backwash_start_time
+        interval = device.backwash_interval
         if scheduled_time is None or interval is None or interval <= 0:
             # No usable schedule (0xFF in the config bytes, or interval 0 =
             # "automatic backwash disabled") — the unit cannot have started
@@ -548,10 +548,10 @@ class BackwashTracker:
         """Return the projected next automatic backwash, or None if unknown.
 
         The projection starts from the last *scheduled* cycle and steps forward
-        in ``backwash_every_n_days`` increments until it lands in the future,
+        in ``backwash_interval`` increments until it lands in the future,
         so a run of missed cycles (HA offline, unit powered down) does not
         leave the sensor stuck on a past date.  The result is snapped to the
-        configured ``backwash_time`` rather than to the observed midpoint,
+        configured ``backwash_start_time`` rather than to the observed midpoint,
         because that is when the unit will actually fire.
 
         Returns None while no scheduled cycle has been observed: a manual
@@ -559,8 +559,8 @@ class BackwashTracker:
         does not transmit it.
         """
         last_scheduled = self._last_scheduled_backwash
-        interval = device.backwash_every_n_days
-        scheduled_time = device.backwash_time
+        interval = device.backwash_interval
+        scheduled_time = device.backwash_start_time
         if last_scheduled is None or scheduled_time is None:
             return None
         if interval is None or interval <= 0:

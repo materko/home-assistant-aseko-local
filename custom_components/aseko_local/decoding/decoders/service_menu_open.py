@@ -9,7 +9,7 @@ open, so whether anything was touched is not observable.
 Confirmed on an ASIN AQUA Salt: 0xD7 / 0xF7 are P1 / P1&P2 with the menu
 open, and each shows up as a brief flip to True followed by the device going
 offline.  On HOME firmware B (Issue #133) it is documented as a standing
-manual override that forces the pump off; see filtration_pump_running.
+manual override that forces the pump off; see filtration_running.
 
 HOME firmware A uses bit 0x02 for its transitional edit states and encodes
 no menu state, so no HOME-A profile lists this feature.

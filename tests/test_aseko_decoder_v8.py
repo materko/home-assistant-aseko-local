@@ -214,7 +214,7 @@ def test_water_flow_to_probes(device_sep):
 
 
 def test_filtration_pump_running(device_sep):
-    assert device_sep.filtration_pump_running is True
+    assert device_sep.filtration_running is True
 
 
 def test_ph_minus_pump_not_running_baseline(device_sep):
@@ -240,7 +240,7 @@ def test_ph_minus_pump_running_when_dosing():
     device = AsekoV8Decoder.decode(dosing_frame)
     assert device.ph_minus_pump_running is True
     # Other pump states must be unaffected
-    assert device.filtration_pump_running is True
+    assert device.filtration_running is True
 
 
 # ---------------------------------------------------------------------------
@@ -249,21 +249,21 @@ def test_ph_minus_pump_running_when_dosing():
 
 
 def test_required_ph_sep(device_sep):
-    assert device_sep.required_ph == pytest.approx(7.4)
+    assert device_sep.ph_target == pytest.approx(7.4)
 
 
 def test_required_ph_apr(device_apr):
-    assert device_apr.required_ph == pytest.approx(7.4)
+    assert device_apr.ph_target == pytest.approx(7.4)
 
 
 def test_required_redox_sep(device_sep):
     # areqs[1] = 73 → 73 × 10 = 730 mV
-    assert device_sep.required_redox == 730
+    assert device_sep.redox_target == 730
 
 
 def test_required_redox_apr(device_apr):
     # areqs[1] = 74 → 74 × 10 = 740 mV  (matches app screenshot)
-    assert device_apr.required_redox == 740
+    assert device_apr.redox_target == 740
 
 
 def test_pool_volume(device_sep):
@@ -271,11 +271,11 @@ def test_pool_volume(device_sep):
 
 
 def test_delay_after_startup(device_sep):
-    assert device_sep.delay_after_startup == 2
+    assert device_sep.startup_delay == 2
 
 
 def test_delay_after_dose(device_sep):
-    assert device_sep.delay_after_dose == 2
+    assert device_sep.dosing_delay == 2
 
 
 # ---------------------------------------------------------------------------
@@ -365,12 +365,12 @@ def test_unknown_header_type_is_tolerated(caplog):
 
 
 def test_cl_pump_running_false_in_reference_frame(device_sep):
-    """Baseline frames have outs[9] = 0 → cl_pump_running is False."""
-    assert device_sep.cl_pump_running is False
+    """Baseline frames have outs[9] = 0 → chlorine_pump_running is False."""
+    assert device_sep.chlorine_pump_running is False
 
 
 def test_cl_pump_running_true_when_outs9_set():
-    """Frame with outs[9] = 1 → cl_pump_running is True (confirmed April 19 fekberg)."""
+    """Frame with outs[9] = 1 → chlorine_pump_running is True (confirmed April 19 fekberg)."""
     frame = (
         b"{v1 999999999 804 0 27 "
         b"ins: 214 -500 -500 -500 0 0 0 0 1 -500 -500 -500 0 25 1 30 18 23 0 "
@@ -380,7 +380,7 @@ def test_cl_pump_running_true_when_outs9_set():
         b"crc16: 0000}\n"
     )
     device = AsekoV8Decoder.decode(frame)
-    assert device.cl_pump_running is True
+    assert device.chlorine_pump_running is True
     assert device.ph_minus_pump_running is False
 
 
@@ -396,7 +396,7 @@ def test_ph_minus_pump_running_true_when_outs8_set():
     )
     device = AsekoV8Decoder.decode(frame)
     assert device.ph_minus_pump_running is True
-    assert device.cl_pump_running is False
+    assert device.chlorine_pump_running is False
 
 
 def test_both_pumps_independent():
@@ -411,4 +411,4 @@ def test_both_pumps_independent():
     )
     device = AsekoV8Decoder.decode(frame)
     assert device.ph_minus_pump_running is True
-    assert device.cl_pump_running is True
+    assert device.chlorine_pump_running is True

@@ -44,35 +44,35 @@ def _make_salt_redox_bytes() -> bytearray:
     data[14:16] = (700).to_bytes(2, "big")  # pH = 7.00
     data[16:18] = (680).to_bytes(2, "big")  # Redox = 650 mv
     data[20] = 32  # salinity = 3.2
-    data[21] = 80  # electrolyzer_power
+    data[21] = 80  # chlorine_production
     data[25:27] = (245).to_bytes(2, "big")  # water_temperature = 24.5
     data[28] = WATER_FLOW_TO_PROBES
     data[29] = 0x10  # Electrolyzer on
     data[37] = 0xB3  # algicide mode (bit 7 set; confirmed by @hopkins-tk)
-    data[52] = 70  # required_ph = 7.0
-    data[53] = 65  # required_redox = 650
-    data[54] = 5  # required_algicide
-    data[55] = 28  # required_water_temperature
-    data[56] = 8  # filtration_start1 hour
-    data[57] = 0  # filtration_start1 min
-    data[58] = 10  # filtration_stop1 hour
-    data[59] = 0  # filtration_stop1 min
-    data[60] = 14  # filtration_start2 hour
-    data[61] = 0  # filtration_start2 min
-    data[62] = 16  # filtration_stop2 hour
-    data[63] = 0  # filtration_stop2 min
-    data[68] = 3  # backwash_every_n_days
-    data[69] = 2  # backwash_time hour
-    data[70] = 30  # backwash_time min
+    data[52] = 70  # ph_target = 7.0
+    data[53] = 65  # redox_target = 650
+    data[54] = 5  # algaecide_dose_target
+    data[55] = 28  # water_temperature_target
+    data[56] = 8  # filtration_period_1_start hour
+    data[57] = 0  # filtration_period_1_start min
+    data[58] = 10  # filtration_period_1_end hour
+    data[59] = 0  # filtration_period_1_end min
+    data[60] = 14  # filtration_period_2_start hour
+    data[61] = 0  # filtration_period_2_start min
+    data[62] = 16  # filtration_period_2_end hour
+    data[63] = 0  # filtration_period_2_end min
+    data[68] = 3  # backwash_interval
+    data[69] = 2  # backwash_start_time hour
+    data[70] = 30  # backwash_start_time min
     data[71] = 2  # backwash_duration (20)
-    data[74:76] = (120).to_bytes(2, "big")  # delay_after_startup
+    data[74:76] = (120).to_bytes(2, "big")  # startup_delay
     data[92:94] = (5000).to_bytes(2, "big")  # pool_volume
-    data[76:78] = (3600).to_bytes(2, "big")  # max_filling_time, raw 3600
-    data[94:96] = (60).to_bytes(2, "big")  # byte 95 = flowrate_ph_minus = 60
-    data[97] = 255  # flowrate_ph_plus: 0xFF = not present
-    data[99] = 255  # flowrate_chlor: 0xFF = SALT has no chlorine pump
-    data[101] = 255  # flowrate_floc: 0xFF = SALT has no flocculant pump
-    data[106:108] = (30).to_bytes(2, "big")  # delay_after_dose
+    data[76:78] = (3600).to_bytes(2, "big")  # max_refill_time, raw 3600
+    data[94:96] = (60).to_bytes(2, "big")  # byte 95 = ph_minus_flow_rate = 60
+    data[97] = 255  # ph_plus_flow_rate: 0xFF = not present
+    data[99] = 255  # chlorine_flow_rate: 0xFF = SALT has no chlorine pump
+    data[101] = 255  # flocculant_flow_rate: 0xFF = SALT has no flocculant pump
+    data[106:108] = (30).to_bytes(2, "big")  # dosing_delay
     return data
 
 
@@ -91,35 +91,35 @@ def _make_salt_clf_bytes() -> bytearray:
     data[14:16] = (700).to_bytes(2, "big")  # pH = 7.00
     data[16:18] = (100).to_bytes(2, "big")  # CL free = 1.00 mg/L
     data[20] = 32  # salinity = 3.2
-    data[21] = 80  # electrolyzer_power
+    data[21] = 80  # chlorine_production
     data[25:27] = (245).to_bytes(2, "big")  # water_temperature = 24.5
     data[28] = WATER_FLOW_TO_PROBES
-    data[29] = 0x50  # filtration_pump_running + Electrolyzer LEFT
+    data[29] = 0x50  # filtration_running + Electrolyzer LEFT
     data[37] = 0xB3  # algicide mode (bit 7 set; confirmed by @hopkins-tk)
-    data[52] = 70  # required_ph = 7.0
+    data[52] = 70  # ph_target = 7.0
     data[53] = 30  # required_cl = 3.0
-    data[54] = 5  # required_algicide
-    data[55] = 28  # required_water_temperature
-    data[56] = 8  # filtration_start1 hour
-    data[57] = 0  # filtration_start1 min
-    data[58] = 10  # filtration_stop1 hour
-    data[59] = 0  # filtration_stop1 min
-    data[60] = 14  # filtration_start2 hour
-    data[61] = 0  # filtration_start2 min
-    data[62] = 16  # filtration_stop2 hour
-    data[63] = 0  # filtration_stop2 min
-    data[68] = 3  # backwash_every_n_days
-    data[69] = 2  # backwash_time hour
-    data[70] = 30  # backwash_time min
+    data[54] = 5  # algaecide_dose_target
+    data[55] = 28  # water_temperature_target
+    data[56] = 8  # filtration_period_1_start hour
+    data[57] = 0  # filtration_period_1_start min
+    data[58] = 10  # filtration_period_1_end hour
+    data[59] = 0  # filtration_period_1_end min
+    data[60] = 14  # filtration_period_2_start hour
+    data[61] = 0  # filtration_period_2_start min
+    data[62] = 16  # filtration_period_2_end hour
+    data[63] = 0  # filtration_period_2_end min
+    data[68] = 3  # backwash_interval
+    data[69] = 2  # backwash_start_time hour
+    data[70] = 30  # backwash_start_time min
     data[71] = 2  # backwash_duration (20)
-    data[74:76] = (120).to_bytes(2, "big")  # delay_after_startup
+    data[74:76] = (120).to_bytes(2, "big")  # startup_delay
     data[92:94] = (5000).to_bytes(2, "big")  # pool_volume
-    data[76:78] = (3600).to_bytes(2, "big")  # max_filling_time, raw 3600
-    data[94:96] = (60).to_bytes(2, "big")  # byte 95 = flowrate_ph_minus = 60
-    data[97] = 20  # flowrate_ph_plus
-    data[99] = 255  # flowrate_chlor: 0xFF = SALT has no chlorine pump
-    data[101] = 255  # flowrate_floc: 0xFF = SALT has no flocculant pump
-    data[106:108] = (30).to_bytes(2, "big")  # delay_after_dose
+    data[76:78] = (3600).to_bytes(2, "big")  # max_refill_time, raw 3600
+    data[94:96] = (60).to_bytes(2, "big")  # byte 95 = ph_minus_flow_rate = 60
+    data[97] = 20  # ph_plus_flow_rate
+    data[99] = 255  # chlorine_flow_rate: 0xFF = SALT has no chlorine pump
+    data[101] = 255  # flocculant_flow_rate: 0xFF = SALT has no flocculant pump
+    data[106:108] = (30).to_bytes(2, "big")  # dosing_delay
     return data
 
 
@@ -143,34 +143,34 @@ def _make_net_clf_bytes() -> bytearray:
     data[10] = 255  # minute / HEX: 0xff
     data[11] = 255  # second / HEX: 0xff
     data[14:16] = (721).to_bytes(2, "big")  # ph_value / HEX: 0x02d1
-    data[16:18] = (36).to_bytes(2, "big")  # cl_free or redox / HEX: 0x0024
+    data[16:18] = (36).to_bytes(2, "big")  # free_chlorine or redox / HEX: 0x0024
     data[18:20] = (65535).to_bytes(2, "big")  # redox / HEX: 0xffff
     data[20] = 0  # salinity / HEX: 0x00
-    data[21] = 38  # electrolyzer_power / HEX: 0x26
-    data[20:22] = (38).to_bytes(2, "big")  # cl_free_mv / HEX: 0x0026
+    data[21] = 38  # chlorine_production / HEX: 0x26
+    data[20:22] = (38).to_bytes(2, "big")  # free_chlorine_mv / HEX: 0x0026
     data[25:27] = (327).to_bytes(2, "big")  # water_temperature / HEX: 0x0147
     data[28] = 0  # water_flow_probe / HEX: 0x00
     data[29] = 0  # pump_or_electrolizer / HEX: 0x00
-    data[52] = 71  # required_ph / HEX: 0x47
+    data[52] = 71  # ph_target / HEX: 0x47
     data[53] = 10  # required_cl_free_or_redox / HEX: 0x0a
-    data[54] = 8  # required_algicide / HEX: 0x08
-    data[55] = 255  # required_water_temperature / HEX: 0xff
+    data[54] = 8  # algaecide_dose_target / HEX: 0x08
+    data[55] = 255  # water_temperature_target / HEX: 0xff
     data[56:58] = (65535).to_bytes(2, "big")  # start_1_time / HEX: 0xffff
     data[58:60] = (65535).to_bytes(2, "big")  # stop_1_time / HEX: 0xffff
     data[60:62] = (65535).to_bytes(2, "big")  # start_2_time / HEX: 0xffff
     data[62:64] = (65535).to_bytes(2, "big")  # stop_2_time / HEX: 0xffff
-    data[68] = 255  # backwash_every_n_days / HEX: 0xff
-    data[69:71] = (65535).to_bytes(2, "big")  # backwash_time / HEX: 0xffff
+    data[68] = 255  # backwash_interval / HEX: 0xff
+    data[69:71] = (65535).to_bytes(2, "big")  # backwash_start_time / HEX: 0xffff
     data[71] = 255  # backwash_duration / HEX: 0xff
-    data[74:76] = (65535).to_bytes(2, "big")  # delay_after_startup / HEX: 0xffff
+    data[74:76] = (65535).to_bytes(2, "big")  # startup_delay / HEX: 0xffff
     data[92:94] = (1).to_bytes(2, "big")  # pool_volume / HEX: 0x0001
-    data[76:78] = (3600).to_bytes(2, "big")  # max_filling_time, raw 3600
+    data[76:78] = (3600).to_bytes(2, "big")  # max_refill_time, raw 3600
     data[94:96] = (60).to_bytes(2, "big")  # byte 95 = flowrate / HEX: 0x003c
-    data[95] = 60  # flowrate_chlor / HEX: 0x3c
-    data[97] = 255  # flowrate_ph_plus / HEX: 0xff
-    data[99] = 60  # flowrate_ph_minus / HEX: 0x3c
-    data[101] = 255  # flowrate_floc / HEX: 0xff
-    data[106:108] = (120).to_bytes(2, "big")  # delay_after_dose / HEX: 0x0078
+    data[95] = 60  # chlorine_flow_rate / HEX: 0x3c
+    data[97] = 255  # ph_plus_flow_rate / HEX: 0xff
+    data[99] = 60  # ph_minus_flow_rate / HEX: 0x3c
+    data[101] = 255  # flocculant_flow_rate / HEX: 0xff
+    data[106:108] = (120).to_bytes(2, "big")  # dosing_delay / HEX: 0x0078
     return data
 
 
@@ -192,33 +192,35 @@ def _make_profi_clf_redox_bytes() -> bytearray:
     # are not UNSPECIFIED
     data[25:27] = (245).to_bytes(2, "big")  # water_temperature = 24.5
     data[28] = WATER_FLOW_TO_PROBES
-    data[29] = 0x08  # filtration_pump_running
+    data[29] = 0x08  # filtration_running
     data[37] = 0x00  # flocculant mode (PROFI uses flocculant, not algicide)
-    data[52] = 70  # required_ph = 7.0
+    data[52] = 70  # ph_target = 7.0
     data[53] = 30  # required_cl = 3.0
-    data[54] = 5  # required dosing rate (byte 54; flocculant mode → required_floc)
-    data[55] = 28  # required_water_temperature
-    data[56] = 8  # filtration_start1 hour
-    data[57] = 0  # filtration_start1 min
-    data[58] = 10  # filtration_stop1 hour
-    data[59] = 0  # filtration_stop1 min
-    data[60] = 14  # filtration_start2 hour
-    data[61] = 0  # filtration_start2 min
-    data[62] = 16  # filtration_stop2 hour
-    data[63] = 0  # filtration_stop2 min
-    data[68] = 3  # backwash_every_n_days
-    data[69] = 2  # backwash_time hour
-    data[70] = 30  # backwash_time min
+    data[54] = (
+        5  # required dosing rate (byte 54; flocculant mode → flocculant_dose_target)
+    )
+    data[55] = 28  # water_temperature_target
+    data[56] = 8  # filtration_period_1_start hour
+    data[57] = 0  # filtration_period_1_start min
+    data[58] = 10  # filtration_period_1_end hour
+    data[59] = 0  # filtration_period_1_end min
+    data[60] = 14  # filtration_period_2_start hour
+    data[61] = 0  # filtration_period_2_start min
+    data[62] = 16  # filtration_period_2_end hour
+    data[63] = 0  # filtration_period_2_end min
+    data[68] = 3  # backwash_interval
+    data[69] = 2  # backwash_start_time hour
+    data[70] = 30  # backwash_start_time min
     data[71] = 2  # backwash_duration (20)
-    data[74:76] = (120).to_bytes(2, "big")  # delay_after_startup
+    data[74:76] = (120).to_bytes(2, "big")  # startup_delay
     data[92:94] = (5000).to_bytes(2, "big")  # pool_volume
-    data[95] = 10  # flowrate_chlor
-    data[76:78] = (3600).to_bytes(2, "big")  # max_filling_time, raw 3600
-    data[94:96] = (60).to_bytes(2, "big")  # byte 95 = flowrate_ph_minus
-    data[97] = 20  # flowrate_ph_plus
-    data[99] = 255  # flowrate_ph_minus (not measured)
-    data[101] = 60  # flowrate_floc (PROFI has flocculant pump configured)
-    data[106:108] = (30).to_bytes(2, "big")  # delay_after_dose
+    data[95] = 10  # chlorine_flow_rate
+    data[76:78] = (3600).to_bytes(2, "big")  # max_refill_time, raw 3600
+    data[94:96] = (60).to_bytes(2, "big")  # byte 95 = ph_minus_flow_rate
+    data[97] = 20  # ph_plus_flow_rate
+    data[99] = 255  # ph_minus_flow_rate (not measured)
+    data[101] = 60  # flocculant_flow_rate (PROFI has flocculant pump configured)
+    data[106:108] = (30).to_bytes(2, "big")  # dosing_delay
     return data
 
 
@@ -283,7 +285,7 @@ async def test_async_setup_salt_redox(hass) -> None:
         for e in added_entities
     )
     # 11 sensors + 7 new (filtration schedule, pool volume, delays) + 4 binary
-    # (water_flow, electrolyzer_active, filtration, ph_minus)
+    # (water_flow, electrolysis_running, filtration, ph_minus)
     # + 2 consumption (ph_minus canister + total) + 1 connection_status
     # + 3 new backwash config sensors (every_n_days, time, duration)
     # + 3 backwash history sensors (last_backwash, last_manual_backwash,
@@ -291,8 +293,8 @@ async def test_async_setup_salt_redox(hass) -> None:
     #   valve even though they read "unknown" until a cycle is seen.
     #   last_scheduled_backwash is a datetime entity, not a sensor, so it is
     #   not in this platform's count.
-    # + 1 new backwash_active binary sensor
-    # + 1 new heating_active binary sensor
+    # + 1 new backwash_running binary sensor
+    # + 1 new heating_running binary sensor
     # + 1 last_manual_backwash sensor; last_scheduled_backwash is a datetime
     #   entity, counted by that platform rather than here
     # byte[37] reshuffle, net zero:
@@ -305,7 +307,7 @@ async def test_async_setup_salt_redox(hass) -> None:
     #   reads "unknown" until the coordinator stamps the first frame.  It used
     #   to be skipped here only because this test hands the platform a device
     #   the coordinator has not stamped yet.
-    # + 2 heating_control_enabled / antifreeze_enabled binary sensors: the
+    # + 2 heating_control_enabled / freeze_protection_enabled binary sensors: the
     #   SALT Configuration menu has Heating control and Winter mode, but
     #   their place in the frame is not known yet, so they read unknown
     assert len(added_entities) == 44
@@ -426,14 +428,14 @@ async def test_async_setup_salt_clf(hass) -> None:
         for e in added_entities
     )
     # 12 sensors + 7 new (filtration schedule, pool volume, delays) + 4 binary
-    # (water_flow, electrolyzer_active, filtration, ph_minus)
+    # (water_flow, electrolysis_running, filtration, ph_minus)
     # + 2 consumption (ph_minus canister + total) + 1 connection_status
     # + 3 new backwash config sensors (every_n_days, time, duration)
     # + 4 backwash history sensors (last_backwash, last_scheduled_backwash,
     #   last_manual_backwash, next_scheduled_backwash; last_scheduled_backwash
     #   is a datetime entity, counted by that platform instead)
-    # + 1 new backwash_active binary sensor
-    # + 1 new heating_active binary sensor
+    # + 1 new backwash_running binary sensor
+    # + 1 new heating_running binary sensor
     # + 1 last_manual_backwash sensor; last_scheduled_backwash is a datetime
     #   entity, counted by that platform rather than here
     # byte[37] reshuffle, net zero:
@@ -446,7 +448,7 @@ async def test_async_setup_salt_clf(hass) -> None:
     #   reads "unknown" until the coordinator stamps the first frame.  It used
     #   to be skipped here only because this test hands the platform a device
     #   the coordinator has not stamped yet.
-    # + 2 heating_control_enabled / antifreeze_enabled binary sensors: the
+    # + 2 heating_control_enabled / freeze_protection_enabled binary sensors: the
     #   SALT Configuration menu has Heating control and Winter mode, but
     #   their place in the frame is not known yet, so they read unknown
     assert len(added_entities) == 45
@@ -544,20 +546,20 @@ async def test_async_setup_net_clf(hass) -> None:
         getattr(e.device, "serial_number", None) == device.serial_number
         for e in added_entities
     )
-    # 8 sensors + 2 new (pool_volume, delay_after_dose; filtration None).
-    # delay_after_startup is not created: this NET frame carries 0xFFFF in
+    # 8 sensors + 2 new (pool_volume, dosing_delay; filtration None).
+    # startup_delay is not created: this NET frame carries 0xFFFF in
     # bytes 74-75, the "not filled in" marker, which used to read as 65535 s.
     # + 3 binary (water_flow, cl_pump, ph_minus_pump – NET has no filtration output,
     #   so it never had the retired filtration_nonstop24 sensor either)
     # + 4 consumption (ph_minus canister + total, cl canister + total) + 1 connection_status
-    # note: required_algicide/required_floc are absent because byte[37]=0xFF (undefined)
+    # note: algaecide_dose_target/flocculant_dose_target are absent because byte[37]=0xFF (undefined)
     # note: filtration sensors skipped because start/stop times are None in NET test data
-    # + 1 heating_active binary sensor
+    # + 1 heating_running binary sensor
     # Issue #129: NET has no backwash valve and no filling valve, so the
-    # backwash / water_level / max_filling_time groups are *all* suppressed.
+    # backwash / water_level / max_refill_time groups are *all* suppressed.
     # The backwash config + history sensors that the old code created
     # (every_n_days, time, duration, last_backwash, next_scheduled_backwash) plus
-    # max_filling_time are no longer created for NET, even when the frame
+    # max_refill_time are no longer created for NET, even when the frame
     # carries non-0xFF data in those byte slots.  The history sensors are
     # gated on the device having a backwash valve, not on their own value,
     # so this stays true now that they start out unknown.
@@ -689,7 +691,7 @@ async def test_async_setup_profi_clf_redox(hass) -> None:
         for e in added_entities
     )
     # 16 sensors + 6 binary (water_flow, filtration, cl_pump, ph_minus_pump,
-    # floc_pump, heating_active, water_filling_active, backwash_active)
+    # floc_pump, heating_running, refilling, backwash_running)
     # + 6 consumption (cl, ph_minus, floc × canister + total) + 1 connection_status
     # + 4 alarm binary sensors (ph_too_many_doses, orp_too_many_doses,
     #   no_flow_to_probes, rapid_ph_change)
@@ -697,30 +699,30 @@ async def test_async_setup_profi_clf_redox(hass) -> None:
     # + 4 backwash history sensors (last_backwash, last_scheduled_backwash,
     #   last_manual_backwash, next_scheduled_backwash; last_scheduled_backwash
     #   is a datetime entity, counted by that platform instead)
-    # + 1 max_filling_time sensor (data[76:78])
+    # + 1 max_refill_time sensor (data[76:78])
     #
-    # Regular sensors (16): free_chlorine, required_free_chlorine,
-    #   free_chlorine_mv, ph, required_ph, rx, water_temp, required_water_temp,
-    #   flowrate_ph_minus, flowrate_floc,
-    #   backwash_every_n_days, backwash_time, backwash_duration,
+    # Regular sensors (16): free_chlorine, free_chlorine_target,
+    #   free_chlorine_mv, ph, ph_target, rx, water_temp, required_water_temp,
+    #   ph_minus_flow_rate, flocculant_flow_rate,
+    #   backwash_interval, backwash_start_time, backwash_duration,
     #   last_backwash, last_scheduled_backwash, last_manual_backwash,
     #   next_scheduled_backwash
-    # Binary sensors (6): water_flow_to_probes, pump_running, cl_pump_running,
-    #   ph_minus_pump_running, floc_pump_running, water_filling_active
-    # Heating-related (1 binary): heating_active
-    # Backwash-related (1 binary): backwash_active
-    # Alarm-related (4 binary): alarm_ph_too_many_doses, alarm_orp_too_many_doses,
+    # Binary sensors (6): water_flow_to_probes, pump_running, chlorine_pump_running,
+    #   ph_minus_pump_running, flocculant_pump_running, refilling
+    # Heating-related (1 binary): heating_running
+    # Backwash-related (1 binary): backwash_running
+    # Alarm-related (4 binary): alarm_ph_dosing_ineffective, alarm_max_disinfection_dose,
     #   alarm_no_flow_to_probes, alarm_rapid_ph_change
     #
-    # + 1 required_floc: the PROFI manual's setpoints screen has a flocculant
+    # + 1 flocculant_dose_target: the PROFI manual's setpoints screen has a flocculant
     #   dose on its shared flocculant / algicide output, routed like SALT's
     #
-    # NOTE: water_filling_active is only present because _fill_home_water_level_data
+    # NOTE: refilling is only present because _fill_home_water_level_data
     # was widened from a {HOME, SALT, OXY} whitelist to a {NET} blacklist (see
     # PR #120 review comment by hopkins-tk).  PROFI does have a water-level input
     # (confirmed via the Aseko Profi manual), so it must be decoded.
     #
-    # + 1 max_filling_time: the 2021 PROFI manual shows a water filling relay
+    # + 1 max_refill_time: the 2021 PROFI manual shows a water filling relay
     #   and lists a max. filling time, so the value Issue #129 suppressed is
     #   read again (bytes 76-77)
     #
@@ -761,14 +763,14 @@ async def test_async_setup_profi_clf_redox(hass) -> None:
         for e in added_entities
     )
     # PROFI has a water-level input (confirmed by the Aseko Profi manual), so
-    # _fill_home_water_level_data must run for it.  The water_filling_active
+    # _fill_home_water_level_data must run for it.  The refilling
     # bit (byte[29] & 0x02) is False in this fixture, but the entity must
     # still be registered.
     assert any(
         getattr(e.entity_description, "key", None) == "water_filling_active"
         for e in added_entities
     )
-    # Issue #129: PROFI has no filling valve, so max_filling_time stays None
+    # Issue #129: PROFI has no filling valve, so max_refill_time stays None
     # and no entity is created even though bytes 94-95 carry a real value.
     assert not any(
         getattr(e.entity_description, "key", None) == "max_filling_time"

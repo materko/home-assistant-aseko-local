@@ -93,7 +93,7 @@ class AsekoBackwashTrigger(Enum):
     """What started the most recently observed backwash cycle.
 
     SCHEDULED — the cycle started within the tolerance window around the
-        configured ``backwash_time`` on a device whose backwash schedule is
+        configured ``backwash_start_time`` on a device whose backwash schedule is
         enabled, so the unit ran it on its own.
     MANUAL — anything else: the cycle started outside that window, or the
         schedule is disabled/unconfigured, so a human started it.
@@ -169,69 +169,73 @@ class AsekoDevice:
     serial_number: int | None = None  # byte 0 - 4
     timestamp: datetime | None = None  # byte 6 - 11
     ph: float | None = None  # byte 14 & 15
-    cl_free: float | None = None  # byte 16 & 17
-    cl_free_mv: int | None = None  # for NET - free chlorine millivolts (byte 20 & 21)
+    free_chlorine: float | None = None  # byte 16 & 17
+    free_chlorine_mv: int | None = (
+        None  # for NET - free chlorine millivolts (byte 20 & 21)
+    )
     redox: int | None = None  # byte 16 & 17 or 18 & 19
     salinity: float | None = None  # byte 20
-    electrolyzer_power: int | None = None  # byte 21
-    electrolyzer_active: bool | None = None  # byte 29 (4-th bit)
-    electrolyzer_direction: AsekoElectrolyzerDirection | None = (
+    chlorine_production: int | None = None  # byte 21
+    electrolysis_running: bool | None = None  # byte 29 (4-th bit)
+    electrode_polarity: AsekoElectrolyzerDirection | None = (
         None  # byte 29 (6-th bit for LEFT)
     )
     water_temperature: float | None = None  # byte 25 & 26
     water_flow_to_probes: bool | None = None  # byte 28 == aah
-    filtration_pump_running: bool | None = None  # byte 29 (3-rd bit)
-    heating_active: bool | None = None  # byte 29 (2-nd bit, 0x04)
+    filtration_running: bool | None = None  # byte 29 (3-rd bit)
+    heating_running: bool | None = None  # byte 29 (2-nd bit, 0x04)
     heating_control_enabled: bool | None = None  # byte 37 bit 3 (0x08) on HOME
-    antifreeze_enabled: bool | None = None  # byte 37 bit 7 (0x80) on HOME
-    vsp_pump_running: bool | None = None  # byte 22 bit 3 (0x08) on HOME
+    freeze_protection_enabled: bool | None = None  # byte 37 bit 7 (0x80) on HOME
+    variable_speed_pump_running: bool | None = None  # byte 22 bit 3 (0x08) on HOME
     ph_minus_concentration: int | None = None  # byte 112 (%) on HOME (Issue #139)
-    cl_pump_running: bool | None = None  # byte 29 (6-th bit)
+    chlorine_pump_running: bool | None = None  # byte 29 (6-th bit)
     ph_minus_pump_running: bool | None = None  # byte 29 (7-th bit)
     ph_plus_pump_running: bool | None = (
         None  # byte 29 (unknown - 7-th bit for all except PROFI?)
     )
-    algicide_pump_running: bool | None = (
+    algaecide_pump_running: bool | None = (
         None  # byte 29 bit 4 (0x10) on SALT; uncertain on other types
     )
-    floc_pump_running: bool | None = None  # byte 29 bit 5 (0x20)
-    oxy_pump_running: bool | None = (
+    flocculant_pump_running: bool | None = None  # byte 29 bit 5 (0x20)
+    oxygen_pump_running: bool | None = (
         None  # byte 29 bit unconfirmed – OXY Pure device only
     )
 
     # NEW: flow rates (bytes 95, 97, 99, 101)
-    flowrate_chlor: int | None = None
-    flowrate_ph_minus: int | None = None
-    flowrate_ph_plus: int | None = None
-    flowrate_oxy: int | None = (
-        None  # byte 99 on OXY Pure device (same slot as flowrate_chlor)
+    chlorine_flow_rate: int | None = None
+    ph_minus_flow_rate: int | None = None
+    ph_plus_flow_rate: int | None = None
+    oxygen_flow_rate: int | None = (
+        None  # byte 99 on OXY Pure device (same slot as chlorine_flow_rate)
     )
 
     # algicide/flocculant based on byte 37: bit 0x80 set = algicide, 0 = flocculant, 0xFF = undefined
-    flowrate_algicide: int | None = None
-    flowrate_floc: int | None = None
+    algaecide_flow_rate: int | None = None
+    flocculant_flow_rate: int | None = None
 
-    required_ph: float | None = None  # byte 52/10
-    required_redox: int | None = None  # byte 53*10
-    required_cl_free: float | None = None  # byte 53/10 mg/L
-    required_oxy_dose: int | None = None  # byte 53 raw ml/m³/day – OXY Pure device only
-    required_cl_dose: int | None = (
+    ph_target: float | None = None  # byte 52/10
+    redox_target: int | None = None  # byte 53*10
+    free_chlorine_target: float | None = None  # byte 53/10 mg/L
+    oxygen_dose_target: int | None = (
+        None  # byte 53 raw ml/m³/day – OXY Pure device only
+    )
+    chlorine_dose_target: int | None = (
         None  # byte 53 raw ml/m³/h – DOSE mode (volume-based Cl dosing)
     )
 
     # algicide/flocculant based on byte 37: bit 0x80 set = algicide, 0 = flocculant, 0xFF = undefined
-    required_algicide: int | None = None  # byte 54
-    required_floc: int | None = None  # byte 54
+    algaecide_dose_target: int | None = None  # byte 54
+    flocculant_dose_target: int | None = None  # byte 54
 
-    required_water_temperature: int | None = None  # byte 55
+    water_temperature_target: int | None = None  # byte 55
 
-    filtration_start1: time | None = None  # byte 56 & 57
-    filtration_stop1: time | None = None  # byte 58 & 59
-    filtration_start2: time | None = None  # byte 60 & 61
-    filtration_stop2: time | None = None  # byte 62 & 63
+    filtration_period_1_start: time | None = None  # byte 56 & 57
+    filtration_period_1_end: time | None = None  # byte 58 & 59
+    filtration_period_2_start: time | None = None  # byte 60 & 61
+    filtration_period_2_end: time | None = None  # byte 62 & 63
 
-    backwash_every_n_days: int | None = None  # byte 68
-    backwash_time: time | None = None  # byte 69 & 70
+    backwash_interval: int | None = None  # byte 68
+    backwash_start_time: time | None = None  # byte 69 & 70
     backwash_duration: int | None = None  # byte 71
 
     # Backwash running state — byte [29] bit 0x01
@@ -241,10 +245,10 @@ class AsekoDevice:
     # The mapping is the same one JS-DE-Tech uses for `relay_byte` bit 0
     # ("backwash" relay).  Live confirmation is still pending — see
     # docs/temp/byte29_salt_pump_masks_analysis.md for context.
-    backwash_active: bool | None = None
+    backwash_running: bool | None = None
 
     pool_volume: int | None = None  # byte 92 & 93
-    max_filling_time: int | None = None  # bytes 76-77, seconds
+    max_refill_time: int | None = None  # bytes 76-77, seconds
     max_ph_doses: int | None = None  # byte 115, safety function
 
     air_temperature: float | None = None  # byte 23 & 24 (signed, ÷10 = °C)
@@ -252,12 +256,12 @@ class AsekoDevice:
     # Water level
     water_level: int | None = None  # byte [27] (cm, real-time)
     water_level_low_alarm: int | None = None  # byte [102] (cm, config)
-    water_level_filling_on: int | None = None  # byte [103] (cm, config)
-    water_level_filling_off: int | None = None  # byte [104] (cm, config)
+    water_level_refill_start: int | None = None  # byte [103] (cm, config)
+    water_level_refill_stop: int | None = None  # byte [104] (cm, config)
     water_level_high_alarm: int | None = None  # byte [105] (cm, config)
 
     # Water filling active — byte [29] bit 0x02
-    water_filling_active: bool | None = None
+    refilling: bool | None = None
 
     # The filtration schedule the unit is configured for — byte [37]
     # bits 0x10 / 0x20, which the manual override (bit 0x04) does not
@@ -287,15 +291,15 @@ class AsekoDevice:
     # byte [13] 0x02 = pH dose fault (inferred, symmetric to 0x01 — no direct capture yet)
     # byte [13] 0x04 = no flow to probes (confirmed)
     # byte [13] 0x08 = rapid pH change (error_codes.md, unconfirmed by capture)
-    alarm_ph_too_many_doses: bool | None = None  # byte [13] 0x02 | byte [12] 0x40
-    alarm_orp_too_many_doses: bool | None = None  # byte [13] 0x01 | byte [12] 0x20
+    alarm_ph_dosing_ineffective: bool | None = None  # byte [13] 0x02 | byte [12] 0x40
+    alarm_max_disinfection_dose: bool | None = None  # byte [13] 0x01 | byte [12] 0x20
     alarm_no_flow_to_probes: bool | None = None  # byte [13] bit 0x04 (confirmed)
     alarm_rapid_ph_change: bool | None = (
         None  # byte [13] bit 0x08 (error_codes.md, unconfirmed by capture)
     )
 
-    delay_after_dose: int | None = None  # byte 107 & 108 ? (seconds)
-    delay_after_startup: int | None = None  # byte 74 & 75 (seconds)
+    dosing_delay: int | None = None  # byte 107 & 108 ? (seconds)
+    startup_delay: int | None = None  # byte 74 & 75 (seconds)
 
     # Backwash history — filled by the coordinator from BackwashTracker
     # (persistent across restarts) and None until a real cycle has been seen.
@@ -322,7 +326,7 @@ class AsekoDevice:
     #                             diagnostics so a misclassification is visible
     #                             in a dump.
     #   next_scheduled_backwash = last_scheduled_backwash projected forward by
-    #                             backwash_every_n_days, so it inherits any
+    #                             backwash_interval, so it inherits any
     #                             error in that classification.  None while no
     #                             scheduled cycle is known: a manual backwash
     #                             does not reveal the schedule phase, and an

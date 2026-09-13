@@ -24,10 +24,10 @@ def _device(
 ) -> AsekoDevice:
     """Make a minimal AsekoDevice with only the fields the tracker uses."""
     d = AsekoDevice()
-    d.cl_pump_running = cl_on
-    d.flowrate_chlor = cl_rate
+    d.chlorine_pump_running = cl_on
+    d.chlorine_flow_rate = cl_rate
     d.ph_minus_pump_running = ph_minus_on
-    d.flowrate_ph_minus = ph_minus_rate
+    d.ph_minus_flow_rate = ph_minus_rate
     # leave all other pump fields as None (not present on this device type)
     return d
 

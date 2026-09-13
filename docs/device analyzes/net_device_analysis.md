@@ -66,17 +66,17 @@ bug — not introduced by OXY work. It is out of scope for v1.4.0.
 
 The ASIN AQUA NET has no pump or relay for the filtration/filter circuit. It is a
 measurement-only device (probes) combined with chemical dosing pumps. There is no
-`filtration_pump_running` for NET — the bit `0x08` in byte[29] does **not** mean
+`filtration_running` for NET — the bit `0x08` in byte[29] does **not** mean
 filtration on NET devices.
 
-Confirmed by Issue #66: `filtration_pump_running` is always `None` on NET.
+Confirmed by Issue #66: `filtration_running` is always `None` on NET.
 
 ### Timestamp: all 0xFF
 
 NET devices send `data[6:12] = 0xFF` (all timestamp bytes UNSPECIFIED). The decoder
 uses `datetime.now()` as a fallback in this case.
 
-### cl_free_mv in bytes[20:22]
+### free_chlorine_mv in bytes[20:22]
 
 On NET with CLF probe: `bytes[20:22]` = free chlorine in millivolts (signed 16-bit).
 This is different from SALT where `byte[20]` = salinity and `byte[21]` = electrolyzer power.
@@ -95,7 +95,7 @@ This is different from SALT where `byte[20]` = salinity and `byte[21]` = electro
 | `[13]` | Alarm bitmask | `0x04` = no flow to probes (confirmed on NET); see § above |
 | `[14:16]` | pH = value / 100 | |
 | `[16:18]` | CLF = value / 100 (mg/L) | |
-| `[20:22]` | cl_free_mv (mV, signed) | NET-specific; SALT uses `[20]` for salinity |
+| `[20:22]` | free_chlorine_mv (mV, signed) | NET-specific; SALT uses `[20]` for salinity |
 | `[25:27]` | Water temperature = value / 10 | °C |
 | `[28]` | Water flow to probes | `0xAA` = flowing |
 | `[29]` | Actuator bitmask | **See §byte[29]** |
@@ -157,7 +157,7 @@ schedule, backwash, or water-temperature probe.
 |---|---|---|
 | `[92:94]` | Pool volume (m³) | |
 | `[95]` | Flowrate pH− (ml/min) | Confirmed |
-| `[99]` | Flowrate CL pump (ml/min) | Confirmed (`flowrate_chlor`) |
+| `[99]` | Flowrate CL pump (ml/min) | Confirmed (`chlorine_flow_rate`) |
 | `[101]` | Flowrate third-pump slot | `0xFF` on NET (no third pump) |
 | `[103]` | `0x03` | Phantom value on NET — ignore |
 

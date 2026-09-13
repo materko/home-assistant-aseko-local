@@ -48,9 +48,9 @@ def _salt_frame(byte37: int, flowrate_third_pump: int = 0xFF) -> bytes:
 
 
 ALGICIDE_FIELDS = {
-    "flowrate_algicide",
-    "algicide_pump_running",
-    "required_algicide",
+    "algaecide_flow_rate",
+    "algaecide_pump_running",
+    "algaecide_dose_target",
 }
 
 
@@ -70,7 +70,7 @@ def test_first_frame_goes_through_the_new_device_listener_only() -> None:
 
     assert [d.serial_number for d in new_devices] == [SERIAL]
     assert new_features == []
-    assert "flowrate_algicide" not in new_devices[0].features
+    assert "algaecide_flow_rate" not in new_devices[0].features
 
 
 def test_a_later_frame_that_adds_features_calls_the_new_features_listener() -> None:
@@ -202,7 +202,9 @@ def test_datetime_platform_only_reacts_to_the_backwash_valve(grown_device) -> No
     )
     assert (
         len(
-            _build_datetime([grown_device], coordinator, frozenset({"backwash_active"}))
+            _build_datetime(
+                [grown_device], coordinator, frozenset({"backwash_running"})
+            )
         )
         == 1
     )
@@ -224,7 +226,7 @@ def test_growth_never_builds_a_field_the_unit_lacks(grown_device) -> None:
     keys = {
         e.entity_description.key
         for e in _build_sensor_entities(
-            [grown_device], _PlatformCoordinator(), frozenset({"cl_free"})
+            [grown_device], _PlatformCoordinator(), frozenset({"free_chlorine"})
         )
     }
     assert keys == set()  # REDOX unit: no free-chlorine probe

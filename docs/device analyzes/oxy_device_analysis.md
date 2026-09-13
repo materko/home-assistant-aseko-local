@@ -65,7 +65,7 @@ Checksum bytes (39, 79, 119) and timestamp second (byte[11]) change as expected.
 | `[14:16]` | `02 cd` | pH = 7.17 | ÷100 |
 | `[16:18]` | `00 1e` | CLF slot = 30 → 0.30 | **Placeholder, see §CLF/REDOX** |
 | `[18:20]` | `00 1e` | REDOX slot = 30 mV | **Placeholder, see §CLF/REDOX** |
-| `[20:22]` | `fd 9d` | cl_free_mv = −611 mV (signed) | **Placeholder, no CLF probe** |
+| `[20:22]` | `fd 9d` | free_chlorine_mv = −611 mV (signed) | **Placeholder, no CLF probe** |
 | `[25:27]` | `00 5f` | Water temp = 9.5 °C | ÷10 |
 | `[28]` | `0xaa` | Water flow to probes = ON | `== 0xAA` |
 | `[29]` | `0x08` / `0x28` | Actuator bitmask | **See §byte[29]** |
@@ -187,7 +187,7 @@ On OXY, `0x03` has neither `0x80` nor `0x10` set — the SALT routing logic does
 → `0x03` = both present (consistent with Winnetoux's device showing 4 pumps).
 
 **Implementation**: for `AsekoDeviceType.OXY`, do not apply the `ALGICIDE_CONFIGURED` byte[37]
-routing. Both flowrate_algicide and flowrate_floc are read from their own dedicated bytes.
+routing. Both algaecide_flow_rate and flocculant_flow_rate are read from their own dedicated bytes.
 
 Since Issue #133 the decoder also reads the 4-state filtration mode directly
 from `byte[37]` for every `FILTRATION_TYPES` device (OXY included), using the
@@ -263,7 +263,7 @@ disabled.
 **Decoder behaviour** (post Issue #133 fix): the decoder reads bytes 60-63
 unconditionally for any device in `FILTRATION_TYPES` (which includes OXY
 since it exposes a filtration output).  The lazy-creation guard in
-`sensor.py` skips the `filtration_2_start` / `filtration_2_stop` entities
+`sensor.py` skips the `filtration_period_2_start` / `filtration_period_2_end` entities
 only if the bytes are `0xFF` (the bytes have never been configured on the
 controller).  Once the entity is registered, it stays populated with the
 last-configured time even when the user disables Period 2 — the
@@ -373,8 +373,8 @@ active probe:
 
 | Active probe / mode | `AsekoProbeType` | byte[53] interpretation | Scaling | Confirmed |
 |---|---|---|---|---|
-| CLF probe | `CLF` | required_cl_free | ÷10 → mg/L | ✓ `0x02` → 0.20 mg/L (13:16:10 log) |
-| REDOX probe | `REDOX` | required_redox | ×10 → mV | ✓ existing |
+| CLF probe | `CLF` | free_chlorine_target | ÷10 → mg/L | ✓ `0x02` → 0.20 mg/L (13:16:10 log) |
+| REDOX probe | `REDOX` | redox_target | ×10 → mV | ✓ existing |
 | OXY / H₂O₂ (SANOSIL) probe | `SANOSIL` | required OXY dosage | raw → ml/m³/d | ✓ `0x08` → 8 ml/m³/d → changed to 12 (log 6.4.) |
 | Volume dosing mode | `DOSE` | required dosing rate | raw → ml/m³/h | ✓ `0x05` → 5 ml/m³/h (13:15:00 log) |
 
@@ -396,8 +396,8 @@ ml/m³/d target.
 
 **Implementation impact:**
 - OXY needs a new `AsekoDevice` field: `required_sanosil: int | None` (ml/m³/d)
-- In `decode()`: when `AsekoDeviceType.OXY`, read `required_sanosil = data[53]` instead of `required_redox`/`required_cl_free`
-- Alternatively, `required_cl_free` could be repurposed (no CLF probe present anyway), but a dedicated field is cleaner for HA entity naming
+- In `decode()`: when `AsekoDeviceType.OXY`, read `required_sanosil = data[53]` instead of `redox_target`/`free_chlorine_target`
+- Alternatively, `free_chlorine_target` could be repurposed (no CLF probe present anyway), but a dedicated field is cleaner for HA entity naming
 
 ---
 
@@ -410,8 +410,8 @@ ml/m³/d target.
 | pH− mask in byte[29]? | ✅ **0x80** – confirmed 2026-04-12 (Winnetoux log) |
 | Pumps can run in parallel? | ✅ **Yes** – 2026-04-12: `0xa8 = 0x08|0x20|0x80` (floc + pH− simultaneously) |
 | byte[103] = algicide flowrate? | ✅ **Confirmed** – 60 ml/min, stable across both sessions |
-| byte[54] = required_floc (10 ml/h)? | ✅ **Confirmed** – 2026-04-11: value=10, matches Aseko UI |
-| byte[72] = required_algicide (15 ml/m³/d)? | ✅ **Confirmed** – 2026-04-11: value=15, matches Aseko UI |
+| byte[54] = flocculant_dose_target (10 ml/h)? | ✅ **Confirmed** – 2026-04-11: value=10, matches Aseko UI |
+| byte[72] = algaecide_dose_target (15 ml/m³/d)? | ✅ **Confirmed** – 2026-04-11: value=15, matches Aseko UI |
 | OXY with CLF or REDOX probe possible? | ⏳ Awaiting frame from OXY with optional CLF/REDOX installed |
 
 ---
@@ -446,9 +446,9 @@ v1.5.0 will confirm remaining byte[29] bits once more frames are available.
 2. ✅ `_unit_type()`: `if data[4] == UNIT_TYPE_OXY: return AsekoDeviceType.OXY`
 3. ✅ `_configuration()`: returns `{PH, OXY}` directly for `AsekoDeviceType.OXY`
 4. ✅ `decode()`: skips `_fill_clf_data()` / `_fill_redox_data()` for OXY
-5. ✅ `_fill_required_data()`: OXY path reads `required_floc = byte[54]`, `required_algicide = byte[72]`
-6. ✅ `_fill_flowrate_data()`: OXY path reads `flowrate_oxy = byte[99]`, `flowrate_floc = byte[101]`, `flowrate_algicide = byte[103]`
-7. ✅ `_fill_consumable_data()`: OXY masks now sufficient — `algicide_pump_running` and `oxy_pump_running` set correctly
+5. ✅ `_fill_required_data()`: OXY path reads `flocculant_dose_target = byte[54]`, `algaecide_dose_target = byte[72]`
+6. ✅ `_fill_flowrate_data()`: OXY path reads `oxygen_flow_rate = byte[99]`, `flocculant_flow_rate = byte[101]`, `algaecide_flow_rate = byte[103]`
+7. ✅ `_fill_consumable_data()`: OXY masks now sufficient — `algaecide_pump_running` and `oxygen_pump_running` set correctly
 
 #### `tests/test_aseko_decoder.py`
 - ✅ OXY normal frame test (byte[29]=0x08)

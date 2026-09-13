@@ -31,7 +31,7 @@ Friction points:
 
 Three building blocks, all under `custom_components/aseko_local/decoding/`:
 
-- A **feature** is one target value: one field on `AsekoDevice`. pH is one feature, chlorine is another, `filtration_start2` is another. That is about 65 features for the frame-derived fields we have today.
+- A **feature** is one target value: one field on `AsekoDevice`. pH is one feature, chlorine is another, `filtration_period_2_start` is another. That is about 65 features for the frame-derived fields we have today.
 - Each feature has one **decoder file** in `decoders/` that holds every known way to read it, its *variants*, for v7 and v8 alike, with one default per protocol. A feature declares `depends_on` for features it needs first. A feature file knows nothing about models.
 - A **profile** is one (protocol, model, firmware) combination: an ordered list of the features it has, `overrides` naming a different variant for the few features it reads differently, `evidence` for each feature, and semantic flags. Model knowledge lives here only.
 
@@ -89,7 +89,7 @@ SALT = Profile(
 )
 NET = Profile(
     protocol=V7, model=NET,
-    features=[Ph, Redox, ClFree, Alarms, PumpStates, ...],   # no FiltrationSchedule
+    features=[Ph, Redox, FreeChlorine, Alarms, PumpStates, ...],   # no FiltrationSchedule
 )
 ```
 

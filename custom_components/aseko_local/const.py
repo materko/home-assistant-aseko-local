@@ -24,7 +24,7 @@ READ_TIMEOUT = 30.0
 WATER_FLOW_TO_PROBES = 0xAA
 
 # Byte 37 bit 0x20 = second filtration period enabled (checkbox on the unit).
-# When clear, the unit still reports the last-configured filtration_start2/filtration_stop2 times in
+# When clear, the unit still reports the last-configured filtration_period_2_start/filtration_period_2_end times in
 # bytes 60-63, so they must be ignored. Confirmed on ASIN AQUA Salt by toggling
 # the period-2 checkbox and diffing two frames (PR #122 review). The decoder
 # applies this only to the verified device types (FILTRATION_PERIOD2_FLAG_TYPES);

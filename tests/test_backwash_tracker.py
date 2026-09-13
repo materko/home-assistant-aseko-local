@@ -36,10 +36,10 @@ SCHEDULE_EVERY_N_DAYS = 3
 
 
 def _device(
-    backwash_active: bool | None,
+    backwash_running: bool | None,
     *,
-    backwash_time: time | None = None,
-    backwash_every_n_days: int | None = None,
+    backwash_start_time: time | None = None,
+    backwash_interval: int | None = None,
 ) -> Any:
     """Minimal stand-in for AsekoDevice with only the fields the tracker reads.
 
@@ -48,18 +48,18 @@ def _device(
     relay-window state machine.
     """
     dev = MagicMock()
-    dev.backwash_active = backwash_active
-    dev.backwash_time = backwash_time
-    dev.backwash_every_n_days = backwash_every_n_days
+    dev.backwash_running = backwash_running
+    dev.backwash_start_time = backwash_start_time
+    dev.backwash_interval = backwash_interval
     return dev
 
 
-def _scheduled_device(backwash_active: bool | None) -> Any:
+def _scheduled_device(backwash_running: bool | None) -> Any:
     """Stand-in for a device with an enabled backwash schedule at SCHEDULE_AT."""
     return _device(
-        backwash_active,
-        backwash_time=SCHEDULE_AT,
-        backwash_every_n_days=SCHEDULE_EVERY_N_DAYS,
+        backwash_running,
+        backwash_start_time=SCHEDULE_AT,
+        backwash_interval=SCHEDULE_EVERY_N_DAYS,
     )
 
 
@@ -98,11 +98,11 @@ def _hass() -> MagicMock:
 def test_short_backwash_below_threshold_not_recorded():
     """Relay on for 30 s (below MIN_BACKWASH_DURATION) → no event recorded."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
-    device = _device(backwash_active=True)
+    device = _device(backwash_running=True)
 
     tracker.update(device, T0)
     tracker.update(device, T0 + timedelta(seconds=10))
-    tracker.update(_device(backwash_active=False), T0 + timedelta(seconds=30))
+    tracker.update(_device(backwash_running=False), T0 + timedelta(seconds=30))
 
     assert tracker.last_backwash is None
 
@@ -110,10 +110,10 @@ def test_short_backwash_below_threshold_not_recorded():
 def test_long_backwash_recorded_at_midpoint():
     """Relay on for 90 s (≥ 60 s threshold) → event recorded at window midpoint."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
-    device = _device(backwash_active=True)
+    device = _device(backwash_running=True)
 
     tracker.update(device, T0)
-    tracker.update(_device(backwash_active=False), T0 + timedelta(seconds=90))
+    tracker.update(_device(backwash_running=False), T0 + timedelta(seconds=90))
 
     assert tracker.last_backwash is not None
     # Midpoint of [T0, T0+90s] = T0 + 45s
@@ -124,10 +124,10 @@ def test_long_backwash_recorded_at_midpoint():
 def test_exactly_threshold_backwash_recorded():
     """Relay on for exactly 60 s → still recorded (≥ comparison, not >)."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
-    device = _device(backwash_active=True)
+    device = _device(backwash_running=True)
 
     tracker.update(device, T0)
-    tracker.update(_device(backwash_active=False), T0 + timedelta(seconds=60))
+    tracker.update(_device(backwash_running=False), T0 + timedelta(seconds=60))
 
     assert tracker.last_backwash is not None
     # 60s window → midpoint at T0 + 30s
@@ -139,15 +139,17 @@ def test_two_consecutive_backwashes_keep_latest():
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
     # First cycle: T0 → T0 + 90s
-    tracker.update(_device(backwash_active=True), T0)
-    tracker.update(_device(backwash_active=False), T0 + timedelta(seconds=90))
+    tracker.update(_device(backwash_running=True), T0)
+    tracker.update(_device(backwash_running=False), T0 + timedelta(seconds=90))
     first = tracker.last_backwash
     assert first is not None
 
     # Second cycle: T0+5min → T0+5min+90s
     second_start = T0 + timedelta(minutes=5)
-    tracker.update(_device(backwash_active=True), second_start)
-    tracker.update(_device(backwash_active=False), second_start + timedelta(seconds=90))
+    tracker.update(_device(backwash_running=True), second_start)
+    tracker.update(
+        _device(backwash_running=False), second_start + timedelta(seconds=90)
+    )
 
     assert tracker.last_backwash > first
     assert tracker.last_backwash == second_start + timedelta(seconds=45)
@@ -165,7 +167,7 @@ def test_lost_connection_resets_in_progress_window():
     must therefore NOT be recorded.
     """
     tracker = BackwashTracker(_hass(), serial_number=110071590)
-    device = _device(backwash_active=True)
+    device = _device(backwash_running=True)
 
     tracker.update(device, T0)  # relay on, window starts
     # MAX_FRAME_GAP (5 min) + 1 s later, still on, but we lost the connection.
@@ -176,7 +178,7 @@ def test_lost_connection_resets_in_progress_window():
     assert tracker._relay_on_since == recovery  # type: ignore[attr-defined]
 
     # 30 s later the relay goes off — only 30 s, not a real backwash.
-    tracker.update(_device(backwash_active=False), recovery + timedelta(seconds=30))
+    tracker.update(_device(backwash_running=False), recovery + timedelta(seconds=30))
     assert tracker.last_backwash is None
 
 
@@ -190,28 +192,28 @@ def test_lost_connection_during_real_backwash_does_not_record():
     must not be recorded.
     """
     tracker = BackwashTracker(_hass(), serial_number=110071590)
-    device = _device(backwash_active=True)
+    device = _device(backwash_running=True)
 
     tracker.update(device, T0)
     # Connection drops for 6 minutes (> MAX_FRAME_GAP).
     recovery = T0 + timedelta(minutes=6)
     tracker.update(device, recovery)
     # Relay finally goes off, total elapsed would be 6 min 30 s but cycle is split.
-    tracker.update(_device(backwash_active=False), recovery + timedelta(seconds=30))
+    tracker.update(_device(backwash_running=False), recovery + timedelta(seconds=30))
     assert tracker.last_backwash is None
 
 
 def test_short_gap_does_not_reset():
     """Frame gap < MAX_FRAME_GAP → window continues."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
-    device = _device(backwash_active=True)
+    device = _device(backwash_running=True)
 
     tracker.update(device, T0)
     tracker.update(device, T0 + timedelta(seconds=30))  # still on
     assert tracker._relay_on_since == T0  # type: ignore[attr-defined]
 
     # Window still tracks from T0 → at T0+90s, recorded
-    tracker.update(_device(backwash_active=False), T0 + timedelta(seconds=90))
+    tracker.update(_device(backwash_running=False), T0 + timedelta(seconds=90))
     assert tracker.last_backwash == T0 + timedelta(seconds=45)
 
 
@@ -219,10 +221,10 @@ def test_short_gap_does_not_reset():
 
 
 def test_net_device_skipped():
-    """backwash_active is None on NET → tracker is a no-op."""
+    """backwash_running is None on NET → tracker is a no-op."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
-    tracker.update(_device(backwash_active=None), T0)
-    tracker.update(_device(backwash_active=None), T0 + timedelta(seconds=120))
+    tracker.update(_device(backwash_running=None), T0)
+    tracker.update(_device(backwash_running=None), T0 + timedelta(seconds=120))
 
     assert tracker.last_backwash is None
     assert tracker._relay_on_since is None  # type: ignore[attr-defined]
@@ -276,7 +278,7 @@ def test_nothing_recorded_starts_unknown():
 
 
 def test_cycle_at_scheduled_time_is_scheduled():
-    """A cycle starting at the configured backwash_time is the unit's own run."""
+    """A cycle starting at the configured backwash_start_time is the unit's own run."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
     _run_cycle(tracker, T0)
@@ -314,7 +316,7 @@ def test_cycle_is_manual_when_schedule_disabled():
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
     def _disabled(active):
-        return _device(active, backwash_time=SCHEDULE_AT, backwash_every_n_days=0)
+        return _device(active, backwash_start_time=SCHEDULE_AT, backwash_interval=0)
 
     _run_cycle(tracker, T0, device_factory=_disabled)
 
@@ -322,7 +324,7 @@ def test_cycle_is_manual_when_schedule_disabled():
 
 
 def test_cycle_is_manual_when_schedule_unconfigured():
-    """No backwash_time in the frame (0xFF) → nothing to match against."""
+    """No backwash_start_time in the frame (0xFF) → nothing to match against."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
     _run_cycle(tracker, T0, device_factory=_device)
@@ -337,8 +339,8 @@ def test_scheduled_time_near_midnight_matches_across_days():
     def _near_midnight(active):
         return _device(
             active,
-            backwash_time=time(23, 55),
-            backwash_every_n_days=SCHEDULE_EVERY_N_DAYS,
+            backwash_start_time=time(23, 55),
+            backwash_interval=SCHEDULE_EVERY_N_DAYS,
         )
 
     # 00:05 the next day — 10 minutes after the scheduled slot, but on the
@@ -419,7 +421,7 @@ def test_next_scheduled_backwash_none_when_schedule_disabled():
     _run_cycle(tracker, T0)
     assert tracker.last_scheduled_backwash is not None
 
-    disabled = _device(False, backwash_time=SCHEDULE_AT, backwash_every_n_days=0)
+    disabled = _device(False, backwash_start_time=SCHEDULE_AT, backwash_interval=0)
     assert tracker.next_scheduled_backwash(disabled, T0 + timedelta(minutes=5)) is None
 
 
@@ -557,7 +559,7 @@ def test_observed_manual_cycle_leaves_the_seed_alone():
 
     seeded = T0 - timedelta(days=1)
     tracker.set_last_scheduled_backwash(seeded)
-    _run_cycle(tracker, T0 + timedelta(hours=3))  # far from backwash_time
+    _run_cycle(tracker, T0 + timedelta(hours=3))  # far from backwash_start_time
 
     assert tracker.last_trigger is AsekoBackwashTrigger.MANUAL
     assert tracker.last_scheduled_backwash == seeded
@@ -653,7 +655,7 @@ def test_backfill_classifies_a_pre_split_record_as_manual():
 
 
 def test_backfill_waits_for_a_frame_that_carries_the_schedule():
-    """Without backwash_time there is nothing to classify against — retry later."""
+    """Without backwash_start_time there is nothing to classify against — retry later."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     tracker._last_backwash = T0  # type: ignore[attr-defined]
 
@@ -749,7 +751,7 @@ async def test_clear_is_persisted():
 
 
 def _salt_device(
-    backwash_active: bool | None,
+    backwash_running: bool | None,
     menu: bool,
     device_type: AsekoDeviceType = AsekoDeviceType.SALT,
 ) -> Any:
@@ -760,7 +762,7 @@ def _salt_device(
     and the HOME ones do not.  The type is kept as the test's way of naming
     which of the two it is modelling.
     """
-    dev = _scheduled_device(backwash_active)
+    dev = _scheduled_device(backwash_running)
     dev.device_type = device_type
     dev.flags = (
         frozenset({AsekoProfileFlag.MENU_BIT_IS_PRESENCE_ONLY})

@@ -11,66 +11,66 @@ from __future__ import annotations
 from ..feature import Feature
 from .air_temperature import AirTemperature
 from .alarm_no_flow_to_probes import AlarmNoFlowToProbes
-from .alarm_orp_too_many_doses import AlarmOrpTooManyDoses
-from .alarm_ph_too_many_doses import AlarmPhTooManyDoses
+from .alarm_max_disinfection_dose import AlarmMaxDisinfectionDose
+from .alarm_ph_dosing_ineffective import AlarmPhDosingIneffective
 from .alarm_rapid_ph_change import AlarmRapidPhChange
-from .algicide_pump_running import AlgicidePumpRunning
-from .antifreeze_enabled import AntifreezeEnabled
-from .backwash_active import BackwashActive
+from .algaecide_pump_running import AlgaecidePumpRunning
+from .freeze_protection_enabled import FreezeProtectionEnabled
+from .backwash_running import BackwashRunning
 from .backwash_duration import BackwashDuration
-from .backwash_every_n_days import BackwashEveryNDays
-from .backwash_time import BackwashTime
-from .cl_free import ClFree
-from .cl_free_mv import ClFreeMv
-from .cl_pump_running import ClPumpRunning
+from .backwash_interval import BackwashInterval
+from .backwash_start_time import BackwashStartTime
+from .free_chlorine import FreeChlorine
+from .free_chlorine_mv import FreeChlorineMv
+from .chlorine_pump_running import ChlorinePumpRunning
 from .configuration import Configuration
-from .delay_after_dose import DelayAfterDose
-from .delay_after_startup import DelayAfterStartup
-from .electrolyzer_active import ElectrolyzerActive
-from .electrolyzer_direction import ElectrolyzerDirection
-from .electrolyzer_power import ElectrolyzerPower
-from .filtration_pump_running import FiltrationPumpRunning
+from .dosing_delay import DosingDelay
+from .startup_delay import StartupDelay
+from .electrolysis_running import ElectrolysisRunning
+from .electrode_polarity import ElectrodePolarity
+from .chlorine_production import ChlorineProduction
+from .filtration_running import FiltrationRunning
 from .filtration_schedule import FiltrationSchedule
-from .filtration_start1 import FiltrationStart1
-from .filtration_start2 import FiltrationStart2
-from .filtration_stop1 import FiltrationStop1
-from .filtration_stop2 import FiltrationStop2
-from .floc_pump_running import FlocPumpRunning
-from .flowrate_algicide import FlowrateAlgicide
-from .flowrate_chlor import FlowrateChlor
-from .flowrate_floc import FlowrateFloc
-from .flowrate_oxy import FlowrateOxy
-from .flowrate_ph_minus import FlowratePhMinus
-from .flowrate_ph_plus import FlowratePhPlus
-from .heating_active import HeatingActive
+from .filtration_period_1_start import FiltrationPeriod1Start
+from .filtration_period_2_start import FiltrationPeriod2Start
+from .filtration_period_1_end import FiltrationPeriod1End
+from .filtration_period_2_end import FiltrationPeriod2End
+from .flocculant_pump_running import FlocculantPumpRunning
+from .algaecide_flow_rate import AlgaecideFlowRate
+from .chlorine_flow_rate import ChlorineFlowRate
+from .flocculant_flow_rate import FlocculantFlowRate
+from .oxygen_flow_rate import OxygenFlowRate
+from .ph_minus_flow_rate import PhMinusFlowRate
+from .ph_plus_flow_rate import PhPlusFlowRate
+from .heating_running import HeatingRunning
 from .heating_control_enabled import HeatingControlEnabled
-from .max_filling_time import MaxFillingTime
+from .max_refill_time import MaxRefillTime
 from .max_ph_doses import MaxPhDoses
-from .oxy_pump_running import OxyPumpRunning
+from .oxygen_pump_running import OxygenPumpRunning
 from .ph import Ph
 from .ph_minus_concentration import PhMinusConcentration
 from .ph_minus_pump_running import PhMinusPumpRunning
 from .ph_plus_pump_running import PhPlusPumpRunning
 from .pool_volume import PoolVolume
 from .redox import Redox
-from .required_algicide import RequiredAlgicide
-from .required_cl_dose import RequiredClDose
-from .required_cl_free import RequiredClFree
-from .required_floc import RequiredFloc
-from .required_oxy_dose import RequiredOxyDose
-from .required_ph import RequiredPh
-from .required_redox import RequiredRedox
-from .required_water_temperature import RequiredWaterTemperature
+from .algaecide_dose_target import AlgaecideDoseTarget
+from .chlorine_dose_target import ChlorineDoseTarget
+from .free_chlorine_target import FreeChlorineTarget
+from .flocculant_dose_target import FlocculantDoseTarget
+from .oxygen_dose_target import OxygenDoseTarget
+from .ph_target import PhTarget
+from .redox_target import RedoxTarget
+from .water_temperature_target import WaterTemperatureTarget
 from .salinity import Salinity
 from .serial_number import SerialNumber
 from .service_menu_open import ServiceMenuOpen
 from .timestamp import Timestamp
-from .vsp_pump_running import VspPumpRunning
-from .water_filling_active import WaterFillingActive
+from .variable_speed_pump_running import VariableSpeedPumpRunning
+from .refilling import Refilling
 from .water_flow_to_probes import WaterFlowToProbes
 from .water_level import WaterLevel
-from .water_level_filling_off import WaterLevelFillingOff
-from .water_level_filling_on import WaterLevelFillingOn
+from .water_level_refill_stop import WaterLevelRefillStop
+from .water_level_refill_start import WaterLevelRefillStart
 from .water_level_high_alarm import WaterLevelHighAlarm
 from .water_level_low_alarm import WaterLevelLowAlarm
 from .water_temperature import WaterTemperature
@@ -78,66 +78,66 @@ from .water_temperature import WaterTemperature
 ALL_FEATURES: tuple[type[Feature], ...] = (
     AirTemperature,
     AlarmNoFlowToProbes,
-    AlarmOrpTooManyDoses,
-    AlarmPhTooManyDoses,
+    AlarmMaxDisinfectionDose,
+    AlarmPhDosingIneffective,
     AlarmRapidPhChange,
-    AlgicidePumpRunning,
-    AntifreezeEnabled,
-    BackwashActive,
+    AlgaecidePumpRunning,
+    FreezeProtectionEnabled,
+    BackwashRunning,
     BackwashDuration,
-    BackwashEveryNDays,
-    BackwashTime,
-    ClFree,
-    ClFreeMv,
-    ClPumpRunning,
+    BackwashInterval,
+    BackwashStartTime,
+    FreeChlorine,
+    FreeChlorineMv,
+    ChlorinePumpRunning,
     Configuration,
-    DelayAfterDose,
-    DelayAfterStartup,
-    ElectrolyzerActive,
-    ElectrolyzerDirection,
-    ElectrolyzerPower,
-    FiltrationPumpRunning,
+    DosingDelay,
+    StartupDelay,
+    ElectrolysisRunning,
+    ElectrodePolarity,
+    ChlorineProduction,
+    FiltrationRunning,
     FiltrationSchedule,
-    FiltrationStart1,
-    FiltrationStart2,
-    FiltrationStop1,
-    FiltrationStop2,
-    FlocPumpRunning,
-    FlowrateAlgicide,
-    FlowrateChlor,
-    FlowrateFloc,
-    FlowrateOxy,
-    FlowratePhMinus,
-    FlowratePhPlus,
-    HeatingActive,
+    FiltrationPeriod1Start,
+    FiltrationPeriod2Start,
+    FiltrationPeriod1End,
+    FiltrationPeriod2End,
+    FlocculantPumpRunning,
+    AlgaecideFlowRate,
+    ChlorineFlowRate,
+    FlocculantFlowRate,
+    OxygenFlowRate,
+    PhMinusFlowRate,
+    PhPlusFlowRate,
+    HeatingRunning,
     HeatingControlEnabled,
-    MaxFillingTime,
+    MaxRefillTime,
     MaxPhDoses,
-    OxyPumpRunning,
+    OxygenPumpRunning,
     Ph,
     PhMinusConcentration,
     PhMinusPumpRunning,
     PhPlusPumpRunning,
     PoolVolume,
     Redox,
-    RequiredAlgicide,
-    RequiredClDose,
-    RequiredClFree,
-    RequiredFloc,
-    RequiredOxyDose,
-    RequiredPh,
-    RequiredRedox,
-    RequiredWaterTemperature,
+    AlgaecideDoseTarget,
+    ChlorineDoseTarget,
+    FreeChlorineTarget,
+    FlocculantDoseTarget,
+    OxygenDoseTarget,
+    PhTarget,
+    RedoxTarget,
+    WaterTemperatureTarget,
     Salinity,
     SerialNumber,
     ServiceMenuOpen,
     Timestamp,
-    VspPumpRunning,
-    WaterFillingActive,
+    VariableSpeedPumpRunning,
+    Refilling,
     WaterFlowToProbes,
     WaterLevel,
-    WaterLevelFillingOff,
-    WaterLevelFillingOn,
+    WaterLevelRefillStop,
+    WaterLevelRefillStart,
     WaterLevelHighAlarm,
     WaterLevelLowAlarm,
     WaterTemperature,
@@ -147,66 +147,66 @@ __all__ = [
     "ALL_FEATURES",
     "AirTemperature",
     "AlarmNoFlowToProbes",
-    "AlarmOrpTooManyDoses",
-    "AlarmPhTooManyDoses",
+    "AlarmMaxDisinfectionDose",
+    "AlarmPhDosingIneffective",
     "AlarmRapidPhChange",
-    "AlgicidePumpRunning",
-    "AntifreezeEnabled",
-    "BackwashActive",
+    "AlgaecidePumpRunning",
+    "FreezeProtectionEnabled",
+    "BackwashRunning",
     "BackwashDuration",
-    "BackwashEveryNDays",
-    "BackwashTime",
-    "ClFree",
-    "ClFreeMv",
-    "ClPumpRunning",
+    "BackwashInterval",
+    "BackwashStartTime",
+    "FreeChlorine",
+    "FreeChlorineMv",
+    "ChlorinePumpRunning",
     "Configuration",
-    "DelayAfterDose",
-    "DelayAfterStartup",
-    "ElectrolyzerActive",
-    "ElectrolyzerDirection",
-    "ElectrolyzerPower",
-    "FiltrationPumpRunning",
+    "DosingDelay",
+    "StartupDelay",
+    "ElectrolysisRunning",
+    "ElectrodePolarity",
+    "ChlorineProduction",
+    "FiltrationRunning",
     "FiltrationSchedule",
-    "FiltrationStart1",
-    "FiltrationStart2",
-    "FiltrationStop1",
-    "FiltrationStop2",
-    "FlocPumpRunning",
-    "FlowrateAlgicide",
-    "FlowrateChlor",
-    "FlowrateFloc",
-    "FlowrateOxy",
-    "FlowratePhMinus",
-    "FlowratePhPlus",
-    "HeatingActive",
+    "FiltrationPeriod1Start",
+    "FiltrationPeriod2Start",
+    "FiltrationPeriod1End",
+    "FiltrationPeriod2End",
+    "FlocculantPumpRunning",
+    "AlgaecideFlowRate",
+    "ChlorineFlowRate",
+    "FlocculantFlowRate",
+    "OxygenFlowRate",
+    "PhMinusFlowRate",
+    "PhPlusFlowRate",
+    "HeatingRunning",
     "HeatingControlEnabled",
-    "MaxFillingTime",
+    "MaxRefillTime",
     "MaxPhDoses",
-    "OxyPumpRunning",
+    "OxygenPumpRunning",
     "Ph",
     "PhMinusConcentration",
     "PhMinusPumpRunning",
     "PhPlusPumpRunning",
     "PoolVolume",
     "Redox",
-    "RequiredAlgicide",
-    "RequiredClDose",
-    "RequiredClFree",
-    "RequiredFloc",
-    "RequiredOxyDose",
-    "RequiredPh",
-    "RequiredRedox",
-    "RequiredWaterTemperature",
+    "AlgaecideDoseTarget",
+    "ChlorineDoseTarget",
+    "FreeChlorineTarget",
+    "FlocculantDoseTarget",
+    "OxygenDoseTarget",
+    "PhTarget",
+    "RedoxTarget",
+    "WaterTemperatureTarget",
     "Salinity",
     "SerialNumber",
     "ServiceMenuOpen",
     "Timestamp",
-    "VspPumpRunning",
-    "WaterFillingActive",
+    "VariableSpeedPumpRunning",
+    "Refilling",
     "WaterFlowToProbes",
     "WaterLevel",
-    "WaterLevelFillingOff",
-    "WaterLevelFillingOn",
+    "WaterLevelRefillStop",
+    "WaterLevelRefillStart",
     "WaterLevelHighAlarm",
     "WaterLevelLowAlarm",
     "WaterTemperature",

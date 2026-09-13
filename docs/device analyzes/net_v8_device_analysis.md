@@ -111,9 +111,9 @@ Difference = 0.07 pH — likely the app shows a calibrated/averaged value, or th
 
 | index | Sep | Apr | Formula | `AsekoDevice` field | Confirmed by |
 |---|---|---|---|---|---|
-| `outs[0]` | 0 | 0 | `bool` | `cl_pump_running`? | ❓ unconfirmed |
+| `outs[0]` | 0 | 0 | `bool` | `chlorine_pump_running`? | ❓ unconfirmed |
 | `outs[1]` | 0 | 0 | `bool` | `ph_minus_pump_running`? | ❓ unconfirmed |
-| `outs[2]` | 1 | 1 | `bool` | `filtration_pump_running` | ✅ app shows "Pump: ON / NONSTOP" |
+| `outs[2]` | 1 | 1 | `bool` | `filtration_running` | ✅ app shows "Pump: ON / NONSTOP" |
 
 ---
 
@@ -121,8 +121,8 @@ Difference = 0.07 pH — likely the app shows a calibrated/averaged value, or th
 
 | index | Sep | Apr | Formula | `AsekoDevice` field | Confirmed by |
 |---|---|---|---|---|---|
-| `areqs[0]` | 74 | 74 | ÷ 10 | `required_ph` | ✅ app shows 7.4 |
-| `areqs[1]` | 73 | 74 | × 10 → mV | `required_redox` | ✅ 74×10=740 mV matches app (Apr) |
+| `areqs[0]` | 74 | 74 | ÷ 10 | `ph_target` | ✅ app shows 7.4 |
+| `areqs[1]` | 73 | 74 | × 10 → mV | `redox_target` | ✅ 74×10=740 mV matches app (Apr) |
 | `areqs[2]` | 4 | 4 | ? | unknown | ❓ |
 | `areqs[3]` | 5 | 5 | ? | unknown | ❓ |
 | `areqs[5–6]` | 36 | 36 | ? | unknown | ❓ |
@@ -130,8 +130,8 @@ Difference = 0.07 pH — likely the app shows a calibrated/averaged value, or th
 | `areqs[12]` | 36 | 36 | ? | unknown | ❓ |
 | `areqs[14]` | 45 | 45 | m³ | `pool_volume` | ✅ app shows 45 m³ |
 | `areqs[16]` | 255 | 255 | = 0xFF | unknown — always `UNSPECIFIED` | ❓ |
-| `areqs[17]` | 2 | 2 | minutes | `delay_after_startup` | ✅ app shows 2 min |
-| `areqs[18]` | 2 | 2 | minutes | `delay_after_dose` | ✅ app shows 2 min |
+| `areqs[17]` | 2 | 2 | minutes | `startup_delay` | ✅ app shows 2 min |
+| `areqs[18]` | 2 | 2 | minutes | `dosing_delay` | ✅ app shows 2 min |
 | `areqs[19]` | 10 | 10 | ? | unknown | ❓ |
 | `areqs[21]` | 15 | 15 | ? | unknown | ❓ |
 

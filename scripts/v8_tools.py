@@ -34,16 +34,16 @@ FIELD_MAP: dict[str, dict[int, tuple[str, str]]] = {
         7: ("redox_duplicate?", "identical to ains[6]"),
     },
     "outs": {
-        0: ("cl_pump_running?", "unconfirmed"),
+        0: ("chlorine_pump_running?", "unconfirmed"),
         1: ("ph_minus_pump_running?", "unconfirmed"),
-        2: ("filtration_pump_running", "bool"),
+        2: ("filtration_running", "bool"),
     },
     "areqs": {
-        0: ("required_ph", "/ 10 -> pH setpoint"),
-        1: ("required_redox", "* 10 -> mV setpoint"),
+        0: ("ph_target", "/ 10 -> pH setpoint"),
+        1: ("redox_target", "* 10 -> mV setpoint"),
         14: ("pool_volume", "m3"),
-        17: ("delay_after_startup", "minutes"),
-        18: ("delay_after_dose", "minutes"),
+        17: ("startup_delay", "minutes"),
+        18: ("dosing_delay", "minutes"),
     },
 }
 
@@ -219,24 +219,24 @@ def cmd_generate_test(frame_text: str) -> None:
     print()
     if filt is not None:
         print(f"    # outs[2]={filt_raw}")
-        print(f"    assert device.filtration_pump_running is {filt}")
+        print(f"    assert device.filtration_running is {filt}")
 
     print()
     if req_ph is not None:
         print(f"    # areqs[0]={req_ph_r}  / 10 = {req_ph}")
-        print(f"    assert device.required_ph == pytest.approx({req_ph})")
+        print(f"    assert device.ph_target == pytest.approx({req_ph})")
     if req_redox is not None:
         print(f"    # areqs[1]={req_rx_r}  * 10 = {req_redox} mV")
-        print(f"    assert device.required_redox == {req_redox}")
+        print(f"    assert device.redox_target == {req_redox}")
     if pool_vol is not None:
         print(f"    # areqs[14]={pool_vol}")
         print(f"    assert device.pool_volume == {pool_vol}")
     if del_start is not None:
         print(f"    # areqs[17]={del_start}")
-        print(f"    assert device.delay_after_startup == {del_start}")
+        print(f"    assert device.startup_delay == {del_start}")
     if del_dose is not None:
         print(f"    # areqs[18]={del_dose}")
-        print(f"    assert device.delay_after_dose == {del_dose}")
+        print(f"    assert device.dosing_delay == {del_dose}")
 
     # List non-zero unknowns
     unknowns = []

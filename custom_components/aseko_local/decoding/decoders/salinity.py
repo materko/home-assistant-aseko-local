@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 
 class Salinity(Feature):
-    """v7: byte[20] / 10.  On a chlorine unit the same byte is cl_free_mv[hi]."""
+    """v7: byte[20] / 10.  On a chlorine unit the same byte is free_chlorine_mv[hi]."""
 
     field = "salinity"
 

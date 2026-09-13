@@ -73,17 +73,17 @@ def _build_entities(
 ) -> list[DateTimeEntity]:
     """Create one entity per device that has a backwash valve.
 
-    The decoder lists ``backwash_active`` in ``device.features`` only for
+    The decoder lists ``backwash_running`` in ``device.features`` only for
     units with that output (NET has none).  See Issue #129.  With
     ``features`` given, only when the valve is among what the device has
     just started showing.
     """
-    if features is not None and "backwash_active" not in features:
+    if features is not None and "backwash_running" not in features:
         return []
     return [
         AsekoLastScheduledBackwashEntity(device, coordinator, LAST_SCHEDULED_BACKWASH)
         for device in devices
-        if "backwash_active" in device.features
+        if "backwash_running" in device.features
     ]
 
 

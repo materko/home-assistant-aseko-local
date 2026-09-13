@@ -62,12 +62,12 @@ class AsekoConsumptionTracker:
         device and the elapsed time since the last ON packet is credited.
         """
         pump_states: dict[str, tuple[bool | None, int | None]] = {
-            "cl": (device.cl_pump_running, device.flowrate_chlor),
-            "ph_minus": (device.ph_minus_pump_running, device.flowrate_ph_minus),
-            "ph_plus": (device.ph_plus_pump_running, device.flowrate_ph_plus),
-            "algicide": (device.algicide_pump_running, device.flowrate_algicide),
-            "floc": (device.floc_pump_running, device.flowrate_floc),
-            "oxy": (device.oxy_pump_running, device.flowrate_oxy),
+            "cl": (device.chlorine_pump_running, device.chlorine_flow_rate),
+            "ph_minus": (device.ph_minus_pump_running, device.ph_minus_flow_rate),
+            "ph_plus": (device.ph_plus_pump_running, device.ph_plus_flow_rate),
+            "algicide": (device.algaecide_pump_running, device.algaecide_flow_rate),
+            "floc": (device.flocculant_pump_running, device.flocculant_flow_rate),
+            "oxy": (device.oxygen_pump_running, device.oxygen_flow_rate),
         }
 
         for key, (is_on, flowrate_per_min) in pump_states.items():

@@ -41,25 +41,25 @@
       }
     },
     "binary_sensor": {
-      "electrolyzer_active": {
-        "name": "Electrolyzer active"
+      "electrolysis_running": {
+        "name": "Electrolysis running"
       },
-      "filtration_pump_running": {
-        "name": "Filtration pump running"
+      "filtration_running": {
+        "name": "Filtration running"
       },
-      "heating_active": {
-        "name": "Heating active"
+      "heating_running": {
+        "name": "Heating running"
       },
       "heating_control_enabled": {
         "name": "Heating control"
       },
-      "antifreeze_enabled": {
-        "name": "Antifreeze"
+      "freeze_protection_enabled": {
+        "name": "Freeze protection"
       },
-      "vsp_pump_running": {
-        "name": "Variable speed pump"
+      "variable_speed_pump_running": {
+        "name": "Variable speed pump running"
       },
-      "cl_pump_running": {
+      "chlorine_pump_running": {
         "name": "Chlorine pump running"
       },
       "ph_minus_pump_running": {
@@ -68,26 +68,26 @@
       "ph_plus_pump_running": {
         "name": "pH+ pump running"
       },
-      "algicide_pump_running": {
+      "algaecide_pump_running": {
         "name": "Algicide pump running"
       },
-      "floc_pump_running": {
+      "flocculant_pump_running": {
         "name": "Flocculant pump running"
       },
-      "oxy_pump_running": {
+      "oxygen_pump_running": {
         "name": "OXY Pure pump running"
       },
       "water_flow_to_probes": {
         "name": "Water flow to probes"
       },
-      "water_filling_active": {
-        "name": "Water filling active"
+      "refilling": {
+        "name": "Refilling"
       },
-      "alarm_ph_too_many_doses": {
-        "name": "Too many doses of pH"
+      "alarm_ph_dosing_ineffective": {
+        "name": "pH dosing ineffective"
       },
-      "alarm_orp_too_many_doses": {
-        "name": "Too many doses of disinfection"
+      "alarm_max_disinfection_dose": {
+        "name": "Max. disinfection dose exceeded"
       },
       "alarm_no_flow_to_probes": {
         "name": "No flow to probes"
@@ -95,18 +95,26 @@
       "alarm_rapid_ph_change": {
         "name": "Rapid change of pH"
       },
-      "backwash_active": {
-        "name": "Backwash active"
+      "backwash_running": {
+        "name": "Backwash running"
       },
       "service_menu": {
         "name": "Service menu"
       }
     },
     "sensor": {
-      "filtration_1_start": { "name": "Filtration 1 start" },
-      "filtration_1_stop": { "name": "Filtration 1 stop" },
-      "filtration_2_start": { "name": "Filtration 2 start" },
-      "filtration_2_stop": { "name": "Filtration 2 stop" },
+      "filtration_period_1_start": {
+        "name": "Filtration period 1 start"
+      },
+      "filtration_period_1_end": {
+        "name": "Filtration period 1 end"
+      },
+      "filtration_period_2_start": {
+        "name": "Filtration period 2 start"
+      },
+      "filtration_period_2_end": {
+        "name": "Filtration period 2 end"
+      },
       "filtration_schedule": {
         "name": "Filtration schedule",
         "state": {
@@ -115,20 +123,26 @@
           "timer_period_1_and_2": "Time periods 1 & 2"
         }
       },
-      "pool_volume": { "name": "Pool volume" },
-      "delay_after_startup": { "name": "Delay after startup" },
-      "delay_after_dose": { "name": "Delay after dose" },
+      "pool_volume": {
+        "name": "Pool volume"
+      },
+      "startup_delay": {
+        "name": "Startup delay"
+      },
+      "dosing_delay": {
+        "name": "Dosing delay"
+      },
       "ph_minus_concentration": {
         "name": "pH- concentration"
       },
       "air_temperature": {
         "name": "Air temperature"
       },
-      "electrolyzer_power": {
-        "name": "Electrolyzer power"
+      "chlorine_production": {
+        "name": "Chlorine production"
       },
-      "electrolyzer_direction": {
-        "name": "Electrolyzer direction",
+      "electrode_polarity": {
+        "name": "Electrode polarity",
         "state": {
           "left": "Left",
           "right": "Right",
@@ -144,17 +158,17 @@
       "redox": {
         "name": "Redox potential"
       },
-      "required_free_chlorine": {
-        "name": "Required free chlorine"
+      "free_chlorine_target": {
+        "name": "Free chlorine target"
       },
-      "required_ph": {
-        "name": "Required pH value"
+      "ph_target": {
+        "name": "pH target"
       },
-      "required_redox": {
-        "name": "Required redox potential"
+      "redox_target": {
+        "name": "Redox target"
       },
-      "required_water_temperature": {
-        "name": "Required water temperature"
+      "water_temperature_target": {
+        "name": "Water temperature target"
       },
       "water_level": {
         "name": "Water level"
@@ -162,35 +176,35 @@
       "water_level_low_alarm": {
         "name": "Water level low alarm"
       },
-      "water_level_filling_on": {
-        "name": "Filling ON threshold"
+      "water_level_refill_start": {
+        "name": "Refill start level"
       },
-      "water_level_filling_off": {
-        "name": "Filling OFF threshold"
+      "water_level_refill_stop": {
+        "name": "Refill stop level"
       },
       "water_level_high_alarm": {
         "name": "Water level high alarm"
       },
-      "max_filling_time": {
-        "name": "Max filling time"
+      "max_refill_time": {
+        "name": "Max. refill time"
       },
       "max_ph_doses": {
         "name": "Max. pH doses"
       },
-      "required_algicide": {
-        "name": "Required algicide dose",
+      "algaecide_dose_target": {
+        "name": "Algicide dose target",
         "unit_of_measurement": "ml/m³/day"
       },
-      "required_oxy_dose": {
-        "name": "Required OXY Pure dose",
+      "oxygen_dose_target": {
+        "name": "OXY Pure dose target",
         "unit_of_measurement": "ml/m³/day"
       },
-      "required_cl_dose": {
-        "name": "Required chlorine dose",
+      "chlorine_dose_target": {
+        "name": "Chlorine dose target",
         "unit_of_measurement": "ml/m³/h"
       },
-      "required_floc": {
-        "name": "Required flocculant dose"
+      "flocculant_dose_target": {
+        "name": "Flocculant dose target"
       },
       "salinity": {
         "name": "Salinity"
@@ -198,23 +212,23 @@
       "water_temperature": {
         "name": "Water temperature"
       },
-      "flowrate_chlor": {
-        "name": "Flow rate chlorine"
+      "chlorine_flow_rate": {
+        "name": "Chlorine flow rate"
       },
-      "flowrate_ph_minus": {
-        "name": "Flow rate pH-"
+      "ph_minus_flow_rate": {
+        "name": "pH- flow rate"
       },
-      "flowrate_ph_plus": {
-        "name": "Flow rate pH+"
+      "ph_plus_flow_rate": {
+        "name": "pH+ flow rate"
       },
-      "flowrate_algicide": {
-        "name": "Flow rate algicide"
+      "algaecide_flow_rate": {
+        "name": "Algicide flow rate"
       },
-      "flowrate_floc": {
-        "name": "Flow rate flocculant"
+      "flocculant_flow_rate": {
+        "name": "Flocculant flow rate"
       },
-      "flowrate_oxy": {
-        "name": "Flow rate OXY Pure"
+      "oxygen_flow_rate": {
+        "name": "OXY Pure flow rate"
       },
       "connection_status": {
         "name": "Connection status",
@@ -235,10 +249,10 @@
       "next_scheduled_backwash": {
         "name": "Next scheduled backwash (estimated)"
       },
-      "backwash_every_n_days": {
+      "backwash_interval": {
         "name": "Backwash interval"
       },
-      "backwash_time": {
+      "backwash_start_time": {
         "name": "Backwash start time"
       },
       "backwash_duration": {

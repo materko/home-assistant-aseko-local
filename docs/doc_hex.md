@@ -14,11 +14,11 @@ second                     | 11         | NET = FF always
 **unknown**                | 12
 **unknown**                | 13
 ph value                   | 14:15
-cl_free or redox           | 16:17      |
+free_chlorine or redox           | 16:17      |
 redox                      | 18:19      | Aqua Pro only clf and redox probes
 salinity                   | 20         | Aqua Salt only
-electrolyzer_power         | 21         | Aqua Salt only
-cl_free mV                 | 20:21      | Aqua Net if clf probe, others?
+chlorine_production         | 21         | Aqua Salt only
+free_chlorine mV                 | 20:21      | Aqua Net if clf probe, others?
 **unknown**                | 22
 air_temperature            | 23:24      | signed, /10 = °C; confirmed on Aqua Salt only. 0xFE70 (-40.0) / 0xFDC4 (-57.2) = no air probe
 water_temperature          | 25:26
@@ -47,10 +47,10 @@ pump_or_electrolizer       | 29
 **unknown**                | 49
 **unknown**                | 50
 **unknown**                | 51
-required_ph                | 52
+ph_target                | 52
 required_cl_free_or_redox  | 53         | if clf and redox probe then required clf
-required_algicide          | 54
-required_water_temperature | 55
+algaecide_dose_target          | 54
+water_temperature_target | 55
 start_1_time               | 56:57
 stop_1_time                | 58:59
 start_2_time               | 60:61
@@ -59,12 +59,12 @@ stop_2_time                | 62:63
 **unknown**                | 65
 **unknown**                | 66
 **unknown**                | 67
-backwash_every_n_days      | 68
-backwash_time              | 69:70
+backwash_interval      | 68
+backwash_start_time              | 69:70
 backwash_duration          | 71
 **unknown**                | 72
 **unknown**                | 73
-delay_after_startup        | 74:75
+startup_delay        | 74:75
 **unknown**                | 76
 **unknown**                | 77
 **unknown**                | 78
@@ -82,20 +82,20 @@ delay_after_startup        | 74:75
 **unknown**                | 90
 **unknown**                | 91
 pool_volume                | 92:93
-max_filling_time           | 94:95     | ! duplicate
-flowrate_chlor             | 95
+max_refill_time           | 94:95     | ! duplicate
+chlorine_flow_rate             | 95
 **unknown**                | 96
-flowrate_ph_plus           | 97        |
+ph_plus_flow_rate           | 97        |
 **unknown**                | 98
-flowrate_ph_minus          | 99
+ph_minus_flow_rate          | 99
 **unknown**                | 100
-flowrate_floc              | 101
+flocculant_flow_rate              | 101
 **unknown**                | 102
 flowrate_algicid           | ??        | unknown byte
 **unknown**                | 103
 **unknown**                | 104
 **unknown**                | 105
-delay_after_dose           | 106:107
+dosing_delay           | 106:107
 **unknown**                | 108
 **unknown**                | 109
 **unknown**                | 110

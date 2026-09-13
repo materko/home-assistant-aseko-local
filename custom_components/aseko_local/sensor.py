@@ -64,12 +64,12 @@ class AsekoConsumptionSensorEntityDescription(SensorEntityDescription):
 
 # Maps pump_key to the corresponding *_pump_running field on AsekoDevice.
 PUMP_RUNNING_ATTR: dict[str, str] = {
-    "cl": "cl_pump_running",
+    "cl": "chlorine_pump_running",
     "ph_minus": "ph_minus_pump_running",
     "ph_plus": "ph_plus_pump_running",
-    "algicide": "algicide_pump_running",
-    "floc": "floc_pump_running",
-    "oxy": "oxy_pump_running",
+    "algicide": "algaecide_pump_running",
+    "floc": "flocculant_pump_running",
+    "oxy": "oxygen_pump_running",
 }
 
 
@@ -212,52 +212,52 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="electrolyzer",
-        feature="electrolyzer_power",
-        translation_key="electrolyzer_power",
+        feature="chlorine_production",
+        translation_key="chlorine_production",
         native_unit_of_measurement="g/h",
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:lightning-bolt",
-        value_fn=lambda device: device.electrolyzer_power,
+        value_fn=lambda device: device.chlorine_production,
     ),
     AsekoSensorEntityDescription(
         key="electrolyzer_direction",
-        feature="electrolyzer_direction",
-        translation_key="electrolyzer_direction",
+        feature="electrode_polarity",
+        translation_key="electrode_polarity",
         device_class=SensorDeviceClass.ENUM,
         options=[direction.value for direction in AsekoElectrolyzerDirection],
         icon="mdi:arrow-left-right-bold",
         value_fn=lambda device: (
-            device.electrolyzer_direction.value
-            if device.electrolyzer_direction is not None
+            device.electrode_polarity.value
+            if device.electrode_polarity is not None
             else None
         ),
     ),
     AsekoSensorEntityDescription(
         key="free_chlorine",
-        feature="cl_free",
+        feature="free_chlorine",
         translation_key="free_chlorine",
         native_unit_of_measurement="mg/l",
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:pool",
-        value_fn=lambda device: device.cl_free,
+        value_fn=lambda device: device.free_chlorine,
     ),
     AsekoSensorEntityDescription(
         key="required_free_chlorine",
-        feature="required_cl_free",
-        translation_key="required_free_chlorine",
+        feature="free_chlorine_target",
+        translation_key="free_chlorine_target",
         native_unit_of_measurement="mg/l",
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:pool",
-        value_fn=lambda device: device.required_cl_free,
+        value_fn=lambda device: device.free_chlorine_target,
     ),
     AsekoSensorEntityDescription(
         key="free_chlorine_mv",
-        feature="cl_free_mv",
+        feature="free_chlorine_mv",
         translation_key="free_chlorine_mv",
         native_unit_of_measurement=UnitOfElectricPotential.MILLIVOLT,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:pool",
-        value_fn=lambda device: device.cl_free_mv,
+        value_fn=lambda device: device.free_chlorine_mv,
     ),
     AsekoSensorEntityDescription(
         key="ph",
@@ -270,12 +270,12 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="required_ph",
-        feature="required_ph",
-        translation_key="required_ph",
+        feature="ph_target",
+        translation_key="ph_target",
         device_class=SensorDeviceClass.PH,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:pool",
-        value_fn=lambda device: device.required_ph,
+        value_fn=lambda device: device.ph_target,
     ),
     AsekoSensorEntityDescription(
         key="ph_minus_concentration",
@@ -297,12 +297,12 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="required_rx",
-        feature="required_redox",
-        translation_key="required_redox",
+        feature="redox_target",
+        translation_key="redox_target",
         native_unit_of_measurement=UnitOfElectricPotential.MILLIVOLT,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:pool",
-        value_fn=lambda device: device.required_redox,
+        value_fn=lambda device: device.redox_target,
     ),
     AsekoSensorEntityDescription(
         key="salinity",
@@ -325,13 +325,13 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="required_waterTemp",
-        feature="required_water_temperature",
-        translation_key="required_water_temperature",
+        feature="water_temperature_target",
+        translation_key="water_temperature_target",
         device_class=SensorDeviceClass.TEMPERATURE,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:pool-thermometer",
-        value_fn=lambda device: device.required_water_temperature,
+        value_fn=lambda device: device.water_temperature_target,
     ),
     AsekoSensorEntityDescription(
         key="water_level",
@@ -353,21 +353,21 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="water_level_filling_on",
-        feature="water_level_filling_on",
-        translation_key="water_level_filling_on",
+        feature="water_level_refill_start",
+        translation_key="water_level_refill_start",
         native_unit_of_measurement=UnitOfLength.CENTIMETERS,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:waves-arrow-up",
-        value_fn=lambda device: device.water_level_filling_on,
+        value_fn=lambda device: device.water_level_refill_start,
     ),
     AsekoSensorEntityDescription(
         key="water_level_filling_off",
-        feature="water_level_filling_off",
-        translation_key="water_level_filling_off",
+        feature="water_level_refill_stop",
+        translation_key="water_level_refill_stop",
         native_unit_of_measurement=UnitOfLength.CENTIMETERS,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:waves-arrow-up",
-        value_fn=lambda device: device.water_level_filling_off,
+        value_fn=lambda device: device.water_level_refill_stop,
     ),
     AsekoSensorEntityDescription(
         key="water_level_high_alarm",
@@ -380,14 +380,14 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="max_filling_time",
-        feature="max_filling_time",
-        translation_key="max_filling_time",
+        feature="max_refill_time",
+        translation_key="max_refill_time",
         device_class=SensorDeviceClass.DURATION,
         native_unit_of_measurement=UnitOfTime.SECONDS,
         suggested_display_precision=0,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:timer",
-        value_fn=lambda device: device.max_filling_time,
+        value_fn=lambda device: device.max_refill_time,
     ),
     AsekoSensorEntityDescription(
         key="max_ph_doses",
@@ -399,129 +399,129 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="required_algicide",
-        feature="required_algicide",
-        translation_key="required_algicide",
+        feature="algaecide_dose_target",
+        translation_key="algaecide_dose_target",
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:pool",
-        value_fn=lambda device: device.required_algicide,
+        value_fn=lambda device: device.algaecide_dose_target,
     ),
     AsekoSensorEntityDescription(
         key="required_oxy_dose",
-        feature="required_oxy_dose",
-        translation_key="required_oxy_dose",
+        feature="oxygen_dose_target",
+        translation_key="oxygen_dose_target",
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:pool",
-        value_fn=lambda device: device.required_oxy_dose,
+        value_fn=lambda device: device.oxygen_dose_target,
     ),
     AsekoSensorEntityDescription(
         key="required_cl_dose",
-        feature="required_cl_dose",
-        translation_key="required_cl_dose",
+        feature="chlorine_dose_target",
+        translation_key="chlorine_dose_target",
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:pool",
-        value_fn=lambda device: device.required_cl_dose,
+        value_fn=lambda device: device.chlorine_dose_target,
     ),
     AsekoSensorEntityDescription(
         key="required_floc",
-        feature="required_floc",
-        translation_key="required_floc",
+        feature="flocculant_dose_target",
+        translation_key="flocculant_dose_target",
         native_unit_of_measurement="mL/h",
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:pool",
-        value_fn=lambda device: device.required_floc,
+        value_fn=lambda device: device.flocculant_dose_target,
     ),
     AsekoSensorEntityDescription(
         key="flowrate_chlor",
-        feature="flowrate_chlor",
-        translation_key="flowrate_chlor",
+        feature="chlorine_flow_rate",
+        translation_key="chlorine_flow_rate",
         native_unit_of_measurement="mL/min",
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:water-pump",
         value_fn=lambda device: (
-            device.flowrate_chlor
-            if device.cl_pump_running
+            device.chlorine_flow_rate
+            if device.chlorine_pump_running
             else 0
-            if device.flowrate_chlor is not None
+            if device.chlorine_flow_rate is not None
             else None
         ),
         entity_registry_visible_default=False,
     ),
     AsekoSensorEntityDescription(
         key="flowrate_ph_minus",
-        feature="flowrate_ph_minus",
-        translation_key="flowrate_ph_minus",
+        feature="ph_minus_flow_rate",
+        translation_key="ph_minus_flow_rate",
         native_unit_of_measurement="mL/min",
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:water-pump",
         value_fn=lambda device: (
-            device.flowrate_ph_minus
+            device.ph_minus_flow_rate
             if device.ph_minus_pump_running
             else 0
-            if device.flowrate_ph_minus is not None
+            if device.ph_minus_flow_rate is not None
             else None
         ),
         entity_registry_visible_default=False,
     ),
     AsekoSensorEntityDescription(
         key="flowrate_ph_plus",
-        feature="flowrate_ph_plus",
-        translation_key="flowrate_ph_plus",
+        feature="ph_plus_flow_rate",
+        translation_key="ph_plus_flow_rate",
         native_unit_of_measurement="mL/min",
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:water-pump",
         value_fn=lambda device: (
-            device.flowrate_ph_plus
+            device.ph_plus_flow_rate
             if device.ph_plus_pump_running
             else 0
-            if device.flowrate_ph_plus is not None
+            if device.ph_plus_flow_rate is not None
             else None
         ),
         entity_registry_visible_default=False,
     ),
     AsekoSensorEntityDescription(
         key="flowrate_algicide",
-        feature="flowrate_algicide",
-        translation_key="flowrate_algicide",
+        feature="algaecide_flow_rate",
+        translation_key="algaecide_flow_rate",
         native_unit_of_measurement="mL/min",
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:water-pump",
         value_fn=lambda device: (
-            device.flowrate_algicide
-            if device.algicide_pump_running
+            device.algaecide_flow_rate
+            if device.algaecide_pump_running
             else 0
-            if device.flowrate_algicide is not None
+            if device.algaecide_flow_rate is not None
             else None
         ),
         entity_registry_visible_default=False,
     ),
     AsekoSensorEntityDescription(
         key="flowrate_floc",
-        feature="flowrate_floc",
-        translation_key="flowrate_floc",
+        feature="flocculant_flow_rate",
+        translation_key="flocculant_flow_rate",
         native_unit_of_measurement="mL/min",
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:water-pump",
         value_fn=lambda device: (
-            device.flowrate_floc
-            if device.floc_pump_running
+            device.flocculant_flow_rate
+            if device.flocculant_pump_running
             else 0
-            if device.flowrate_floc is not None
+            if device.flocculant_flow_rate is not None
             else None
         ),
         entity_registry_visible_default=False,
     ),
     AsekoSensorEntityDescription(
         key="flowrate_oxy",
-        feature="flowrate_oxy",
-        translation_key="flowrate_oxy",
+        feature="oxygen_flow_rate",
+        translation_key="oxygen_flow_rate",
         native_unit_of_measurement="mL/min",
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:water-pump",
         value_fn=lambda device: (
-            device.flowrate_oxy
-            if device.oxy_pump_running
+            device.oxygen_flow_rate
+            if device.oxygen_pump_running
             else 0
-            if device.flowrate_oxy is not None
+            if device.oxygen_flow_rate is not None
             else None
         ),
         entity_registry_visible_default=False,
@@ -535,45 +535,45 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="filtration_1_start",
-        feature="filtration_start1",
-        translation_key="filtration_1_start",
+        feature="filtration_period_1_start",
+        translation_key="filtration_period_1_start",
         icon="mdi:clock-start",
         value_fn=lambda device: (
-            device.filtration_start1.strftime("%H:%M")
-            if device.filtration_start1 is not None
+            device.filtration_period_1_start.strftime("%H:%M")
+            if device.filtration_period_1_start is not None
             else None
         ),
     ),
     AsekoSensorEntityDescription(
         key="filtration_1_stop",
-        feature="filtration_stop1",
-        translation_key="filtration_1_stop",
+        feature="filtration_period_1_end",
+        translation_key="filtration_period_1_end",
         icon="mdi:clock-end",
         value_fn=lambda device: (
-            device.filtration_stop1.strftime("%H:%M")
-            if device.filtration_stop1 is not None
+            device.filtration_period_1_end.strftime("%H:%M")
+            if device.filtration_period_1_end is not None
             else None
         ),
     ),
     AsekoSensorEntityDescription(
         key="filtration_2_start",
-        feature="filtration_start2",
-        translation_key="filtration_2_start",
+        feature="filtration_period_2_start",
+        translation_key="filtration_period_2_start",
         icon="mdi:clock-start",
         value_fn=lambda device: (
-            device.filtration_start2.strftime("%H:%M")
-            if device.filtration_start2 is not None
+            device.filtration_period_2_start.strftime("%H:%M")
+            if device.filtration_period_2_start is not None
             else None
         ),
     ),
     AsekoSensorEntityDescription(
         key="filtration_2_stop",
-        feature="filtration_stop2",
-        translation_key="filtration_2_stop",
+        feature="filtration_period_2_end",
+        translation_key="filtration_period_2_end",
         icon="mdi:clock-end",
         value_fn=lambda device: (
-            device.filtration_stop2.strftime("%H:%M")
-            if device.filtration_stop2 is not None
+            device.filtration_period_2_end.strftime("%H:%M")
+            if device.filtration_period_2_end is not None
             else None
         ),
     ),
@@ -607,42 +607,42 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     ),
     AsekoSensorEntityDescription(
         key="delay_after_startup",
-        feature="delay_after_startup",
-        translation_key="delay_after_startup",
+        feature="startup_delay",
+        translation_key="startup_delay",
         device_class=SensorDeviceClass.DURATION,
         native_unit_of_measurement=UnitOfTime.SECONDS,
         suggested_display_precision=0,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:timer-play-outline",
-        value_fn=lambda device: device.delay_after_startup,
+        value_fn=lambda device: device.startup_delay,
     ),
     AsekoSensorEntityDescription(
         key="delay_after_dose",
-        feature="delay_after_dose",
-        translation_key="delay_after_dose",
+        feature="dosing_delay",
+        translation_key="dosing_delay",
         device_class=SensorDeviceClass.DURATION,
         native_unit_of_measurement=UnitOfTime.SECONDS,
         suggested_display_precision=0,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:timer-outline",
-        value_fn=lambda device: device.delay_after_dose,
+        value_fn=lambda device: device.dosing_delay,
     ),
     AsekoSensorEntityDescription(
         key="backwash_every_n_days",
-        feature="backwash_every_n_days",
-        translation_key="backwash_every_n_days",
+        feature="backwash_interval",
+        translation_key="backwash_interval",
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:calendar-refresh",
-        value_fn=lambda device: device.backwash_every_n_days,
+        value_fn=lambda device: device.backwash_interval,
     ),
     AsekoSensorEntityDescription(
         key="backwash_time",
-        feature="backwash_time",
-        translation_key="backwash_time",
+        feature="backwash_start_time",
+        translation_key="backwash_start_time",
         icon="mdi:clock-start",
         value_fn=lambda device: (
-            device.backwash_time.strftime("%H:%M")
-            if device.backwash_time is not None
+            device.backwash_start_time.strftime("%H:%M")
+            if device.backwash_start_time is not None
             else None
         ),
     ),
@@ -656,7 +656,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
         value_fn=lambda device: device.backwash_duration,
     ),
     # Observed backwash history.  Present on every unit with a backwash
-    # valve (feature backwash_active), unknown until a cycle has actually
+    # valve (feature backwash_running), unknown until a cycle has actually
     # been seen.
     #
     # last_backwash is the *observed* one: the integration watched the backwash
@@ -670,7 +670,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     # measured.  See backwash_tracker.BackwashTracker._classify.
     AsekoSensorEntityDescription(
         key="last_backwash",
-        feature="backwash_active",
+        feature="backwash_running",
         translation_key="last_backwash",
         device_class=SensorDeviceClass.TIMESTAMP,
         icon="mdi:clock-check-outline",
@@ -681,7 +681,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     # a read-only sensor plus a helper and a script to feed it.
     AsekoSensorEntityDescription(
         key="last_manual_backwash",
-        feature="backwash_active",
+        feature="backwash_running",
         translation_key="last_manual_backwash",
         device_class=SensorDeviceClass.TIMESTAMP,
         icon="mdi:hand-back-right-outline",
@@ -690,7 +690,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     AsekoSensorEntityDescription(
         # Renamed from "next_backwash" — see MIGRATED_UNIQUE_ID_SUFFIXES.
         key="next_scheduled_backwash",
-        feature="backwash_active",
+        feature="backwash_running",
         translation_key="next_scheduled_backwash",
         device_class=SensorDeviceClass.TIMESTAMP,
         icon="mdi:clock-alert-outline",

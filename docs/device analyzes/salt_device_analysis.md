@@ -296,9 +296,9 @@ The SALT unit has an integrated salt-water electrolysis cell for chlorine produc
 
 | Field | byte | Notes |
 |---|---|---|
-| `electrolyzer_active` | `[29] & 0x10` | `True` when RIGHT cycle running |
-| `electrolyzer_power` | `[21]` | Raw value; `0` when not running |
-| `electrolyzer_direction` | `[29]` bits | `0x10` = RIGHT; `0x50 = 0x10|0x40` = LEFT (tentative) |
+| `electrolysis_running` | `[29] & 0x10` | `True` when RIGHT cycle running |
+| `chlorine_production` | `[21]` | Raw value; `0` when not running |
+| `electrode_polarity` | `[29]` bits | `0x10` = RIGHT; `0x50 = 0x10|0x40` = LEFT (tentative) |
 | `salinity` | `[20]` | g/L, value / 10 |
 
 **Electrolyzer direction**: RIGHT direction is confirmed (`0x10`, 25 frames, Phase 4).
@@ -331,32 +331,32 @@ from different days and are listed only to show the encoding, not the number.
 
 | Field | Decoded (frame 2026-08-28) | App / display 2026-09-11 | Match |
 |---|---|---|---|
-| `required_redox` | 670 mV | Required values: Redox 670 mV | ✓ |
-| `required_ph` | 7.2 | Required values: pH 7.2 | ✓ |
-| `required_algicide` (byte[54], byte[37] bit 7 set) | 5 ml/m³/day | Algicide 5 ml/m³/day | ✓ |
-| `required_water_temperature` | 25 °C | Water temp. `---` (Heating control OFF) | ⚠ byte[55] keeps the setpoint while the app hides it |
+| `redox_target` | 670 mV | Required values: Redox 670 mV | ✓ |
+| `ph_target` | 7.2 | Required values: pH 7.2 | ✓ |
+| `algaecide_dose_target` (byte[54], byte[37] bit 7 set) | 5 ml/m³/day | Algicide 5 ml/m³/day | ✓ |
+| `water_temperature_target` | 25 °C | Water temp. `---` (Heating control OFF) | ⚠ byte[55] keeps the setpoint while the app hides it |
 | `pool_volume` | 40 m³ | Pool volume 40 m³ | ✓ |
-| `delay_after_startup` | 480 s | Delay time at startup 8 min | ✓ |
-| `delay_after_dose` | 240 s | Delay time after dose 4 min / display "4 min Delay time" | ✓ |
-| `backwash_every_n_days` | 15 | Backwash every 15 days | ✓ |
-| `backwash_time` | 08:30 | Backwash starts at 08:30 | ✓ |
+| `startup_delay` | 480 s | Delay time at startup 8 min | ✓ |
+| `dosing_delay` | 240 s | Delay time after dose 4 min / display "4 min Delay time" | ✓ |
+| `backwash_interval` | 15 | Backwash every 15 days | ✓ |
+| `backwash_start_time` | 08:30 | Backwash starts at 08:30 | ✓ |
 | `backwash_duration` | 100 s | Backwash takes 01:40 min | ✓ |
 | `water_level_high_alarm` | 73 cm | 73 cm High level – Alarm | ✓ |
-| `water_level_filling_off` | 25 cm | 25 cm Filling OFF – Level OK | ✓ |
-| `water_level_filling_on` | 10 cm | 10 cm Filling ON | ✓ |
+| `water_level_refill_stop` | 25 cm | 25 cm Filling OFF – Level OK | ✓ |
+| `water_level_refill_start` | 10 cm | 10 cm Filling ON | ✓ |
 | `water_level_low_alarm` | 5 cm | 5 cm Low level – Alarm | ✓ |
-| `max_filling_time` (bytes 76–77) | 1140 s | Max filling time 19 min / display "19 min Max. time of filling" | ✓ |
+| `max_refill_time` (bytes 76–77) | 1140 s | Max filling time 19 min / display "19 min Max. time of filling" | ✓ |
 | `ph_minus_concentration` (byte[112]) | 15 % | display "15 % Concentration pH−" | ✓ |
 | `filtration_schedule` (byte[37] = 0xD3) | timer, period 1 | display: Timer filtration ON, Time period 1 ●, Time period 2 ✕, NONSTOP ○ | ✓ |
-| `filtration_start1` / `filtration_stop1` | 08:00 / 21:35 | Time period 1 8:00 → 21:35; app Filtration time 1 08:00 / 21:35 | ✓ |
-| `filtration_start2` / `filtration_stop2` | 18:10 / 23:55 | Time period 2 18:10 → 23:55 (disabled, still transmitted) | ✓ (Issue #133 behaviour) |
+| `filtration_period_1_start` / `filtration_period_1_end` | 08:00 / 21:35 | Time period 1 8:00 → 21:35; app Filtration time 1 08:00 / 21:35 | ✓ |
+| `filtration_period_2_start` / `filtration_period_2_end` | 18:10 / 23:55 | Time period 2 18:10 → 23:55 (disabled, still transmitted) | ✓ (Issue #133 behaviour) |
 | `configuration` | REDOX | display "Choose the type of probe: Redox probe RX" | ✓ |
-| `electrolyzer_direction` / `electrolyzer_power` | waiting / 0 | display "Power 0 g/h WAITING"; app "STOP WAITING" | ✓ |
+| `electrode_polarity` / `chlorine_production` | waiting / 0 | display "Power 0 g/h WAITING"; app "STOP WAITING" | ✓ |
 | `salinity` | 4.0 kg/m³ (Aug) | 4.4 kg/m³ (Sep) | ✓ encoding; different day |
 | `air_temperature` | None (open-circuit value) | display "air OFF", app "Air ---" | ✓ no probe → no value |
-| `vsp_pump_running` (byte[22] bit 0x08) | False | display "VS Pump OFF" | ✓; the maintainer's other SALT has the bit set |
+| `variable_speed_pump_running` (byte[22] bit 0x08) | False | display "VS Pump OFF" | ✓; the maintainer's other SALT has the bit set |
 | `max_ph_doses` (byte[115]) | 20 | the unit's Safety Functions setting, 20 | ✓ — and changing it to 17 on 2026-09-12 moved the byte to 0x11 |
-| `heating_active` | False | display "Heating control OFF", app "Heating ---" | consistent; the running state itself never captured |
+| `heating_running` | False | display "Heating control OFF", app "Heating ---" | consistent; the running state itself never captured |
 | `water_level` | 31 cm (Aug) | 30 cm, "Filling OFF – Level OK" | ✓ encoding; the status text is derived from the thresholds |
 
 ### What the remaining unknown bytes do (28 frames from one SALT, Aug–Sep 2026)
@@ -367,7 +367,7 @@ from different days and are listed only to show the encoding, not the number.
 | 66–67 | Tracks `water_temperature` (bytes 25–26): equal in most frames, otherwise up to 1.6 °C away | same, for the temperature |
 | 39, 79, 119 | Last byte of each 40-byte segment, changes with every frame | checksum; not a plain sum of the segment payload |
 | 32–36, 94, 100 | Always 0 | — |
-| 72 | Always `0xFF` on SALT | `required_algicide` on the independent-port models; a SALT has no such port |
+| 72 | Always `0xFF` on SALT | `algaecide_dose_target` on the independent-port models; a SALT has no such port |
 | 73, 108, 109–110, 111, 113, 116, 117, 118 | Constant on **both** SALT units (20, 10, 3000, 15, 1, 0xFF, 252, 1) and different on HOME/OXY | settings or model constants; changing one setting at a time per download would map them |
 | 30, 31, 38, 78, 96, 97, 98, 114 | Vary frame to frame | the only bytes left that could carry anything live |
 
@@ -382,7 +382,7 @@ from different days and are listed only to show the encoding, not the number.
 | Config toggles **Heating control**, **Winter mode**, **Waterlevel**, **Flow detection**, **VS Pump**, **Filter backwash**, **Timer filtration**, **Water flow meter** | on HOME firmware A, heating control is `byte[37]` bit 0x08 and antifreeze bit 0x80; on SALT bit 0x80 is the algicide routing, so winter mode must live elsewhere. `byte[37]` bit 0x08 was never set on this unit (heating control OFF) — consistent but unproven | toggle one setting at a time, one download per state |
 | Status **Pool flow OVERFLOW** (overflow vs. skimmer pool) | unknown | a download after switching the pool type |
 | Status **Pump speed ON** | not `byte[22]` bit 0x08: that bit is clear on this unit while the app shows ON | unknown |
-| Consumption page: electrolyser efficiency / production kg/week, canister levels, pump lifetimes, water filled m³, heating kWh | cloud aggregates, not frame fields; production could be integrated locally from `electrolyzer_power` | — |
+| Consumption page: electrolyser efficiency / production kg/week, canister levels, pump lifetimes, water filled m³, heating kWh | cloud aggregates, not frame fields; production could be integrated locally from `chlorine_production` | — |
 | The eight bytes that still vary: 30, 31, 38, 78, 96, 97, 98, 114 | measurements or counters — see the table above | correlate with the app's history |
 
 ---

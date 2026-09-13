@@ -117,9 +117,9 @@ class AsekoDeviceServer:
             ph_value = int.from_bytes(frame[14:16], "big") / 100
             if not 0 <= ph_value <= 14:
                 reasons.append(f"pH {ph_value} outside 0-14")
-        required_ph = frame[52] / 10
-        if not 6 <= required_ph <= 10:
-            reasons.append(f"required pH {required_ph} outside 6-10")
+        ph_target = frame[52] / 10
+        if not 6 <= ph_target <= 10:
+            reasons.append(f"required pH {ph_target} outside 6-10")
         return reasons
 
     async def _report_implausible(self, frame: bytes, addr: Any) -> None:

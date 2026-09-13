@@ -11,7 +11,7 @@ byte positions (domin211, DomSchCoding #100, Issue #110):
     byte[105] = high alarm threshold (cm)
 
 NET carries unrelated non-0xFF data in bytes 102-104, so no NET profile
-lists these.  byte[103] doubles as flowrate_algicide on OXY and HOME, whose
+lists these.  byte[103] doubles as algaecide_flow_rate on OXY and HOME, whose
 independent-port layout reads it for both; SALT ignores it there.
 """
 
