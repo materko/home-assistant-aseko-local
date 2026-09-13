@@ -227,8 +227,8 @@ class AsekoMarkCard extends HTMLElement {
     this._listKey = "";
     if (!this.shadowRoot) {
       this.attachShadow({ mode: "open" });
-      this._render();
     }
+    this._render();
   }
 
   set hass(hass) {
@@ -269,6 +269,7 @@ class AsekoMarkCard extends HTMLElement {
 
   connectedCallback() {
     this._poll();
+    clearInterval(this._timer);
     this._timer = setInterval(() => this._poll(), 3000);
   }
 
@@ -282,51 +283,254 @@ class AsekoMarkCard extends HTMLElement {
     const draft = note ? note.value : "";
     this.shadowRoot.innerHTML = `
       <style>
-        ha-card { padding: 16px; }
-        .row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
-        .age b { font-size: 1.3em; }
-        input[type=text] { flex: 1; min-width: 0; padding: 8px; font-size: 1em;
-          border: 1px solid var(--divider-color); border-radius: 6px;
-          background: var(--card-background-color); color: var(--primary-text-color); }
-        button { padding: 10px 14px; font-size: 1em; border: 0; border-radius: 8px;
-          background: var(--primary-color); color: var(--text-primary-color, #fff); cursor: pointer; }
-        button.secondary { background: var(--secondary-background-color); color: var(--primary-text-color); }
-        button:disabled { opacity: 0.5; }
-        .status { margin-top: 12px; padding: 10px; border-radius: 8px;
-          background: var(--secondary-background-color); white-space: pre-line; }
-        .waiting { background: var(--warning-color, #ffa600); color: #000; }
-        .done { background: var(--success-color, #43a047); color: #fff; }
-        .error { background: var(--error-color, #db4437); color: #fff; }
-        label { display: flex; align-items: center; gap: 6px; }
-        h3 { margin: 18px 0 6px; font-size: 1.05em; }
-        .cases { display: flex; flex-direction: column; gap: 6px; }
-        .case { display: flex; gap: 10px; align-items: center; padding: 8px;
-          border-radius: 8px; background: var(--secondary-background-color); }
-        .case.new { border-left: 4px solid var(--warning-color, #ffa600); }
-        .case img { width: 56px; height: 56px; object-fit: cover; border-radius: 6px; cursor: pointer; }
-        .case .txt { flex: 1; min-width: 0; }
-        .case .note { font-weight: 600; overflow-wrap: anywhere; }
-        .case .meta { font-size: 0.85em; opacity: 0.8; }
-        .empty { opacity: 0.7; }
+        :host {
+          --aseko-accent: var(--primary-color, #2b87ff);
+          --aseko-accent-soft: color-mix(in srgb, var(--aseko-accent) 12%, transparent);
+          --aseko-surface: color-mix(in srgb, var(--primary-text-color) 4%, var(--card-background-color));
+          --aseko-border: color-mix(in srgb, var(--primary-text-color) 12%, transparent);
+          display: block;
+        }
+        * { box-sizing: border-box; }
+        ha-card {
+          overflow: hidden;
+          border-radius: var(--ha-card-border-radius, 16px);
+          background: var(--ha-card-background, var(--card-background-color));
+        }
+        .hero {
+          position: relative;
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          padding: 20px 22px 18px;
+          border-bottom: 1px solid var(--aseko-border);
+          background:
+            radial-gradient(circle at 92% -20%, color-mix(in srgb, var(--aseko-accent) 22%, transparent), transparent 52%),
+            linear-gradient(135deg, color-mix(in srgb, var(--aseko-accent) 8%, transparent), transparent 58%);
+        }
+        .brand-icon {
+          display: grid;
+          width: 44px;
+          height: 44px;
+          flex: 0 0 44px;
+          place-items: center;
+          border-radius: 14px;
+          color: var(--aseko-accent);
+          background: var(--aseko-accent-soft);
+          box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--aseko-accent) 20%, transparent);
+        }
+        .brand-icon ha-icon { --mdc-icon-size: 26px; }
+        .hero-copy { min-width: 0; flex: 1; }
+        h2 { margin: 0; color: var(--primary-text-color); font-size: 1.22rem; font-weight: 700; line-height: 1.25; }
+        .age {
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          margin-top: 5px;
+          color: var(--secondary-text-color);
+          font-size: .84rem;
+          line-height: 1.3;
+        }
+        .age::before {
+          width: 8px;
+          height: 8px;
+          flex: 0 0 8px;
+          border-radius: 50%;
+          background: var(--disabled-text-color);
+          content: "";
+          box-shadow: 0 0 0 3px color-mix(in srgb, var(--disabled-text-color) 16%, transparent);
+        }
+        .age[data-state="fresh"]::before { background: var(--success-color, #43a047); box-shadow: 0 0 0 3px color-mix(in srgb, var(--success-color, #43a047) 18%, transparent); }
+        .age[data-state="stale"]::before { background: var(--warning-color, #f0a000); box-shadow: 0 0 0 3px color-mix(in srgb, var(--warning-color, #f0a000) 18%, transparent); }
+        .age[data-state="error"]::before { background: var(--error-color, #db4437); box-shadow: 0 0 0 3px color-mix(in srgb, var(--error-color, #db4437) 18%, transparent); }
+        .age b { color: var(--primary-text-color); font-size: 1em; font-weight: 700; }
+        .body { padding: 20px 22px 22px; }
+        .composer {
+          padding: 14px;
+          border: 1px solid var(--aseko-border);
+          border-radius: 15px;
+          background: var(--aseko-surface);
+        }
+        .input-wrap { position: relative; }
+        .input-wrap ha-icon {
+          position: absolute;
+          top: 50%;
+          left: 13px;
+          color: var(--secondary-text-color);
+          pointer-events: none;
+          transform: translateY(-50%);
+          --mdc-icon-size: 20px;
+        }
+        input[type=text] {
+          width: 100%;
+          min-width: 0;
+          height: 46px;
+          padding: 0 14px 0 42px;
+          border: 1px solid var(--aseko-border);
+          border-radius: 11px;
+          outline: none;
+          background: var(--card-background-color);
+          color: var(--primary-text-color);
+          font: inherit;
+          transition: border-color .18s ease, box-shadow .18s ease;
+        }
+        input[type=text]::placeholder { color: var(--secondary-text-color); opacity: .82; }
+        input[type=text]:focus { border-color: var(--aseko-accent); box-shadow: 0 0 0 3px var(--aseko-accent-soft); }
+        .action-row { display: flex; align-items: center; gap: 9px; margin-top: 10px; }
+        button {
+          display: inline-flex;
+          min-height: 42px;
+          align-items: center;
+          justify-content: center;
+          gap: 7px;
+          padding: 0 15px;
+          border: 1px solid transparent;
+          border-radius: 11px;
+          outline: none;
+          background: var(--aseko-accent);
+          color: var(--text-primary-color, #fff);
+          font: inherit;
+          font-size: .92rem;
+          font-weight: 650;
+          cursor: pointer;
+          transition: transform .15s ease, filter .15s ease, box-shadow .15s ease;
+        }
+        button:hover:not(:disabled) { filter: brightness(1.06); box-shadow: 0 4px 12px color-mix(in srgb, var(--aseko-accent) 22%, transparent); transform: translateY(-1px); }
+        button:active:not(:disabled) { transform: translateY(0); }
+        button:focus-visible { box-shadow: 0 0 0 3px var(--card-background-color), 0 0 0 5px var(--aseko-accent); }
+        button ha-icon { --mdc-icon-size: 19px; }
+        button.secondary { border-color: var(--aseko-border); background: transparent; color: var(--primary-text-color); }
+        button.secondary:hover:not(:disabled) { background: var(--aseko-surface); box-shadow: none; }
+        button.danger { color: var(--error-color, #db4437); }
+        button:disabled { opacity: .46; cursor: not-allowed; }
+        .wait-option {
+          display: flex;
+          min-height: 42px;
+          align-items: center;
+          gap: 8px;
+          margin-left: auto;
+          color: var(--secondary-text-color);
+          font-size: .84rem;
+          cursor: pointer;
+          user-select: none;
+        }
+        .wait-option input { width: 17px; height: 17px; margin: 0; accent-color: var(--aseko-accent); }
+        .status {
+          display: flex;
+          align-items: flex-start;
+          gap: 9px;
+          margin-top: 11px;
+          padding: 10px 12px;
+          border-radius: 10px;
+          background: color-mix(in srgb, var(--secondary-text-color) 8%, transparent);
+          color: var(--secondary-text-color);
+          font-size: .86rem;
+          line-height: 1.4;
+          white-space: pre-line;
+        }
+        .status::before { flex: 0 0 auto; content: "ⓘ"; font-weight: 700; }
+        .status.waiting { background: color-mix(in srgb, var(--warning-color, #f0a000) 14%, transparent); color: var(--primary-text-color); }
+        .status.waiting::before { content: "⏳"; }
+        .status.done { background: color-mix(in srgb, var(--success-color, #43a047) 14%, transparent); color: var(--primary-text-color); }
+        .status.done::before { color: var(--success-color, #43a047); content: "✓"; }
+        .status.error { background: color-mix(in srgb, var(--error-color, #db4437) 14%, transparent); color: var(--primary-text-color); }
+        .status.error::before { color: var(--error-color, #db4437); content: "!"; }
+        .history { margin-top: 22px; }
+        .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 9px; }
+        h3 { margin: 0; color: var(--primary-text-color); font-size: .98rem; font-weight: 700; }
+        .cases { display: flex; flex-direction: column; gap: 8px; }
+        .case {
+          position: relative;
+          display: flex;
+          min-width: 0;
+          align-items: center;
+          gap: 12px;
+          padding: 11px 12px;
+          border: 1px solid var(--aseko-border);
+          border-radius: 13px;
+          background: var(--card-background-color);
+        }
+        .case.new { border-color: color-mix(in srgb, var(--warning-color, #f0a000) 40%, var(--aseko-border)); background: color-mix(in srgb, var(--warning-color, #f0a000) 5%, var(--card-background-color)); }
+        .case.new::before { position: absolute; inset: 10px auto 10px 0; width: 3px; border-radius: 0 3px 3px 0; background: var(--warning-color, #f0a000); content: ""; }
+        .case img { width: 58px; height: 58px; flex: 0 0 58px; object-fit: cover; border-radius: 10px; cursor: zoom-in; }
+        .case-number {
+          display: grid;
+          width: 34px;
+          height: 34px;
+          flex: 0 0 34px;
+          place-items: center;
+          border-radius: 10px;
+          background: var(--aseko-accent-soft);
+          color: var(--aseko-accent);
+          font-size: .78rem;
+          font-weight: 800;
+        }
+        .case .txt { min-width: 0; flex: 1; }
+        .case .note { overflow-wrap: anywhere; color: var(--primary-text-color); font-size: .93rem; font-weight: 650; line-height: 1.35; }
+        .case .meta { margin-top: 3px; color: var(--secondary-text-color); font-size: .77rem; line-height: 1.35; }
+        .case-flags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+        .flag { padding: 3px 7px; border-radius: 999px; background: var(--aseko-surface); color: var(--secondary-text-color); font-size: .68rem; font-weight: 650; }
+        .flag.new { background: color-mix(in srgb, var(--warning-color, #f0a000) 15%, transparent); color: color-mix(in srgb, var(--warning-color, #f0a000) 72%, var(--primary-text-color)); }
+        .empty {
+          display: grid;
+          min-height: 104px;
+          place-items: center;
+          padding: 20px;
+          border: 1px dashed var(--aseko-border);
+          border-radius: 13px;
+          color: var(--secondary-text-color);
+          text-align: center;
+          font-size: .88rem;
+        }
+        .footer-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+        .footer-actions .danger { margin-left: auto; }
+        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+        @media (max-width: 560px) {
+          .hero { padding: 17px 16px 15px; }
+          .body { padding: 16px; }
+          .composer { padding: 12px; }
+          .action-row { align-items: stretch; flex-wrap: wrap; }
+          .action-row button { flex: 1 1 calc(50% - 5px); padding-inline: 10px; }
+          .wait-option { width: 100%; min-height: 32px; margin-left: 2px; }
+          .footer-actions button { flex: 1 1 calc(50% - 4px); padding-inline: 10px; }
+          .footer-actions .danger { flex-basis: 100%; margin-left: 0; }
+          .case { align-items: flex-start; }
+          .case-number { display: none; }
+          .case img { width: 52px; height: 52px; flex-basis: 52px; }
+        }
+        @media (prefers-reduced-motion: reduce) { button, input { transition: none; } }
       </style>
-      <ha-card header="${esc(title)}">
-        <div class="age" id="age">${esc(this._t("last_frame", { v: "\u2026" }))}</div>
-        <div class="row">
-          <input id="note" type="text" placeholder="${esc(this._t("placeholder"))}" maxlength="200">
-        </div>
-        <div class="row">
-          <button id="photo">\u{1F4F7} ${esc(this._t("photo_mark"))}</button>
-          <button id="mark">\u{1F3C1} ${esc(this._t("mark"))}</button>
-          <label><input id="wait" type="checkbox" checked> ${esc(this._t("wait"))}</label>
-        </div>
-        <input id="file" type="file" accept="image/*" capture="environment" hidden>
-        <div class="status" id="status">${esc(this._t("intro"))}</div>
-        <h3 id="heading">${esc(this._t("cases"))}</h3>
-        <div class="cases" id="cases"><div class="empty">${esc(this._t("no_cases"))}</div></div>
-        <div class="row">
-          <button id="export-new">\u2B07 ${esc(this._t("download_new"))}</button>
-          <button id="export-all" class="secondary">\u2B07 ${esc(this._t("download_all"))}</button>
-          <button id="forget" class="secondary">${esc(this._t("clear"))}</button>
+      <ha-card>
+        <header class="hero">
+          <div class="brand-icon" aria-hidden="true"><ha-icon icon="mdi:pool"></ha-icon></div>
+          <div class="hero-copy">
+            <h2>${esc(title)}</h2>
+            <div class="age" id="age" data-state="unknown">${esc(this._t("last_frame", { v: "\u2026" }))}</div>
+          </div>
+        </header>
+        <div class="body">
+          <section class="composer">
+            <label class="sr-only" for="note">${esc(this._t("placeholder"))}</label>
+            <div class="input-wrap">
+              <ha-icon icon="mdi:text-box-edit-outline" aria-hidden="true"></ha-icon>
+              <input id="note" type="text" placeholder="${esc(this._t("placeholder"))}" maxlength="200" autocomplete="off">
+            </div>
+            <div class="action-row">
+              <button id="photo"><ha-icon icon="mdi:camera-plus-outline" aria-hidden="true"></ha-icon>${esc(this._t("photo_mark"))}</button>
+              <button id="mark" class="secondary"><ha-icon icon="mdi:flag-checkered" aria-hidden="true"></ha-icon>${esc(this._t("mark"))}</button>
+              <label class="wait-option"><input id="wait" type="checkbox" checked> ${esc(this._t("wait"))}</label>
+            </div>
+            <input id="file" type="file" accept="image/*" capture="environment" hidden>
+            <div class="status" id="status" role="status" aria-live="polite">${esc(this._t("intro"))}</div>
+          </section>
+          <section class="history">
+            <div class="section-heading"><h3 id="heading">${esc(this._t("cases"))}</h3></div>
+            <div class="cases" id="cases"><div class="empty">${esc(this._t("no_cases"))}</div></div>
+            <div class="footer-actions">
+              <button id="export-new"><ha-icon icon="mdi:download-outline" aria-hidden="true"></ha-icon>${esc(this._t("download_new"))}</button>
+              <button id="export-all" class="secondary"><ha-icon icon="mdi:archive-arrow-down-outline" aria-hidden="true"></ha-icon>${esc(this._t("download_all"))}</button>
+              <button id="forget" class="secondary danger"><ha-icon icon="mdi:delete-sweep-outline" aria-hidden="true"></ha-icon>${esc(this._t("clear"))}</button>
+            </div>
+          </section>
         </div>
       </ha-card>`;
     const $ = (id) => this.shadowRoot.getElementById(id);
@@ -334,6 +538,12 @@ class AsekoMarkCard extends HTMLElement {
     $("photo").addEventListener("click", () => $("file").click());
     $("file").addEventListener("change", (ev) => this._upload(ev.target));
     $("mark").addEventListener("click", () => this._mark());
+    $("note").addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" && !ev.isComposing) {
+        ev.preventDefault();
+        this._mark();
+      }
+    });
     $("export-new").addEventListener("click", () => this._export(true));
     $("export-all").addEventListener("click", () => this._export(false));
     $("forget").addEventListener("click", () => this._forget());
@@ -351,6 +561,9 @@ class AsekoMarkCard extends HTMLElement {
 
   _busy(busy) {
     for (const id of ["photo", "mark", "export-new", "export-all", "forget"]) this._el(id).disabled = busy;
+    this._el("note").disabled = busy;
+    this._el("wait").disabled = busy;
+    this._el("status").setAttribute("aria-busy", String(busy));
   }
 
   async _poll() {
@@ -360,12 +573,15 @@ class AsekoMarkCard extends HTMLElement {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
       const ages = data.entries.flatMap((e) => Object.values(e.seconds_since_last_frame));
+      const youngest = ages.length ? Math.min(...ages) : null;
       this._el("age").innerHTML = ages.length
-        ? this._t("last_frame_ago", { s: Math.round(Math.min(...ages)) })
+        ? this._t("last_frame_ago", { s: Math.round(youngest) })
         : esc(this._t("last_frame_none"));
+      this._el("age").dataset.state = youngest == null ? "unknown" : youngest <= 15 ? "fresh" : "stale";
       this._renderCases(data.entries);
     } catch (err) {
       this._el("age").textContent = this._t("last_frame_error", { e: err.message });
+      this._el("age").dataset.state = "error";
     }
   }
 
@@ -374,7 +590,7 @@ class AsekoMarkCard extends HTMLElement {
     const fresh = entries.reduce((sum, e) => sum + (e.not_downloaded || 0), 0);
     this._el("heading").textContent = this._t("cases_count", { n: cases.length, f: fresh });
     this._el("export-new").textContent = `\u2B07 ${this._t("download_new")} (${fresh})`;
-    const key = JSON.stringify(cases.map((c) => [c.n, c.downloaded, c.frames, c.photo]));
+    const key = JSON.stringify(cases.map((c) => [c.n, c.t, c.note, c.downloaded, c.frames, c.photo]));
     if (key === this._listKey) return;
     this._listKey = key;
     const list = this._el("cases");
@@ -385,14 +601,14 @@ class AsekoMarkCard extends HTMLElement {
     list.innerHTML = cases
       .map((c) => {
         const when = new Date(c.t).toLocaleString(this._locale());
-        const flags = [
-          this._t(c.downloaded ? "downloaded" : "not_downloaded"),
-          this._t(c.frames ? "frames_kept" : "frames_gone"),
-        ].join(" \u00B7 ");
+        const downloadFlag = this._t(c.downloaded ? "downloaded" : "not_downloaded");
+        const framesFlag = this._t(c.frames ? "frames_kept" : "frames_gone");
         const img = c.photo ? `<img data-photo="${esc(c.photo)}" alt="${esc(this._t("photo"))}">` : "";
-        return `<div class="case ${c.downloaded ? "" : "new"}">${img}
-          <div class="txt"><div class="note">#${c.n} ${esc(c.note || this._t("no_note"))}</div>
-          <div class="meta">${esc(when)} \u00B7 ${esc(flags)}</div></div></div>`;
+        return `<article class="case ${c.downloaded ? "" : "new"}">${img}
+          <div class="case-number" aria-hidden="true">#${c.n}</div>
+          <div class="txt"><div class="note">${esc(c.note || this._t("no_note"))}</div>
+          <div class="meta">${esc(when)}</div>
+          <div class="case-flags"><span class="flag ${c.downloaded ? "" : "new"}">${esc(downloadFlag)}</span><span class="flag">${esc(framesFlag)}</span></div></div></article>`;
       })
       .join("");
     for (const img of list.querySelectorAll("img[data-photo]")) this._loadThumb(img);
