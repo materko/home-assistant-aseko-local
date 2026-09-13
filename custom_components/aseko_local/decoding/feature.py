@@ -10,6 +10,10 @@ readings of that field as methods:
   profile can select instead of the default, for the models whose frame is
   encoded differently.  The feature file does not know which models those
   are; the profile does.
+* ``decode_<protocol>_not_located`` exists on every feature: the model has
+  the value (its menu or manual shows it) but nobody has found where the
+  frame carries it yet.  It always reads None, so the entity exists and shows
+  "unknown", and the support matrix lists it as a place to look.
 
 Every reading receives the frame view and the partially decoded device, so
 a feature may read fields decoded before it.  Which fields those are is
@@ -23,6 +27,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from .frame import Protocol
+
+#: The reading a profile selects for a value its model has but whose place in
+#: the frame is not known yet, one per protocol.
+NOT_LOCATED = frozenset(f"decode_{p.value}_not_located" for p in Protocol)
 
 if TYPE_CHECKING:
     from ..aseko_data import AsekoDevice
@@ -47,6 +55,14 @@ class Feature:
         """Default reading from a v8 frame.  Absent when v8 has none."""
         raise NotImplementedError
 
+    def decode_v7_not_located(self, frame: V7Frame, device: AsekoDevice) -> None:
+        """The model has this value, but where v7 carries it is not known yet."""
+        return None
+
+    def decode_v8_not_located(self, frame: V8Frame, device: AsekoDevice) -> None:
+        """The model has this value, but where v8 carries it is not known yet."""
+        return None
+
     # -- introspection used by profiles ------------------------------------
 
     @classmethod
@@ -57,7 +73,14 @@ class Feature:
 
     @classmethod
     def has_variant(cls, name: str) -> bool:
-        """Return True if ``name`` is a reading this feature actually defines."""
+        """Return True if ``name`` is a reading this feature actually defines.
+
+        The ``not_located`` readings count for every feature, so a profile can
+        select them, but ``variants`` leaves them out: they are not a way the
+        feature knows to read the frame.
+        """
+        if name in NOT_LOCATED:
+            return True
         own = getattr(cls, name, None)
         base = getattr(Feature, name, None)
         return callable(own) and own is not base
@@ -70,7 +93,9 @@ class Feature:
             sorted(
                 name
                 for name in dir(cls)
-                if name.startswith(prefix) and cls.has_variant(name)
+                if name.startswith(prefix)
+                and name not in NOT_LOCATED
+                and cls.has_variant(name)
             )
         )
 

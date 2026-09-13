@@ -10,6 +10,7 @@ A **profile** is one (protocol, model, firmware) combination.  A **feature** is 
 | 👁 | seen repeatedly in captures from a real unit with consistent, plausible values, but not compared with the unit display or the app — **a glance at the unit would settle it** |
 | ❓ | read on this model, but never seen with a real value in any capture — **a diagnostics dump would settle it** |
 | — | this model does not have the value, so no entity is created for it |
+| 🔍 | this model has the value (its menu or manual shows it), but where the frame carries it is not known yet: the entity exists and reads unknown — **a diagnostics dump before and after changing it on the unit would settle it** |
 | `decode_…` | the profile uses this reading instead of the protocol default |
 
 Two further profiles exist that no unit is meant to decode with and that the tables leave out: **v7 HOME firmware not yet known** and **v7 unknown unit type**.  The first reads what both HOME firmware revisions share while a frame with `byte[37]` unset cannot tell them apart; the second reads everything that has a generic v7 reading so an unmapped unit shows as much as possible in diagnostics, where it is reported as unrecognised.
@@ -24,7 +25,7 @@ Two further profiles exist that no unit is meant to decode with and that the tab
 | `alarm_ph_too_many_doses` | ✅ | ✅ | ✅ | ❓ | ❓ | ❓ |
 | `alarm_rapid_ph_change` | ❓ | ❓ | ❓ | ❓ | ❓ | ❓ |
 | `algicide_pump_running` | ❓ | ❓ | ✅ | ✅ `decode_v7_oxy` | — | — |
-| `antifreeze_enabled` | ✅ | ❓ | — | — | — | — |
+| `antifreeze_enabled` | ✅ | ❓ | 🔍 | 🔍 | — | — |
 | `backwash_active` | ❓ | ❓ | ✅ | ❓ | — | ❓ |
 | `backwash_duration` | ✅ | ✅ | ✅ | 👁 | — | ❓ |
 | `backwash_every_n_days` | ✅ | ✅ | ✅ | 👁 | — | ❓ |
@@ -51,7 +52,7 @@ Two further profiles exist that no unit is meant to decode with and that the tab
 | `flowrate_oxy` | — | — | — | ✅ | — | — |
 | `flowrate_ph_minus` | ✅ | ✅ | ✅ | ✅ | ✅ | ❓ |
 | `heating_active` | ❓ | ❓ | ❓ | ❓ | — | ❓ |
-| `heating_control_enabled` | ✅ | ❓ | — | — | — | — |
+| `heating_control_enabled` | ✅ | ❓ | 🔍 | 🔍 | — | — |
 | `max_filling_time` | ❓ | ❓ | ✅ | ❓ | — | — |
 | `max_ph_doses` | 👁 | 👁 | ✅ | 👁 | — | ❓ |
 | `oxy_pump_running` | — | — | — | ✅ | — | — |
@@ -252,6 +253,20 @@ Every entry below is read today without a confirming capture.  If you own one of
 - `timestamp` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
 - `water_flow_to_probes` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
 - `water_temperature` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
+
+## Not located yet
+
+Values these models have but nobody has found in the frame.  If you own one of these units, download diagnostics, change the setting on the unit, wait a minute and download again: the two frames show where it is.
+
+### v7 SALT
+
+- `antifreeze_enabled` — not located: the unit's Configuration menu has Winter mode ON/OFF; HOME's byte[37] 0x80 is the algicide routing on SALT, so it lives elsewhere
+- `heating_control_enabled` — not located: the unit's Configuration menu has Heating control ON/OFF; HOME's byte[37] 0x08 was clear in every own SALT frame with it OFF, the ON state was never captured
+
+### v7 OXY
+
+- `antifreeze_enabled` — not located: the ASIN AQUA Oxygen manual describes freeze protection; no OXY frame has been compared with it
+- `heating_control_enabled` — not located: the ASIN AQUA Oxygen manual describes heating control; no OXY frame has been compared with it
 
 ## Seen, not compared
 

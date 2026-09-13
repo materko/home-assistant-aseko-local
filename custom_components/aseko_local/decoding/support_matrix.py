@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections import defaultdict
 
 from .decoders import ALL_FEATURES
-from .feature import Feature
+from .feature import NOT_LOCATED, Feature
 from .frame import Protocol
 from .profile import Profile
 from .profiles import ALL_PROFILES, FALLBACK_PROFILES
@@ -21,6 +21,7 @@ CONFIRMED = "✅"
 OBSERVED = "👁"
 UNSURE = "❓"
 ABSENT = "—"
+NOT_LOCATED_MARK = "🔍"
 
 # Evidence entries start with one of these words.  Anything else counts as
 # unsure, as does a listed feature with no evidence recorded at all.
@@ -30,6 +31,9 @@ _CONFIRMED_PREFIXES = ("confirmed", "derived")
 def _status(profile: Profile, feature: type[Feature]) -> str:
     if feature not in profile.features:
         return ABSENT
+    variant = profile.overrides.get(feature)
+    if variant in NOT_LOCATED:
+        return NOT_LOCATED_MARK
     evidence = profile.evidence.get(feature, "")
     word = evidence.split(":", 1)[0].strip().lower()
     if any(word.startswith(prefix) for prefix in _CONFIRMED_PREFIXES):
@@ -38,7 +42,6 @@ def _status(profile: Profile, feature: type[Feature]) -> str:
         mark = OBSERVED
     else:
         mark = UNSURE
-    variant = profile.overrides.get(feature)
     return f"{mark} `{variant}`" if variant else mark
 
 
@@ -105,6 +108,9 @@ def render() -> str:
     w(
         f"| {ABSENT} | this model does not have the value, so no entity is created for it |"
     )
+    w(
+        f"| {NOT_LOCATED_MARK} | this model has the value (its menu or manual shows it), but where the frame carries it is not known yet: the entity exists and reads unknown — **a diagnostics dump before and after changing it on the unit would settle it** |"
+    )
     w("| `decode_…` | the profile uses this reading instead of the protocol default |")
     w("")
     w(
@@ -143,6 +149,16 @@ def render() -> str:
     )
     w("")
     _help_section(w, UNSURE)
+
+    w("## Not located yet")
+    w("")
+    w(
+        "Values these models have but nobody has found in the frame.  If you own "
+        "one of these units, download diagnostics, change the setting on the "
+        "unit, wait a minute and download again: the two frames show where it is."
+    )
+    w("")
+    _help_section(w, NOT_LOCATED_MARK)
 
     w("## Seen, not compared")
     w("")

@@ -31,6 +31,7 @@ from custom_components.aseko_local.decoding.decoders import (
     FiltrationPumpRunning,
     FiltrationSchedule,
     FlowrateAlgicide,
+    HeatingControlEnabled,
     Ph,
     ServiceMenuOpen,
     FiltrationStart2,
@@ -549,3 +550,20 @@ def test_v8_salt_frame_gets_no_chlorine_counter_inputs() -> None:
     assert "cl_pump_running" not in device.features
     assert "flowrate_chlor" not in device.features
     assert device.flowrate_chlor is None
+
+
+def test_not_located_reading_keeps_the_value_unknown_but_present() -> None:
+    """A value the model has but nobody has found in the frame yet.
+
+    Every feature accepts ``decode_v7_not_located``; it reads None, so the
+    device lists the field (the entity exists) and the value stays unknown.
+    """
+    assert v7.SALT.variant_for(HeatingControlEnabled) == "decode_v7_not_located"
+    assert "decode_v7_not_located" not in HeatingControlEnabled.variants()
+
+    data = _make_base_bytes()  # SALT
+    data[37] = 0xFF
+    device = AsekoDecoder.decode(bytes(data))
+    for field in ("heating_control_enabled", "antifreeze_enabled"):
+        assert field in device.features, field
+        assert getattr(device, field) is None, field

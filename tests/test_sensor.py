@@ -305,7 +305,10 @@ async def test_async_setup_salt_redox(hass) -> None:
     #   reads "unknown" until the coordinator stamps the first frame.  It used
     #   to be skipped here only because this test hands the platform a device
     #   the coordinator has not stamped yet.
-    assert len(added_entities) == 42
+    # + 2 heating_control_enabled / antifreeze_enabled binary sensors: the
+    #   SALT Configuration menu has Heating control and Winter mode, but
+    #   their place in the frame is not known yet, so they read unknown
+    assert len(added_entities) == 44
     # Nothing has been observed yet, so the history is unknown rather than
     # guessed from the schedule.
     backwash_history = {
@@ -443,7 +446,10 @@ async def test_async_setup_salt_clf(hass) -> None:
     #   reads "unknown" until the coordinator stamps the first frame.  It used
     #   to be skipped here only because this test hands the platform a device
     #   the coordinator has not stamped yet.
-    assert len(added_entities) == 43
+    # + 2 heating_control_enabled / antifreeze_enabled binary sensors: the
+    #   SALT Configuration menu has Heating control and Winter mode, but
+    #   their place in the frame is not known yet, so they read unknown
+    assert len(added_entities) == 45
     assert any(
         getattr(e.entity_description, "key", None) != "water_flow_to_probes"
         for e in added_entities
