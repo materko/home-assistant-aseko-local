@@ -1,0 +1,184 @@
+"""Photos of the unit's display that go with frame-log markers, and the zip export.
+
+The Aseko mark card uploads a photo straight from the phone's camera.  The
+upload writes a marker into the frame log at the moment it arrives and keeps
+the photo here, named after that moment, so photo and frames line up without
+EXIF data, file names or anyone comparing clocks.  Messengers strip all of
+those; this path never leaves Home Assistant.
+
+Photos are downscaled (longest side ``MAX_SIDE`` px, JPEG) when Pillow can
+read them, and the folder is capped in bytes and count: the oldest photos go
+first.  ``build_export_zip`` packs frames, markers, diagnostics and photos
+into one file to attach to a GitHub issue.
+
+Everything here is blocking file and image work: call it from an executor.
+"""
+
+from __future__ import annotations
+
+import io
+import json
+import logging
+import re
+import zipfile
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+_LOGGER = logging.getLogger(__name__)
+
+DEFAULT_MAX_BYTES = 100 * 1024 * 1024
+DEFAULT_MAX_COUNT = 200
+MAX_SIDE = 2048
+JPEG_QUALITY = 85
+EXIF_DATETIME_ORIGINAL = 36867
+EXIF_IFD = 0x8769
+
+
+@dataclass
+class SavedPhoto:
+    """What was stored for one upload."""
+
+    file: str
+    bytes: int
+    captured: str | None  # the camera's own timestamp, when the file carried one
+
+
+def _slug(text: str) -> str:
+    return re.sub(r"[^A-Za-z0-9]+", "-", text).strip("-")[:40]
+
+
+class PhotoStore:
+    """A capped folder of display photos."""
+
+    def __init__(
+        self,
+        directory: Path,
+        max_bytes: int = DEFAULT_MAX_BYTES,
+        max_count: int = DEFAULT_MAX_COUNT,
+    ) -> None:
+        self.directory = directory
+        self.max_bytes = max_bytes
+        self.max_count = max_count
+
+    def save(
+        self, data: bytes, received: datetime, note: str | None = None
+    ) -> SavedPhoto:
+        """Store one uploaded image and return its file name."""
+        self.directory.mkdir(parents=True, exist_ok=True)
+        image, captured, suffix = _prepare(data)
+        stem = received.strftime("%Y%m%d-%H%M%S")
+        if note:
+            stem += f"_{_slug(note)}"
+        path = self.directory / f"{stem}{suffix}"
+        counter = 1
+        while path.exists():
+            counter += 1
+            path = self.directory / f"{stem}_{counter}{suffix}"
+        path.write_bytes(image)
+        self._enforce_cap()
+        return SavedPhoto(file=path.name, bytes=len(image), captured=captured)
+
+    def files(self) -> list[Path]:
+        """Stored photos, oldest first."""
+        if not self.directory.is_dir():
+            return []
+        return sorted(
+            (p for p in self.directory.iterdir() if p.is_file()),
+            key=lambda p: (p.stat().st_mtime, p.name),
+        )
+
+    def size(self) -> int:
+        return sum(p.stat().st_size for p in self.files())
+
+    def _enforce_cap(self) -> None:
+        files = self.files()
+        total = sum(p.stat().st_size for p in files)
+        # The newest photo always stays: it is the one a marker just named.
+        while len(files) > 1 and (
+            total > self.max_bytes or len(files) > self.max_count
+        ):
+            oldest = files.pop(0)
+            total -= oldest.stat().st_size
+            oldest.unlink(missing_ok=True)
+            _LOGGER.debug("Dropped the oldest Aseko photo %s", oldest.name)
+
+
+def _prepare(data: bytes) -> tuple[bytes, str | None, str]:
+    """Downscale to JPEG and read the capture time; keep the bytes if Pillow can't."""
+    try:
+        from PIL import Image, ImageOps  # noqa: PLC0415
+    except ImportError:
+        return data, None, ".jpg"
+    try:
+        with Image.open(io.BytesIO(data)) as original:
+            captured = _capture_time(original)
+            image = ImageOps.exif_transpose(original)
+            image.thumbnail((MAX_SIDE, MAX_SIDE))
+            out = io.BytesIO()
+            image.convert("RGB").save(out, "JPEG", quality=JPEG_QUALITY)
+            return out.getvalue(), captured, ".jpg"
+    except Exception as err:  # noqa: BLE001 -- any unreadable upload is kept as is
+        _LOGGER.warning(
+            "Could not read the uploaded photo, keeping it as sent: %s", err
+        )
+        return data, None, ".bin"
+
+
+def _capture_time(image: Any) -> str | None:
+    try:
+        exif = image.getexif()
+        value = exif.get_ifd(EXIF_IFD).get(EXIF_DATETIME_ORIGINAL) or exif.get(306)
+    except Exception:  # noqa: BLE001
+        return None
+    if not value:
+        return None
+    try:
+        return datetime.strptime(str(value), "%Y:%m:%d %H:%M:%S").isoformat()
+    except ValueError:
+        return None
+
+
+def build_export_zip(
+    entries: list[dict[str, Any]],
+    photos: list[Path],
+    created: datetime,
+) -> bytes:
+    """One zip for a GitHub issue: frames and markers per entry, diagnostics, photos.
+
+    ``entries`` holds, per config entry, ``title``, ``records`` (the frame log
+    with absolute times) and ``diagnostics`` (what the diagnostics download
+    would contain).
+    """
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+        lines = [
+            "Aseko Local export",
+            f"created: {created.isoformat()}",
+            "",
+            "frames-<entry>.jsonl  every frame and marker, oldest first, one JSON",
+            "                      object a line; 'k' is v7 / v8 / partial / mark",
+            "markers-<entry>.json  the markers only; 'photo' names the file in photos/",
+            "diagnostics-<entry>.json  the diagnostics download of that entry",
+            "photos/               display photos, named by upload time (UTC)",
+        ]
+        archive.writestr("README.txt", "\n".join(lines) + "\n")
+        for entry in entries:
+            slug = _slug(entry["title"]) or "entry"
+            records = entry["records"]
+            archive.writestr(
+                f"frames-{slug}.jsonl",
+                "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in records),
+            )
+            archive.writestr(
+                f"markers-{slug}.json",
+                json.dumps([r for r in records if r.get("k") == "mark"], indent=2),
+            )
+            archive.writestr(
+                f"diagnostics-{slug}.json",
+                json.dumps(entry["diagnostics"], indent=2, default=str),
+            )
+        for photo in photos:
+            archive.write(photo, f"photos/{photo.name}")
+    return buffer.getvalue()

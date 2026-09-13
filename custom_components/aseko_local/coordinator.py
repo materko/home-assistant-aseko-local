@@ -465,7 +465,9 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         self._frame_log_save_requested = now
         self._frame_log_store.async_delay_save(self.frame_log.to_store, delay)
 
-    def mark_dump(self, note: str | None = None) -> dict[str, Any]:
+    def mark_dump(
+        self, note: str | None = None, extra: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Write a numbered marker into the frame log and describe it.
 
         The marker records how many seconds ago each unit's last frame
@@ -475,7 +477,10 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         received = dt_util.utcnow()
         since = self.seconds_since_last_frame(received)
         number = self.frame_log.append_marker(
-            received, note, {str(serial): age for serial, age in since.items()}
+            received,
+            note,
+            {str(serial): age for serial, age in since.items()},
+            extra,
         )
         _LOGGER.info(
             "Aseko frame log marker %s at %s %s (last frame %s s ago)",

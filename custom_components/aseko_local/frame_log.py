@@ -112,11 +112,13 @@ class FrameLog:
         received: datetime,
         note: str | None = None,
         since_last_frame: dict[str, float] | None = None,
+        extra: dict[str, Any] | None = None,
     ) -> int:
         """Record a marker and return its number, counted since the log began.
 
         ``since_last_frame`` maps a unit's serial number to how many seconds
-        before the marker its last frame arrived.
+        before the marker its last frame arrived; ``extra`` adds fields such
+        as the name of a display photo uploaded with the marker.
         """
         number = self._next_marker
         self._next_marker += 1
@@ -125,6 +127,8 @@ class FrameLog:
             record["note"] = note
         if since_last_frame:
             record["since"] = since_last_frame
+        if extra:
+            record.update({key: value for key, value in extra.items() if value})
         self._append(received, record)
         return number
 
@@ -180,6 +184,10 @@ class FrameLog:
             # small, but the ceiling holds even then.
             self._dropped_chunks += 1
             self._start_chunk()
+
+    def marker_count(self) -> int:
+        """How many markers have been written since the log began."""
+        return self._next_marker - 1
 
     # -- reading -----------------------------------------------------------
 

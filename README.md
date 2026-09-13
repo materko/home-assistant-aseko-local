@@ -62,6 +62,22 @@ It also carries a **frame log**: every frame received over roughly the last five
 
 Each marker sits in the log between the frames received before and after it, and records how long before it the last frame arrived, so frames and photos line up without comparing clocks. `python scripts/frame_log_tool.py DIAGNOSTICS.json --around 1` prints the frames around marker 1.
 
+#### Mark card: photos of the display straight into the log
+
+Messengers strip the time and rename photos, so the integration can take them itself. Add this card to a dashboard (the card is loaded automatically, no resource to add):
+
+```yaml
+type: custom:aseko-mark-card
+```
+
+It shows how many seconds ago the last frame arrived and has:
+
+- **📷 Photo + mark** — opens the phone camera; the photo is stored in Home Assistant and a marker is written the moment the upload arrives, with the note from the text field. The photo is named after that time, so it lines up with the frames without EXIF data.
+- **🏁 Mark** — a marker without a photo; tick *wait for next frame* to write it right after the next frame, and the card says when it is written.
+- **⬇ Export zip** — frames, markers, diagnostics and all photos as one zip to attach to the issue.
+
+Photos are downscaled to 2048 px and kept in `<config>/aseko_local/photos`, at most 200 photos or 100 MB (the oldest go first). The card and its endpoints are for admin users, like the diagnostics download.
+
 Which values are read on which model, and which of them still lack a confirming capture, is listed per model in the [support matrix](docs/support_matrix.md). It is generated from the decoder's device profiles, so it is always current; every ❓ in it is a value a diagnostics download from that model would settle.
 
 How the decoder is put together (one decoder file per value, one profile per model and firmware) is described in [Decoding by device profile](docs/decoding-by-device-profile.md).

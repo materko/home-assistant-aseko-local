@@ -19,12 +19,14 @@ from homeassistant.core import (
 )
 from homeassistant.exceptions import ConfigEntryNotReady, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
+from homeassistant.loader import async_get_integration
 from homeassistant.util import dt as dt_util
 
 from .aseko_data import AsekoDevice
 from .aseko_server import AsekoDeviceServer
 from .consumption_tracker import PUMP_KEYS
 from .coordinator import AsekoLocalDataUpdateCoordinator
+from .mark_card import async_setup_mark_card
 from dataclasses import dataclass
 
 from .mirror_forwarder import AsekoCloudMirror
@@ -198,6 +200,10 @@ async def async_setup_entry(
         raise ConfigEntryNotReady
 
     coordinator.async_start_stale_check()
+
+    # The mark card and its photo / status / export endpoints, once per HA run
+    integration = await async_get_integration(hass, DOMAIN)
+    await async_setup_mark_card(hass, str(integration.version))
 
     # Optional: Cloud Mirror Forwarder to Aseko Cloud
     mirror_instance = None
