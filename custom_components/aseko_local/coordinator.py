@@ -11,14 +11,23 @@ from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import DOMAIN as HOMEASSISTANT_DOMAIN
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
 from .aseko_data import AsekoData, AsekoDevice
 from .backwash_tracker import BackwashTracker
 from .consumption_tracker import AsekoConsumptionTracker
+from .frame_log import KIND_PARTIAL, KIND_V7, KIND_V8, FrameLog
 
 _LOGGER = logging.getLogger(__name__)
+
+FRAME_LOG_STORAGE_VERSION = 1
+FRAME_LOG_STORAGE_KEY_PREFIX = "aseko_local_frame_log_"
+# How long after a request the frame log is written, and how often frames may
+# request it: a crash loses at most a few minutes of frames.
+FRAME_LOG_SAVE_DELAY = 60
+FRAME_LOG_SAVE_INTERVAL = timedelta(minutes=10)
 
 
 class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
@@ -56,6 +65,11 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         # Last decoding of every unit whose type nobody has mapped, by serial
         # number -- kept for diagnostics only, never handed to the platforms
         self._unrecognised_devices: dict[int, AsekoDevice] = {}
+        # Every frame received plus mark_dump markers, capped in compressed
+        # bytes, for the diagnostics download; persisted across restarts
+        self.frame_log = FrameLog()
+        self._frame_log_store: Store[dict[str, Any]] | None = None
+        self._frame_log_save_requested: datetime | None = None
         # Why the server found a unit's frames implausible, by serial number
         # and reason -- for diagnostics
         self._frame_warnings: dict[int, dict[str, dict[str, Any]]] = {}
@@ -341,8 +355,10 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
 
         if len(raw_frame) < MESSAGE_SIZE:
             self._last_partial_frames[serial] = bytes(raw_frame)
+            self._log_frame(KIND_PARTIAL, raw_frame)
         else:
             self._last_raw_frames[serial] = bytes(raw_frame)
+            self._log_frame(KIND_V7, raw_frame)
 
     def store_frame_warning(self, serial_number: int, reason: str) -> None:
         """Count one implausible frame from a unit, by reason, for diagnostics."""
@@ -374,6 +390,56 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
             self._last_v8_frames[serial] = bytes(raw_frame)
         except (ValueError, IndexError):
             pass
+        self._log_frame(KIND_V8, raw_frame)
+
+    # -- frame log -----------------------------------------------------------
+
+    async def async_load_frame_log(self) -> None:
+        """Restore the frame log saved before the last restart."""
+        self._frame_log_store = Store(
+            self.hass,
+            FRAME_LOG_STORAGE_VERSION,
+            f"{FRAME_LOG_STORAGE_KEY_PREFIX}{self.config_entry.entry_id}",
+        )
+        data = await self._frame_log_store.async_load()
+        if data:
+            self.frame_log.load_store(data)
+
+    async def async_save_frame_log(self) -> None:
+        """Write the frame log now (on unload)."""
+        if self._frame_log_store is not None:
+            await self._frame_log_store.async_save(self.frame_log.to_store())
+
+    def _log_frame(self, kind: str, raw_frame: bytes) -> None:
+        self.frame_log.append_frame(dt_util.utcnow(), kind, raw_frame)
+        self._request_frame_log_save()
+
+    def _request_frame_log_save(self, delay: float = FRAME_LOG_SAVE_DELAY) -> None:
+        """Save the log soon, but at most once per interval while frames flow.
+
+        Store.async_delay_save restarts its timer on every call, so calling it
+        for every frame would postpone the write forever.  The store also
+        writes the latest state when Home Assistant stops.
+        """
+        if self._frame_log_store is None:
+            return
+        now = dt_util.utcnow()
+        if (
+            delay >= FRAME_LOG_SAVE_DELAY
+            and self._frame_log_save_requested is not None
+            and now - self._frame_log_save_requested < FRAME_LOG_SAVE_INTERVAL
+        ):
+            return
+        self._frame_log_save_requested = now
+        self._frame_log_store.async_delay_save(self.frame_log.to_store, delay)
+
+    def mark_dump(self, note: str | None = None) -> tuple[int, datetime]:
+        """Write a numbered marker into the frame log and return it."""
+        received = dt_util.utcnow()
+        number = self.frame_log.append_marker(received, note)
+        _LOGGER.info("Aseko frame log marker %s at %s %s", number, received, note or "")
+        self._request_frame_log_save(delay=5)
+        return number, received
 
     def get_v8_frame(self, serial_number: int) -> bytes | None:
         """Return the last raw v8 text frame for a given device serial number."""

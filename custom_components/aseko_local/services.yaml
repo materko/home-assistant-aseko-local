@@ -92,3 +92,23 @@ reset_consumption:
             - canister
             - total
             - all
+
+mark_dump:
+  name: Mark dump
+  description: >
+    Writes a numbered, timestamped marker into the frame log that the
+    diagnostics download carries. Call it (e.g. from a dashboard button on
+    your phone), then photograph the unit's display straight away: the marker
+    sits between the frames received before and after, so frames and photos
+    line up without comparing clocks. Attach the photos to the GitHub issue
+    yourself; they are not stored. The response returns the marker number.
+  fields:
+    note:
+      name: Note
+      description: >
+        Optional short text stored with the marker, e.g. what you just changed
+        on the unit.
+      required: false
+      example: "Heating control ON"
+      selector:
+        text:

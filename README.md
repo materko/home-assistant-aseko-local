@@ -53,6 +53,14 @@ If you own an Aseko device that is not listed above as fully supported, you can 
 
 The diagnostics file contains an annotated table of every byte in the raw data frame sent by your device.
 
+It also carries a **frame log**: every frame received over roughly the last five days, kept compressed and capped at 256 kB so it never grows past that, and kept across Home Assistant restarts. To show which frames go with what the unit displayed:
+
+1. Call the `aseko_local.mark_dump` action (for example from a dashboard button on your phone), optionally with a short `note` such as "Heating control ON". It returns the marker number.
+2. Photograph the unit's display right after.
+3. Repeat for each change, then download diagnostics and attach it to the issue together with the photos.
+
+Each marker sits in the log between the frames received before and after it, so frames and photos line up without comparing clocks. `python scripts/frame_log_tool.py DIAGNOSTICS.json --around 1` prints the frames around marker 1.
+
 Which values are read on which model, and which of them still lack a confirming capture, is listed per model in the [support matrix](docs/support_matrix.md). It is generated from the decoder's device profiles, so it is always current; every ❓ in it is a value a diagnostics download from that model would settle.
 
 How the decoder is put together (one decoder file per value, one profile per model and firmware) is described in [Decoding by device profile](docs/decoding-by-device-profile.md).

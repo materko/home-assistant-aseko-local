@@ -8,7 +8,12 @@ import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT, Platform
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import (
+    HomeAssistant,
+    ServiceCall,
+    ServiceResponse,
+    SupportsResponse,
+)
 from homeassistant.exceptions import ConfigEntryNotReady, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.util import dt as dt_util
@@ -45,6 +50,7 @@ _SERVERS: dict[str, AsekoDeviceServer] = {}
 SERVICE_RESET_CONSUMPTION = "reset_consumption"
 SERVICE_SET_LAST_SCHEDULED_BACKWASH = "set_last_scheduled_backwash"
 SERVICE_CLEAR_LAST_SCHEDULED_BACKWASH = "clear_last_scheduled_backwash"
+SERVICE_MARK_DUMP = "mark_dump"
 
 RESET_CONSUMPTION_SCHEMA = vol.Schema(
     {
@@ -65,6 +71,12 @@ SET_LAST_SCHEDULED_BACKWASH_SCHEMA = vol.Schema(
 CLEAR_LAST_SCHEDULED_BACKWASH_SCHEMA = vol.Schema(
     {
         vol.Optional("serial_number"): cv.positive_int,
+    }
+)
+
+MARK_DUMP_SCHEMA = vol.Schema(
+    {
+        vol.Optional("note"): vol.All(cv.string, vol.Length(max=200)),
     }
 )
 
@@ -129,6 +141,9 @@ async def async_setup_entry(
         mirror_v8=None,
         server=None,
     )
+
+    # The frame log survives restarts; load it before frames start arriving
+    await coordinator.async_load_frame_log()
 
     # Raw-Sink: caches the last frame per device for diagnostics
     raw_sink = coordinator.store_raw_frame
@@ -281,6 +296,41 @@ async def async_setup_entry(
             "Registered service %s.%s", DOMAIN, SERVICE_CLEAR_LAST_SCHEDULED_BACKWASH
         )
 
+    if not hass.services.has_service(DOMAIN, SERVICE_MARK_DUMP):
+
+        async def handle_mark_dump(call: ServiceCall) -> ServiceResponse:
+            """Write a numbered, timestamped marker into every frame log.
+
+            Tap it, then photograph the unit's display: in the diagnostics
+            download the marker sits between the frames received before and
+            after, so frames and photos line up without comparing clocks.
+            """
+            note = call.data.get("note")
+            markers = []
+            for entry in hass.config_entries.async_entries(DOMAIN):
+                rd = getattr(entry, "runtime_data", None)
+                if rd:
+                    number, received = rd.coordinator.mark_dump(note)
+                    markers.append(
+                        {
+                            "entry": entry.title,
+                            "marker": number,
+                            "time": dt_util.as_local(received).isoformat(),
+                        }
+                    )
+            if not markers:
+                raise ServiceValidationError("No Aseko Local entry is loaded")
+            return {"markers": markers}
+
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_MARK_DUMP,
+            handle_mark_dump,
+            schema=MARK_DUMP_SCHEMA,
+            supports_response=SupportsResponse.OPTIONAL,
+        )
+        _LOGGER.debug("Registered service %s.%s", DOMAIN, SERVICE_MARK_DUMP)
+
     return True
 
 
@@ -298,6 +348,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # Stop server and mirror if they exist
         if getattr(entry, "runtime_data", None):
             entry.runtime_data.coordinator.async_stop_stale_check()
+            await entry.runtime_data.coordinator.async_save_frame_log()
             if entry.runtime_data.server:
                 await entry.runtime_data.server.stop()
             if entry.runtime_data.mirror:
@@ -316,6 +367,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 SERVICE_RESET_CONSUMPTION,
                 SERVICE_SET_LAST_SCHEDULED_BACKWASH,
                 SERVICE_CLEAR_LAST_SCHEDULED_BACKWASH,
+                SERVICE_MARK_DUMP,
             ):
                 if hass.services.has_service(DOMAIN, service):
                     hass.services.async_remove(DOMAIN, service)

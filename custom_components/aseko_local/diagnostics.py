@@ -417,4 +417,5 @@ async def async_get_config_entry_diagnostics(
         ),
         "devices": devices_info,
         "unrecognised_devices": unrecognised_info,
+        "frame_log": coordinator.frame_log.export(),
     }
