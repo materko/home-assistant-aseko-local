@@ -514,3 +514,38 @@ def test_v7_bad_checksum_is_logged_once_and_decoding_continues(
     assert second == expected
     levels = [r.levelno for r in caplog.records if "checksum" in r.getMessage()]
     assert levels == [logging.WARNING, logging.DEBUG]
+
+
+def test_profiles_leave_out_what_the_model_does_not_have() -> None:
+    """Chemicals a model cannot dose are not listed, so they get no entity.
+
+    A SALT makes its chlorine by electrolysis: no chlorine pump on v7 or v8
+    (the Aseko Live app gives Salt units pH-, algicide and an electrode, but
+    no chlorine canister).  NET doses pH and chlorine only and has no heater;
+    PROFI doses flocculant but not algicide.
+    """
+    assert "flowrate_chlor" not in v7.SALT.feature_names
+    assert "cl_pump_running" not in v7.SALT.feature_names
+    assert "flowrate_chlor" not in v8.SALT.feature_names
+    assert "cl_pump_running" not in v8.SALT.feature_names
+    assert "cl_pump_running" in v8.NET.feature_names
+
+    for field in (
+        "required_algicide",
+        "required_floc",
+        "flowrate_algicide",
+        "flowrate_floc",
+        "required_water_temperature",
+    ):
+        assert field not in v7.NET.feature_names, field
+
+    assert "flowrate_algicide" not in v7.PROFI.feature_names
+    assert "flowrate_floc" in v7.PROFI.feature_names
+
+
+def test_v8_salt_frame_gets_no_chlorine_counter_inputs() -> None:
+    device = AsekoV8Decoder.decode(REFERENCE_FRAME_105)
+    assert device.device_type == AsekoDeviceType.SALT
+    assert "cl_pump_running" not in device.features
+    assert "flowrate_chlor" not in device.features
+    assert device.flowrate_chlor is None

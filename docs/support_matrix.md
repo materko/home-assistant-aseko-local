@@ -45,9 +45,9 @@ Two further profiles exist that no unit is meant to decode with and that the tab
 | `filtration_stop1` | ✅ | ✅ | ✅ | 👁 | — | ❓ |
 | `filtration_stop2` | ✅ | ✅ | ✅ | 👁 | — | ❓ |
 | `floc_pump_running` | ❓ | ❓ | ✅ | ✅ | — | ❓ |
-| `flowrate_algicide` | ✅ | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | ❓ `decode_v7_routed_by_byte37` | ❓ `decode_v7_routed_by_byte37` |
-| `flowrate_chlor` | ✅ | ✅ | ❓ | — | ✅ | ❓ |
-| `flowrate_floc` | ✅ | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | ❓ `decode_v7_routed_by_byte37` | ❓ `decode_v7_routed_by_byte37` |
+| `flowrate_algicide` | ✅ | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | — | — |
+| `flowrate_chlor` | ✅ | ✅ | — | — | ✅ | ❓ |
+| `flowrate_floc` | ✅ | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | — | ❓ `decode_v7_routed_by_byte37` |
 | `flowrate_oxy` | — | — | — | ✅ | — | — |
 | `flowrate_ph_minus` | ✅ | ✅ | ✅ | ✅ | ✅ | ❓ |
 | `heating_active` | ❓ | ❓ | ❓ | ❓ | — | ❓ |
@@ -60,14 +60,14 @@ Two further profiles exist that no unit is meant to decode with and that the tab
 | `ph_minus_pump_running` | ❓ | ❓ | ❓ | ✅ | ✅ `decode_v7_net` | ❓ |
 | `pool_volume` | ✅ | ✅ | ✅ | 👁 | 👁 | ❓ |
 | `redox` | ❓ | ❓ | ✅ | — | ❓ | ❓ |
-| `required_algicide` | ✅ | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | ❓ `decode_v7_routed_by_byte37` | — |
+| `required_algicide` | ✅ | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | — | — |
 | `required_cl_dose` | ❓ | ❓ | ❓ | — | 👁 | ❓ |
 | `required_cl_free` | ✅ | ✅ | ✅ | — | 👁 | ❓ |
-| `required_floc` | ✅ | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | ❓ `decode_v7_routed_by_byte37` | — |
+| `required_floc` | ✅ | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | — | — |
 | `required_oxy_dose` | — | — | — | ✅ | — | — |
 | `required_ph` | ✅ | ✅ | ✅ | 👁 | ✅ | ❓ |
 | `required_redox` | ❓ | ❓ | ✅ | — | ❓ | — |
-| `required_water_temperature` | ✅ | ✅ | ✅ | 👁 | ❓ | ❓ |
+| `required_water_temperature` | ✅ | ✅ | ✅ | 👁 | — | ❓ |
 | `salinity` | — | — | ✅ | — | — | — |
 | `serial_number` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `service_menu_open` | — | ✅ | ✅ | 👁 | — | ❓ |
@@ -86,12 +86,12 @@ Two further profiles exist that no unit is meant to decode with and that the tab
 
 | field | NET | SALT |
 |---|---|---|
-| `cl_pump_running` | ❓ | ❓ |
+| `cl_pump_running` | ❓ | — |
 | `configuration` | ✅ | ❓ |
 | `delay_after_dose` | ✅ | ❓ |
 | `delay_after_startup` | ✅ | ❓ |
 | `filtration_pump_running` | ✅ | ❓ |
-| `flowrate_chlor` | ❓ | ❓ |
+| `flowrate_chlor` | ❓ | — |
 | `flowrate_ph_minus` | ❓ | ❓ |
 | `ph` | ✅ | ❓ |
 | `ph_minus_pump_running` | ❓ | ❓ |
@@ -143,7 +143,6 @@ Every entry below is read today without a confirming capture.  If you own one of
 ### v7 SALT
 
 - `alarm_rapid_ph_change` — unconfirmed: byte[13] 0x08 from error_codes.md; never set in the own SALT dumps, 37 frames 2026-08-08..28
-- `flowrate_chlor` — unverified: byte[99]; 0xFF in every frame of the own SALT dumps, 37 frames 2026-08-08..28 (no chlorine pump on a SALT)
 - `heating_active` — assumed: byte[29] 0x04 per JS-DE-Tech relay_byte bit 2; never set in the own SALT dumps, whose unit has heating control OFF
 - `ph_minus_pump_running` — unconfirmed: byte[29] 0x80; the bit was never set in the own SALT dumps, 37 frames 2026-08-08..28
 - `required_cl_dose` — unverified: byte[53] for a DOSE unit; neither unit of the own SALT dumps, 37 frames 2026-08-08..28 is one
@@ -173,13 +172,8 @@ Every entry below is read today without a confirming capture.  If you own one of
 - `alarm_ph_too_many_doses` — unconfirmed: byte[12] is 0x00 on NET; HOME encodings assumed
 - `alarm_rapid_ph_change` — unconfirmed: byte[13] 0x08 from error_codes.md; never set on NET
 - `delay_after_startup` — unverified: bytes 74-75 = 0xFFFF (not filled in) on the Issue #66 NET frame and on the ChemDoserProxy NET frame
-- `flowrate_algicide` — unverified: byte[37] and byte[101] are 0xFF on every NET frame; no third pump
-- `flowrate_floc` — unverified: byte[37] and byte[101] are 0xFF on every NET frame; no third pump
 - `redox` — no evidence recorded
-- `required_algicide` — unverified: byte[37] is 0xFF on every NET frame, so the shared-port reading never applies
-- `required_floc` — unverified: byte[37] is 0xFF on every NET frame, so the shared-port reading never applies
 - `required_redox` — unverified: byte[53] * 10 on a REDOX NET; no such frame captured
-- `required_water_temperature` — n/a: byte[55] is 0xFF on NET, which has no water temperature setpoint
 - `timestamp` — n/a: bytes 6-11 are 0xFF on every NET frame, Home Assistant's clock is used instead
 
 ### v7 PROFI
@@ -205,7 +199,6 @@ Every entry below is read today without a confirming capture.  If you own one of
 - `filtration_stop1` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `filtration_stop2` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `floc_pump_running` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
-- `flowrate_algicide` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `flowrate_chlor` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `flowrate_floc` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `flowrate_ph_minus` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
@@ -241,12 +234,10 @@ Every entry below is read today without a confirming capture.  If you own one of
 
 ### v8 SALT
 
-- `cl_pump_running` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
 - `configuration` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
 - `delay_after_dose` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
 - `delay_after_startup` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
 - `filtration_pump_running` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
-- `flowrate_chlor` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
 - `flowrate_ph_minus` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
 - `ph` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
 - `ph_minus_pump_running` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified

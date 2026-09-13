@@ -1,8 +1,10 @@
 """v8 profiles: the text protocol, firmware 8.x, port 51050.
 
 Every v8 frame observed so far uses the same layout regardless of the
-header's type field, so the two profiles list the same features.  They are
-kept apart so that a difference, once one is captured, has a place to go.
+header's type field, so SALT takes over the NET list -- minus the chlorine
+pump: a SALT makes its chlorine by electrolysis, and the Aseko Live app gives
+its Salt units a pH- and an algicide canister and an electrode, but no
+chlorine canister.
 
 Values v8 does not transmit -- pump flow rates above all -- are not listed
 rather than invented, with one deliberate exception: the chlorine and
@@ -63,6 +65,8 @@ _FEATURES = (
     DelayAfterDose,
 )
 
+_SALT_FEATURES = tuple(f for f in _FEATURES if f not in (ClPumpRunning, FlowrateChlor))
+
 NET = Profile(
     name="v8 NET",
     protocol=Protocol.V8,
@@ -93,14 +97,12 @@ SALT = Profile(
     name="v8 SALT",
     protocol=Protocol.V8,
     model=AsekoDeviceType.SALT,
-    features=_FEATURES,
+    features=_SALT_FEATURES,
     evidence={
-        ClPumpRunning: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",
         Configuration: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",
         DelayAfterDose: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",
         DelayAfterStartup: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",
         FiltrationPumpRunning: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",
-        FlowrateChlor: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",
         FlowratePhMinus: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",
         Ph: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",
         PhMinusPumpRunning: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",
