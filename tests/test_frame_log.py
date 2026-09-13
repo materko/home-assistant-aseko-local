@@ -169,10 +169,35 @@ def test_coordinator_logs_every_frame_and_numbers_markers() -> None:
     coordinator.store_v8_frame(REFERENCE_FRAME)
     coordinator.store_raw_frame(bytes(120))
     coordinator.store_raw_frame(bytes(40))  # partial frame
-    number, received = coordinator.mark_dump("photo of the display")
+    marker = coordinator.mark_dump("photo of the display")
 
     records = coordinator.frame_log.records()
     assert [r["k"] for r in records] == ["v8", "v7", "partial", "mark"]
-    assert number == 1
+    assert marker["marker"] == 1
     assert records[-1]["note"] == "photo of the display"
-    assert received.tzinfo is not None
+    assert marker["time"].tzinfo is not None
+    # the v8 reference unit and the all-zero v7 serial both reported just now
+    assert set(marker["seconds_since_last_frame"]) == {123456789, 0}
+    assert all(0 <= age < 5 for age in marker["seconds_since_last_frame"].values())
+    assert records[-1]["since"] == {
+        str(serial): age for serial, age in marker["seconds_since_last_frame"].items()
+    }
+
+
+@pytest.mark.asyncio
+async def test_waiting_for_the_next_frame() -> None:
+    import asyncio
+
+    from .test_entity_growth import _coordinator
+
+    coordinator = _coordinator()
+    coordinator.hass.loop = asyncio.get_running_loop()
+
+    waiting = asyncio.create_task(coordinator.async_wait_for_frame(5))
+    await asyncio.sleep(0)
+    assert not waiting.done()
+    coordinator.store_v8_frame(REFERENCE_FRAME)
+    assert await waiting is True
+
+    assert await coordinator.async_wait_for_frame(0.01) is False
+    assert coordinator._frame_waiters == []  # noqa: SLF001

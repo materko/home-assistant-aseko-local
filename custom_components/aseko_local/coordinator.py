@@ -1,5 +1,6 @@
 # custom_components/aseko_local/coordinator.py
 
+import asyncio
 import logging
 from collections.abc import Callable
 from datetime import datetime, timedelta
@@ -70,6 +71,10 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         self.frame_log = FrameLog()
         self._frame_log_store: Store[dict[str, Any]] | None = None
         self._frame_log_save_requested: datetime | None = None
+        # When each unit's last frame arrived, and mark_dump calls waiting for
+        # the next one
+        self._last_frame_at: dict[int, datetime] = {}
+        self._frame_waiters: list[asyncio.Future[None]] = []
         # Why the server found a unit's frames implausible, by serial number
         # and reason -- for diagnostics
         self._frame_warnings: dict[int, dict[str, dict[str, Any]]] = {}
@@ -355,10 +360,10 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
 
         if len(raw_frame) < MESSAGE_SIZE:
             self._last_partial_frames[serial] = bytes(raw_frame)
-            self._log_frame(KIND_PARTIAL, raw_frame)
+            self._log_frame(KIND_PARTIAL, raw_frame, serial)
         else:
             self._last_raw_frames[serial] = bytes(raw_frame)
-            self._log_frame(KIND_V7, raw_frame)
+            self._log_frame(KIND_V7, raw_frame, serial)
 
     def store_frame_warning(self, serial_number: int, reason: str) -> None:
         """Count one implausible frame from a unit, by reason, for diagnostics."""
@@ -386,11 +391,11 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         try:
             text = raw_frame.decode("ascii", errors="replace").strip()
             # Frame starts with "{v1 <serial> ..."
-            serial = int(text.lstrip("{").split()[1])
+            serial: int | None = int(text.lstrip("{").split()[1])
             self._last_v8_frames[serial] = bytes(raw_frame)
         except (ValueError, IndexError):
-            pass
-        self._log_frame(KIND_V8, raw_frame)
+            serial = None
+        self._log_frame(KIND_V8, raw_frame, serial)
 
     # -- frame log -----------------------------------------------------------
 
@@ -410,9 +415,36 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         if self._frame_log_store is not None:
             await self._frame_log_store.async_save(self.frame_log.to_store())
 
-    def _log_frame(self, kind: str, raw_frame: bytes) -> None:
-        self.frame_log.append_frame(dt_util.utcnow(), kind, raw_frame)
+    def _log_frame(self, kind: str, raw_frame: bytes, serial: int | None) -> None:
+        received = dt_util.utcnow()
+        self.frame_log.append_frame(received, kind, raw_frame)
+        if serial is not None:
+            self._last_frame_at[serial] = received
+        for waiter in self._frame_waiters:
+            if not waiter.done():
+                waiter.set_result(None)
+        self._frame_waiters.clear()
         self._request_frame_log_save()
+
+    async def async_wait_for_frame(self, timeout: float) -> bool:
+        """Wait for the next frame from any unit; False if none came in time."""
+        waiter: asyncio.Future[None] = self.hass.loop.create_future()
+        self._frame_waiters.append(waiter)
+        try:
+            await asyncio.wait_for(waiter, timeout)
+        except TimeoutError:
+            return False
+        finally:
+            if waiter in self._frame_waiters:
+                self._frame_waiters.remove(waiter)
+        return True
+
+    def seconds_since_last_frame(self, now: datetime) -> dict[int, float]:
+        """How long ago each unit's last frame arrived, by serial number."""
+        return {
+            serial: round((now - received).total_seconds(), 1)
+            for serial, received in self._last_frame_at.items()
+        }
 
     def _request_frame_log_save(self, delay: float = FRAME_LOG_SAVE_DELAY) -> None:
         """Save the log soon, but at most once per interval while frames flow.
@@ -433,13 +465,31 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         self._frame_log_save_requested = now
         self._frame_log_store.async_delay_save(self.frame_log.to_store, delay)
 
-    def mark_dump(self, note: str | None = None) -> tuple[int, datetime]:
-        """Write a numbered marker into the frame log and return it."""
+    def mark_dump(self, note: str | None = None) -> dict[str, Any]:
+        """Write a numbered marker into the frame log and describe it.
+
+        The marker records how many seconds ago each unit's last frame
+        arrived, so a reader can tell whether the change it marks could
+        already be in that frame.
+        """
         received = dt_util.utcnow()
-        number = self.frame_log.append_marker(received, note)
-        _LOGGER.info("Aseko frame log marker %s at %s %s", number, received, note or "")
+        since = self.seconds_since_last_frame(received)
+        number = self.frame_log.append_marker(
+            received, note, {str(serial): age for serial, age in since.items()}
+        )
+        _LOGGER.info(
+            "Aseko frame log marker %s at %s %s (last frame %s s ago)",
+            number,
+            received,
+            note or "",
+            since,
+        )
         self._request_frame_log_save(delay=5)
-        return number, received
+        return {
+            "marker": number,
+            "time": received,
+            "seconds_since_last_frame": since,
+        }
 
     def get_v8_frame(self, serial_number: int) -> bytes | None:
         """Return the last raw v8 text frame for a given device serial number."""

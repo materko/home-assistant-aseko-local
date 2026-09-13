@@ -75,7 +75,13 @@ def main() -> None:
 
     for record in records:
         if record["k"] == "mark":
-            print(f"marker {record['n']:3d}  {record['t']}  {record.get('note', '')}")
+            since = ", ".join(
+                f"{serial}: {age}s" for serial, age in record.get("since", {}).items()
+            )
+            print(
+                f"marker {record['n']:3d}  {record['t']}  {record.get('note', '')}"
+                + (f"  (last frame {since} before)" if since else "")
+            )
     kinds: dict[str, int] = {}
     for record in records:
         kinds[record["k"]] = kinds.get(record["k"], 0) + 1

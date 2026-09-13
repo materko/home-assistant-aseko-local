@@ -112,3 +112,15 @@ mark_dump:
       example: "Heating control ON"
       selector:
         text:
+    wait_for_next_frame:
+      name: Wait for the next frame
+      description: >
+        Write the marker only once the next frame has arrived (at most 60
+        seconds). Change the setting on the unit, call this, and the marker
+        lands right after the first frame that can carry the change. Either
+        way the marker records how many seconds ago each unit's last frame
+        arrived.
+      required: false
+      default: false
+      selector:
+        boolean:

@@ -107,13 +107,24 @@ class FrameLog:
             data = bytes(raw).hex()
         self._append(received, {"k": kind, "d": data})
 
-    def append_marker(self, received: datetime, note: str | None = None) -> int:
-        """Record a marker and return its number, counted since the log began."""
+    def append_marker(
+        self,
+        received: datetime,
+        note: str | None = None,
+        since_last_frame: dict[str, float] | None = None,
+    ) -> int:
+        """Record a marker and return its number, counted since the log began.
+
+        ``since_last_frame`` maps a unit's serial number to how many seconds
+        before the marker its last frame arrived.
+        """
         number = self._next_marker
         self._next_marker += 1
         record: dict[str, Any] = {"k": KIND_MARK, "n": number}
         if note:
             record["note"] = note
+        if since_last_frame:
+            record["since"] = since_last_frame
         self._append(received, record)
         return number
 

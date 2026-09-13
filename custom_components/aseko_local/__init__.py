@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 import voluptuous as vol
@@ -77,8 +78,11 @@ CLEAR_LAST_SCHEDULED_BACKWASH_SCHEMA = vol.Schema(
 MARK_DUMP_SCHEMA = vol.Schema(
     {
         vol.Optional("note"): vol.All(cv.string, vol.Length(max=200)),
+        vol.Optional("wait_for_next_frame", default=False): cv.boolean,
     }
 )
+# A unit sends every ten seconds or so; give up well after a missed frame.
+MARK_DUMP_WAIT_TIMEOUT = 60
 
 type AsekoLocalConfigEntry = ConfigEntry["AsekoLocalRuntimeData"]
 
@@ -306,21 +310,33 @@ async def async_setup_entry(
             after, so frames and photos line up without comparing clocks.
             """
             note = call.data.get("note")
-            markers = []
-            for entry in hass.config_entries.async_entries(DOMAIN):
-                rd = getattr(entry, "runtime_data", None)
-                if rd:
-                    number, received = rd.coordinator.mark_dump(note)
-                    markers.append(
-                        {
-                            "entry": entry.title,
-                            "marker": number,
-                            "time": dt_util.as_local(received).isoformat(),
-                        }
-                    )
-            if not markers:
+            wait = call.data.get("wait_for_next_frame", False)
+            loaded = [
+                entry
+                for entry in hass.config_entries.async_entries(DOMAIN)
+                if getattr(entry, "runtime_data", None)
+            ]
+            if not loaded:
                 raise ServiceValidationError("No Aseko Local entry is loaded")
-            return {"markers": markers}
+
+            async def mark(entry: ConfigEntry) -> dict:
+                coordinator = entry.runtime_data.coordinator
+                waited = None
+                if wait:
+                    waited = await coordinator.async_wait_for_frame(
+                        MARK_DUMP_WAIT_TIMEOUT
+                    )
+                marker = coordinator.mark_dump(note)
+                return {
+                    "entry": entry.title,
+                    "marker": marker["marker"],
+                    "time": dt_util.as_local(marker["time"]).isoformat(),
+                    "seconds_since_last_frame": marker["seconds_since_last_frame"],
+                    "waited_for_frame": waited,
+                }
+
+            markers = await asyncio.gather(*(mark(entry) for entry in loaded))
+            return {"markers": list(markers)}
 
         hass.services.async_register(
             DOMAIN,
