@@ -712,18 +712,17 @@ async def test_async_setup_profi_clf_redox(hass) -> None:
     # Alarm-related (4 binary): alarm_ph_too_many_doses, alarm_orp_too_many_doses,
     #   alarm_no_flow_to_probes, alarm_rapid_ph_change
     #
-    # required_floc is intentionally absent: PROFI has independent pump ports (4+) so
-    # byte[37] routing does not apply. The exact setpoint byte position is unconfirmed.
+    # + 1 required_floc: the PROFI manual's setpoints screen has a flocculant
+    #   dose on its shared flocculant / algicide output, routed like SALT's
     #
     # NOTE: water_filling_active is only present because _fill_home_water_level_data
     # was widened from a {HOME, SALT, OXY} whitelist to a {NET} blacklist (see
     # PR #120 review comment by hopkins-tk).  PROFI does have a water-level input
     # (confirmed via the Aseko Profi manual), so it must be decoded.
     #
-    # Issue #129: PROFI has no filling valve (it has 5+ independent pump ports
-    # but no documented filling input), so max_filling_time is suppressed even
-    # though bytes 94-95 carry a real value. -1 entity compared to the PR #120
-    # baseline.
+    # + 1 max_filling_time: the 2021 PROFI manual shows a water filling relay
+    #   and lists a max. filling time, so the value Issue #129 suppressed is
+    #   read again (bytes 76-77)
     #
     # + 1 last_manual_backwash sensor; last_scheduled_backwash is a datetime
     #   entity, counted by that platform rather than here
@@ -737,7 +736,7 @@ async def test_async_setup_profi_clf_redox(hass) -> None:
     #   reads "unknown" until the coordinator stamps the first frame.  It used
     #   to be skipped here only because this test hands the platform a device
     #   the coordinator has not stamped yet.
-    assert len(added_entities) == 45
+    assert len(added_entities) == 47
     assert any(
         getattr(e.entity_description, "key", None) == "free_chlorine"
         for e in added_entities

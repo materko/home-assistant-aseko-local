@@ -2173,14 +2173,13 @@ def test_air_temperature_plausibility_window(raw: int, expected: float | None) -
         0x02,  # HOME CLF
         0x03,  # HOME REDOX
         0x05,  # OXY
-        UNIT_TYPE_PROFI,
     ],
 )
 def test_air_temperature_on_models_with_an_air_input(unit_type: int) -> None:
     """Bytes 23-24 are the air temperature wherever the unit has an air input.
 
-    The Aseko Live app shows air temperature on HOME, Oxygen and Profi units
-    as on SALT.  Without a probe the unit sends the open-circuit marker
+    The manuals list an optional outdoor air thermometer for HOME and Oxygen
+    units as for SALT.  Without a probe the unit sends the open-circuit marker
     0xFE70 (every captured HOME and OXY frame), which reads as absent, so
     no entity is created until a probe is fitted.
     """
@@ -2197,11 +2196,12 @@ def test_air_temperature_on_models_with_an_air_input(unit_type: int) -> None:
     assert "air_temperature" not in device.features
 
 
-def test_air_temperature_not_read_on_net() -> None:
-    """NET has no air input; a plausible-looking value there is something else."""
+@pytest.mark.parametrize("unit_type", [0x09, UNIT_TYPE_PROFI])  # NET CLF, PROFI
+def test_air_temperature_not_read_without_an_air_input(unit_type: int) -> None:
+    """NET and PROFI have no air thermometer input (their manuals' terminal lists)."""
 
     data = _make_base_bytes()
-    data[4] = 0x09  # NET CLF
+    data[4] = unit_type
     data[23:25] = (0x0168).to_bytes(2, "big")  # 36.0 °C if it were decoded
     device = AsekoDecoder.decode(bytes(data))
     assert device.air_temperature is None
