@@ -18,7 +18,7 @@ Two further profiles exist that no unit is meant to decode with and that the tab
 
 | field | HOME firmware A | HOME firmware B | SALT | OXY | NET | PROFI |
 |---|---|---|---|---|---|---|
-| `air_temperature` | — | — | ✅ | — | — | — |
+| `air_temperature` | ❓ | ❓ | ✅ | ❓ | — | ❓ |
 | `alarm_no_flow_to_probes` | ✅ | ✅ | ✅ | ❓ | ✅ | ❓ |
 | `alarm_orp_too_many_doses` | ✅ | ✅ | ✅ | ❓ | ❓ | ❓ |
 | `alarm_ph_too_many_doses` | ✅ | ✅ | ✅ | ❓ | ❓ | ❓ |
@@ -110,6 +110,7 @@ Every entry below is read today without a confirming capture.  If you own one of
 
 ### v7 HOME firmware A
 
+- `air_temperature` — unverified: bytes 23-24 = 0xFE70 (no air probe, the SALT marker) in every captured HOME frame, so no entity yet; the Aseko Live app shows air temperature on HOME units
 - `alarm_rapid_ph_change` — unconfirmed: byte[13] 0x08 was set on serial 110128063 with no matching alarm known in the app
 - `algicide_pump_running` — uncertain: byte[29] 0x20 assumed
 - `backwash_active` — assumed: byte[29] 0x01, confirmed on SALT
@@ -125,6 +126,7 @@ Every entry below is read today without a confirming capture.  If you own one of
 
 ### v7 HOME firmware B
 
+- `air_temperature` — unverified: bytes 23-24 = 0xFE70 (no air probe, the SALT marker) in every captured HOME frame, so no entity yet; the Aseko Live app shows air temperature on HOME units
 - `alarm_rapid_ph_change` — unconfirmed: byte[13] 0x08 was set on serial 110128063 with no matching alarm known in the app
 - `algicide_pump_running` — uncertain: byte[29] 0x20 assumed
 - `antifreeze_enabled` — unverified: byte[37] 0x80 read as on firmware A, no capture on B
@@ -150,6 +152,7 @@ Every entry below is read today without a confirming capture.  If you own one of
 
 ### v7 OXY
 
+- `air_temperature` — unverified: bytes 23-24 = 0xFE70 (no air probe, the SALT marker) in every captured OXY frame, so no entity yet; the Aseko Live app shows air temperature on Oxygen units
 - `alarm_no_flow_to_probes` — unconfirmed: byte[13] was 0x00 in every OXY frame; confirmed on NET and HOME only
 - `alarm_orp_too_many_doses` — unconfirmed: bytes 12-13 were 0x00 in every OXY frame; HOME encoding assumed
 - `alarm_ph_too_many_doses` — unconfirmed: bytes 12-13 were 0x00 in every OXY frame; HOME encoding assumed
@@ -178,6 +181,7 @@ Every entry below is read today without a confirming capture.  If you own one of
 
 ### v7 PROFI
 
+- `air_temperature` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md); the Aseko Live app shows air temperature on Profi units
 - `alarm_no_flow_to_probes` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `alarm_orp_too_many_doses` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `alarm_ph_too_many_doses` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)

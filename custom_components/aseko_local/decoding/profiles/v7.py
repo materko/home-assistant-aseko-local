@@ -246,6 +246,7 @@ SALT = Profile(
 _HOME_FEATURES = (
     *_IDENTITY,
     *_MEASUREMENTS,
+    AirTemperature,
     *_CHLORINE_PROBES,
     *_SETTINGS,
     *_DISINFECTION_SETPOINTS,
@@ -280,6 +281,7 @@ HOME_A = Profile(
         FiltrationSchedule: "decode_v7_home_a",
     },
     evidence={
+        AirTemperature: "unverified: bytes 23-24 = 0xFE70 (no air probe, the SALT marker) in every captured HOME frame, so no entity yet; the Aseko Live app shows air temperature on HOME units",
         AlarmNoFlowToProbes: "confirmed: byte[13] 0x04 (DomSchCoding, NET frame)",
         AlarmOrpTooManyDoses: "confirmed on HOME: byte[12] 0x20 (Issue #134), byte[13] 0x01 (Issue #151)",
         AlarmPhTooManyDoses: "confirmed on HOME: byte[12] 0x40 (Issue #134); byte[13] 0x02 inferred",
@@ -345,6 +347,7 @@ HOME_B = Profile(
         FiltrationPumpRunning: "decode_v7_menu_override",
     },
     evidence={
+        AirTemperature: "unverified: bytes 23-24 = 0xFE70 (no air probe, the SALT marker) in every captured HOME frame, so no entity yet; the Aseko Live app shows air temperature on HOME units",
         AlarmNoFlowToProbes: "confirmed: byte[13] 0x04 (DomSchCoding, NET frame)",
         AlarmOrpTooManyDoses: "confirmed on HOME: byte[12] 0x20 (Issue #134), byte[13] 0x01 (Issue #151)",
         AlarmPhTooManyDoses: "confirmed on HOME: byte[12] 0x40 (Issue #134); byte[13] 0x02 inferred",
@@ -412,6 +415,7 @@ HOME_UNKNOWN_FIRMWARE = Profile(
     features=_HOME_FEATURES,
     overrides={Configuration: "decode_v7_by_unit_type_byte"},
     evidence={
+        AirTemperature: "unverified: bytes 23-24 = 0xFE70 (no air probe, the SALT marker) in every captured HOME frame, so no entity yet; the Aseko Live app shows air temperature on HOME units",
         AlarmNoFlowToProbes: "confirmed: byte[13] 0x04 (DomSchCoding, NET frame)",
         AlarmOrpTooManyDoses: "confirmed on HOME: byte[12] 0x20 (Issue #134), byte[13] 0x01 (Issue #151)",
         AlarmPhTooManyDoses: "confirmed on HOME: byte[12] 0x40 (Issue #134); byte[13] 0x02 inferred",
@@ -477,6 +481,7 @@ OXY = Profile(
     features=(
         *_IDENTITY,
         *_MEASUREMENTS,
+        AirTemperature,
         Ph,
         *_SETTINGS,
         RequiredOxyDose,
@@ -503,6 +508,7 @@ OXY = Profile(
         AlgicidePumpRunning: "decode_v7_oxy",
     },
     evidence={
+        AirTemperature: "unverified: bytes 23-24 = 0xFE70 (no air probe, the SALT marker) in every captured OXY frame, so no entity yet; the Aseko Live app shows air temperature on Oxygen units",
         AlarmNoFlowToProbes: "unconfirmed: byte[13] was 0x00 in every OXY frame; confirmed on NET and HOME only",
         AlarmOrpTooManyDoses: "unconfirmed: bytes 12-13 were 0x00 in every OXY frame; HOME encoding assumed",
         AlarmPhTooManyDoses: "unconfirmed: bytes 12-13 were 0x00 in every OXY frame; HOME encoding assumed",
@@ -616,6 +622,7 @@ PROFI = Profile(
     features=(
         *_IDENTITY,
         *_MEASUREMENTS,
+        AirTemperature,
         *_CHLORINE_PROBES,
         *_SETTINGS,
         RequiredClFree,
@@ -638,6 +645,7 @@ PROFI = Profile(
         FlowrateFloc: "decode_v7_routed_by_byte37",
     },
     evidence={
+        AirTemperature: "assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md); the Aseko Live app shows air temperature on Profi units",
         AlarmNoFlowToProbes: "assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)",
         AlarmOrpTooManyDoses: "assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)",
         AlarmPhTooManyDoses: "assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)",
@@ -699,9 +707,9 @@ PROFI = Profile(
 # Left out are readings whose bytes mean something else on other models and
 # so cannot be called generic: SALT's electrolyser and salinity (bytes 20-21
 # are cl_free_mv elsewhere), the OXY dose and pump (byte[53] and bit 0x40
-# are chlorine elsewhere), HOME's heating / antifreeze enables (byte[37] 0x80
-# is the algicide routing elsewhere) and the air temperature, verified on
-# SALT only.
+# are chlorine elsewhere) and HOME's heating / antifreeze enables (byte[37]
+# 0x80 is the algicide routing elsewhere).  Air temperature is left out too:
+# NET carries unrelated data in bytes 23-24.
 # ---------------------------------------------------------------------------
 
 _UNKNOWN_FEATURES = (
