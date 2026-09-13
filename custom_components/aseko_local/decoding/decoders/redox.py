@@ -22,12 +22,12 @@ class Redox(Feature):
     field = "redox"
     depends_on = (Configuration,)
 
-    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | NotPresent:
+    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | NotPresent | None:
         if AsekoProbeType.REDOX not in device.configuration:
             return NOT_PRESENT
         if frame[18] == UNSPECIFIED_VALUE and frame[19] == UNSPECIFIED_VALUE:
-            return frame.word(16)
-        return frame.word(18)
+            return frame.word_or_none(16)  # 0xFFFF: installed but unreadable
+        return frame.word_or_none(18)
 
     def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> int | NotPresent:
         raw = frame.value("ains", 6)

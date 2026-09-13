@@ -18,8 +18,9 @@ class WaterTemperature(Feature):
 
     field = "water_temperature"
 
-    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> float:
-        return frame.word(25) / 10
+    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> float | None:
+        raw = frame.word_or_none(25)  # 0xFFFF: probe unreadable
+        return None if raw is None else raw / 10
 
     def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> float | NotPresent:
         raw = frame.value("ins", 0)

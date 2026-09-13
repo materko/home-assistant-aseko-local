@@ -1322,6 +1322,38 @@ def test_water_level_sensor_disconnected() -> None:
     assert "water_level" not in device.features
 
 
+def test_unspecified_16_bit_values_are_not_decoded_as_numbers() -> None:
+    """0xFFFF is the "not filled in" marker, not 655.35 pH or 65535 s.
+
+    A measurement the unit has (pH, redox, water temperature) becomes None --
+    known to exist, unreadable in this frame.  A setting becomes absent.
+    """
+    data = _make_base_bytes()  # SALT REDOX
+    data[14:16] = bytes([0xFF] * 2)  # pH
+    data[16:20] = bytes([0xFF] * 4)  # redox (both slots)
+    data[25:27] = bytes([0xFF] * 2)  # water temperature
+    data[74:76] = bytes([0xFF] * 2)  # delay after startup
+    data[92:94] = bytes([0xFF] * 2)  # pool volume
+    data[106:108] = bytes([0xFF] * 2)  # delay after dose
+
+    device = AsekoDecoder.decode(bytes(data))
+    for field in ("ph", "redox", "water_temperature"):
+        assert getattr(device, field) is None, field
+        assert field in device.features, field
+    for field in ("delay_after_startup", "pool_volume", "delay_after_dose"):
+        assert getattr(device, field) is None, field
+        assert field not in device.features, field
+
+    clf = _make_base_bytes()
+    clf[4] = 0x0D  # SALT CLF
+    clf[16:18] = bytes([0xFF] * 2)
+    clf[20:22] = bytes([0xFF] * 2)
+    device = AsekoDecoder.decode(bytes(clf))
+    assert device.cl_free is None
+    assert device.cl_free_mv is None
+    assert {"cl_free", "cl_free_mv"} <= device.features
+
+
 def test_home_water_filling_active() -> None:
     """byte[29] bit 0x02: water filling active for HOME devices."""
     data = _make_home_bytes()

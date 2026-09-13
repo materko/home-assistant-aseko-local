@@ -21,7 +21,10 @@ class ClFree(Feature):
     field = "cl_free"
     depends_on = (Configuration,)
 
-    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> float | NotPresent:
+    def decode_v7(
+        self, frame: V7Frame, device: AsekoDevice
+    ) -> float | NotPresent | None:
         if AsekoProbeType.CLF not in device.configuration:
             return NOT_PRESENT
-        return frame.word(16) / 100
+        raw = frame.word_or_none(16)  # 0xFFFF: installed but unreadable
+        return None if raw is None else raw / 100

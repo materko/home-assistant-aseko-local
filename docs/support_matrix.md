@@ -34,7 +34,7 @@ Two further profiles exist that no unit is meant to decode with and that the tab
 | `cl_pump_running` | ❓ | ❓ | — | — | ✅ `decode_v7_net` | ❓ |
 | `configuration` | ✅ `decode_v7_by_unit_type_byte` | ✅ `decode_v7_by_unit_type_byte` | ✅ | ✅ `decode_v7_ph_and_oxy` | ✅ | ❓ `decode_v7_without_dose` |
 | `delay_after_dose` | ✅ | ✅ | ✅ | 👁 | 👁 | ❓ |
-| `delay_after_startup` | ✅ | ✅ | ✅ | 👁 | 👁 | ❓ |
+| `delay_after_startup` | ✅ | ✅ | ✅ | 👁 | ❓ | ❓ |
 | `electrolyzer_active` | — | — | ✅ | — | — | — |
 | `electrolyzer_direction` | — | — | ✅ | — | — | — |
 | `electrolyzer_power` | — | — | ✅ | — | — | — |
@@ -172,6 +172,7 @@ Every entry below is read today without a confirming capture.  If you own one of
 - `alarm_orp_too_many_doses` — unconfirmed: byte[12] is 0x00 on NET; HOME encodings assumed
 - `alarm_ph_too_many_doses` — unconfirmed: byte[12] is 0x00 on NET; HOME encodings assumed
 - `alarm_rapid_ph_change` — unconfirmed: byte[13] 0x08 from error_codes.md; never set on NET
+- `delay_after_startup` — unverified: bytes 74-75 = 0xFFFF (not filled in) on the Issue #66 NET frame and on the ChemDoserProxy NET frame
 - `flowrate_algicide` — unverified: byte[37] and byte[101] are 0xFF on every NET frame; no third pump
 - `flowrate_floc` — unverified: byte[37] and byte[101] are 0xFF on every NET frame; no third pump
 - `redox` — no evidence recorded
@@ -294,7 +295,6 @@ Values captured from real units that nobody has yet checked against the unit dis
 ### v7 NET
 
 - `delay_after_dose` — observed: bytes 106-107 on the Issue #66 NET; not compared with the app
-- `delay_after_startup` — observed: bytes 74-75 on the Issue #66 NET; not compared with the app
 - `pool_volume` — observed: bytes 92-93 on the Issue #66 NET; not compared with the app
 - `required_cl_dose` — observed: byte[53] = 5 ml/m3/h in DOSE mode (2026-04-07 capture); not compared with the app
 - `required_cl_free` — observed: byte[53] / 10 on the Issue #66 NET; not compared with the app

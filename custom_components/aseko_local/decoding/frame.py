@@ -24,6 +24,9 @@ _LOGGER = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
+# Two 0xFF bytes: a 16-bit value the unit did not fill in.
+UNSPECIFIED_WORD = 0xFFFF
+
 
 class Protocol(Enum):
     """The two wire formats an Aseko unit can speak."""
@@ -58,6 +61,11 @@ class V7Frame:
     def word(self, index: int) -> int:
         """Return the unsigned big-endian 16-bit value at ``index``."""
         return int.from_bytes(self.raw[index : index + 2], "big")
+
+    def word_or_none(self, index: int) -> int | None:
+        """Like ``word`` but None for the 0xFFFF "unspecified" marker."""
+        value = self.word(index)
+        return None if value == UNSPECIFIED_WORD else value
 
     @property
     def serial_number(self) -> int:
@@ -141,6 +149,11 @@ def normalize_value(value: int | str | None, type_: type[T]) -> T | None:
         return type_(val)
 
     raise ValueError(f"Unsupported type {type_} or value {value}")
+
+
+def word_or_absent(value: int | None) -> int | NotPresent:
+    """NOT_PRESENT for a 16-bit setting read as None by ``word_or_none``."""
+    return NOT_PRESENT if value is None else value
 
 
 def byte_or_absent(value: int) -> int | NotPresent:

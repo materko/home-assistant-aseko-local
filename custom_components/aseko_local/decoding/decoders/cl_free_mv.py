@@ -21,7 +21,7 @@ class ClFreeMv(Feature):
     field = "cl_free_mv"
     depends_on = (Configuration,)
 
-    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | NotPresent:
+    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | NotPresent | None:
         if AsekoProbeType.CLF not in device.configuration:
             return NOT_PRESENT
-        return frame.word(20)
+        return frame.word_or_none(20)  # 0xFFFF: installed but unreadable

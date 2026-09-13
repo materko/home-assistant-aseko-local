@@ -538,7 +538,9 @@ async def test_async_setup_net_clf(hass) -> None:
         getattr(e.device, "serial_number", None) == device.serial_number
         for e in added_entities
     )
-    # 8 sensors + 3 new (pool_volume, delay_after_startup, delay_after_dose; filtration None)
+    # 8 sensors + 2 new (pool_volume, delay_after_dose; filtration None).
+    # delay_after_startup is not created: this NET frame carries 0xFFFF in
+    # bytes 74-75, the "not filled in" marker, which used to read as 65535 s.
     # + 3 binary (water_flow, cl_pump, ph_minus_pump – NET has no filtration output,
     #   so it never had the retired filtration_nonstop24 sensor either)
     # + 4 consumption (ph_minus canister + total, cl canister + total) + 1 connection_status
@@ -557,7 +559,7 @@ async def test_async_setup_net_clf(hass) -> None:
     #   reads "unknown" until the coordinator stamps the first frame.  It used
     #   to be skipped here only because this test hands the platform a device
     #   the coordinator has not stamped yet.
-    assert len(added_entities) == 24
+    assert len(added_entities) == 23
     assert not any(
         getattr(e.entity_description, "key", None) == "backwash_every_n_days"
         for e in added_entities

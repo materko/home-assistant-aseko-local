@@ -591,7 +591,7 @@ NET = Profile(
         ClPumpRunning: "confirmed: byte[29] 0x02 (Issue #66)",
         Configuration: "confirmed: byte[4] missing-probe bits (0x09 CLF, 0x0A REDOX, 0x0B DOSE)",
         DelayAfterDose: "observed: bytes 106-107 on the Issue #66 NET; not compared with the app",
-        DelayAfterStartup: "observed: bytes 74-75 on the Issue #66 NET; not compared with the app",
+        DelayAfterStartup: "unverified: bytes 74-75 = 0xFFFF (not filled in) on the Issue #66 NET frame and on the ChemDoserProxy NET frame",
         FlowrateAlgicide: "unverified: byte[37] and byte[101] are 0xFF on every NET frame; no third pump",
         FlowrateChlor: "confirmed: byte[99] (net_device_analysis.md)",
         FlowrateFloc: "unverified: byte[37] and byte[101] are 0xFF on every NET frame; no third pump",

@@ -21,10 +21,13 @@ class Ph(Feature):
     field = "ph"
     depends_on = (Configuration,)
 
-    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> float | NotPresent:
+    def decode_v7(
+        self, frame: V7Frame, device: AsekoDevice
+    ) -> float | NotPresent | None:
         if AsekoProbeType.PH not in device.configuration:
             return NOT_PRESENT
-        return frame.word(14) / 100
+        raw = frame.word_or_none(14)  # 0xFFFF: installed but unreadable
+        return None if raw is None else raw / 100
 
     def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> float | NotPresent:
         raw = frame.value("ains", 0)

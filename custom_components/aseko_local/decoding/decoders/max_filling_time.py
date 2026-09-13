@@ -18,7 +18,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ..feature import Feature
-from ..presence import NOT_PRESENT
+from ..frame import word_or_absent
 
 if TYPE_CHECKING:
     from ...aseko_data import AsekoDevice
@@ -32,5 +32,4 @@ class MaxFillingTime(Feature):
     field = "max_filling_time"
 
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | NotPresent:
-        value = frame.word(76)
-        return NOT_PRESENT if value == 0xFFFF else value
+        return word_or_absent(frame.word_or_none(76))
