@@ -152,23 +152,34 @@ def _ordered(features: tuple[type[Feature], ...]) -> list[type[Feature]]:
 # ---------------------------------------------------------------------------
 
 
+_MODEL_BY_UNIT_TYPE: dict[int, AsekoDeviceType] = {
+    UNIT_TYPE_HOME: AsekoDeviceType.HOME,  # 0x02 CLF
+    UNIT_TYPE_HOME + 1: AsekoDeviceType.HOME,  # 0x03 REDOX
+    UNIT_TYPE_HOME + 2: AsekoDeviceType.HOME,  # 0x04 DOSE (no capture yet)
+    UNIT_TYPE_OXY: AsekoDeviceType.OXY,  # 0x05
+    UNIT_TYPE_NET + 1: AsekoDeviceType.NET,  # 0x09 CLF
+    UNIT_TYPE_NET + 2: AsekoDeviceType.NET,  # 0x0A REDOX
+    UNIT_TYPE_NET + 3: AsekoDeviceType.NET,  # 0x0B DOSE
+    UNIT_TYPE_SALT + 1: AsekoDeviceType.SALT,  # 0x0D CLF
+    UNIT_TYPE_SALT + 2: AsekoDeviceType.SALT,  # 0x0E REDOX
+    UNIT_TYPE_SALT + 3: AsekoDeviceType.SALT,  # 0x0F DOSE
+    UNIT_TYPE_PROFI: AsekoDeviceType.PROFI,  # 0x10 (unconfirmed)
+}
+
+
 def unit_type_from_byte(value: int) -> AsekoDeviceType | None:
     """Map v7 byte[4] to a model, or None for a value nobody has mapped yet.
 
-    byte[4] carries the probe configuration in its low bits, so models are
-    ranges rather than exact values: NET is 0x09-0x0B, SALT 0x0D-0x0F, HOME
-    0x02-0x04.  OXY (0x05) and PROFI (0x10, unconfirmed) are exact.
+    byte[4] carries the probe configuration in its low bits, so a model
+    covers a few exact values: HOME 0x02-0x04, NET 0x09-0x0B, SALT 0x0D-0x0F
+    (CLF, REDOX, DOSE).  OXY (0x05) and PROFI (0x10, unconfirmed) are single
+    values.  Anything else -- 0x06, 0x0C, 0x11, 0xFF ... -- is unmapped and
+    goes to the unknown-unit profile, where it shows up in diagnostics
+    instead of being decoded as a model it may not be.
     """
-    if value == UNIT_TYPE_PROFI:
-        return AsekoDeviceType.PROFI
-    if value > UNIT_TYPE_SALT:
-        return AsekoDeviceType.SALT
-    if value > UNIT_TYPE_NET:
-        return AsekoDeviceType.NET
-    if value == UNIT_TYPE_OXY:
-        return AsekoDeviceType.OXY
-    if value >= UNIT_TYPE_HOME:
-        return AsekoDeviceType.HOME
+    model = _MODEL_BY_UNIT_TYPE.get(value)
+    if model is not None:
+        return model
 
     _LOGGER.warning("Unknown unit type: %s", value)
     return None

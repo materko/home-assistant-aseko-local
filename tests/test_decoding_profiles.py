@@ -249,11 +249,22 @@ def test_profile_detects_a_dependency_cycle() -> None:
 @pytest.mark.parametrize(
     ("unit_type", "expected"),
     [
+        (0x0D, v7.SALT),
         (0x0E, v7.SALT),
+        (0x0F, v7.SALT),
         (0x09, v7.NET),
+        (0x0A, v7.NET),
+        (0x0B, v7.NET),
         (0x05, v7.OXY),
         (UNIT_TYPE_PROFI, v7.PROFI),
         (0x00, v7.UNKNOWN),
+        # unmapped values in between used to be taken for a neighbouring model
+        (0x01, v7.UNKNOWN),
+        (0x06, v7.UNKNOWN),
+        (0x08, v7.UNKNOWN),
+        (0x0C, v7.UNKNOWN),
+        (0x11, v7.UNKNOWN),
+        (0xFF, v7.UNKNOWN),
     ],
 )
 def test_detect_v7_model_from_byte4(unit_type: int, expected: Profile) -> None:
