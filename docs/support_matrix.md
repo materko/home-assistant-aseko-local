@@ -53,7 +53,7 @@ Two further profiles exist that no unit is meant to decode with and that the tab
 | `heating_active` | ❓ | ❓ | ❓ | ❓ | — | ❓ |
 | `heating_control_enabled` | ✅ | ❓ | — | — | — | — |
 | `max_filling_time` | ❓ | ❓ | ✅ | ❓ | — | — |
-| `max_ph_doses` | 👁 | 👁 | ✅ | 👁 | — | — |
+| `max_ph_doses` | 👁 | 👁 | ✅ | 👁 | — | ❓ |
 | `oxy_pump_running` | — | — | — | ✅ | — | — |
 | `ph` | ✅ | ✅ | ✅ | 👁 | ✅ | ❓ |
 | `ph_minus_concentration` | ✅ | ✅ | ✅ | ❓ | — | ❓ |
@@ -209,6 +209,7 @@ Every entry below is read today without a confirming capture.  If you own one of
 - `flowrate_floc` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `flowrate_ph_minus` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `heating_active` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `max_ph_doses` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `ph` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `ph_minus_concentration` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `ph_minus_pump_running` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
