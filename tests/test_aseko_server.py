@@ -131,18 +131,27 @@ async def test_multiple_valid_device_frames(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
-async def test_corrupt_frame_ph(monkeypatch) -> None:
-    """Test: Korruptes Frame mit ungültigem pH-Wert schließt die Verbindung."""
+async def test_implausible_frame_is_decoded_and_reported(monkeypatch) -> None:
+    """An implausible pH no longer closes the connection.
 
-    called = {}
+    The frame is still decoded and handed on -- a unit nobody has mapped may
+    lay its bytes out differently -- the reason goes to the warning sink for
+    diagnostics, and the next frame on the same connection is read too.
+    """
+
+    devices: list[AsekoDevice] = []
+    warnings: list[tuple[int, str]] = []
 
     async def on_data(device: AsekoDevice) -> None:
-        called["serial"] = device.serial_number
+        devices.append(device)
+
+    def frame_warning_sink(serial: int, reason: str) -> None:
+        warnings.append((serial, reason))
 
     async def dummy_start_server(handler, host, port) -> DummyServer:
         reader = asyncio.StreamReader()
         writer = DummyWriter("127.0.0.1", 12346)
-        reader.feed_data(CORRUPT_FRAME)
+        reader.feed_data(bytes(CORRUPT_FRAME) + VALID_FRAME2)
         reader.feed_eof()
         await handler(reader, writer)
         return DummyServer()
@@ -150,11 +159,14 @@ async def test_corrupt_frame_ph(monkeypatch) -> None:
     monkeypatch.setattr(asyncio, "start_server", dummy_start_server)
 
     server = await AsekoDeviceServer.create(
-        host="127.0.0.1", port=12346, on_data=on_data
+        host="127.0.0.1",
+        port=12346,
+        on_data=on_data,
+        frame_warning_sink=frame_warning_sink,
     )
     assert server.running
-    # Kein Device sollte verarbeitet werden
-    assert "serial" not in called
+    assert [d.serial_number for d in devices] == [110200612, 110200613]
+    assert warnings == [(110200612, "pH 99.99 outside 0-14")]
     await server.stop()
 
 

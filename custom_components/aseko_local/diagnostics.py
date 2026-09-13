@@ -352,10 +352,12 @@ def _raw_frames(coordinator: Any, serial: int) -> dict[str, Any]:
             "annotated_table": _annotated_frame(partial),
         }
 
+    get_warnings = getattr(coordinator, "get_frame_warnings", None)
     return {
         "raw_frame_v7": raw_info,
         "raw_frame_v8": v8_raw_info,
         "partial_frame": partial_info,
+        "implausible_frames": get_warnings(serial) if get_warnings else {},
     }
 
 

@@ -40,12 +40,17 @@ class AsekoDeviceServer:
         on_data: Optional[Callable[[AsekoDevice], Any]] = None,
         raw_sink: Optional[Callable[[bytes], Any]] = None,
         v8_raw_sink: Optional[Callable[[bytes], Any]] = None,
+        frame_warning_sink: Optional[Callable[[int, str], Any]] = None,
     ) -> None:
         self.host = host
         self.port = port
         self.on_data = on_data
         self._raw_sink = raw_sink
         self._v8_raw_sink = v8_raw_sink
+        self._frame_warning_sink = frame_warning_sink
+        # (serial, reason) pairs already logged as a warning; repeats go to
+        # debug so a unit that keeps sending them does not flood the log.
+        self._warned: set[tuple[int, str]] = set()
         self._forward_cb: Optional[Callable[[bytes], Any]] = None
         self._forward_v8_cb: Optional[Callable[[bytes], Any]] = None
         self._server: Optional[asyncio.AbstractServer] = None
@@ -98,6 +103,44 @@ class AsekoDeviceServer:
                 await self._maybe_await(self._raw_sink(data))
             except Exception:
                 _LOGGER.error("Raw sink raised an exception", exc_info=True)
+
+    @staticmethod
+    def _implausible_values(frame: bytes) -> list[str]:
+        """Return why a v7 frame looks implausible, empty if it does not.
+
+        Only a hint for diagnostics: such a frame is still decoded, because a
+        unit nobody has mapped yet may lay its bytes out differently.
+        """
+        reasons = []
+        # 0xFF 0xFF (UNSPECIFIED_VALUE) means the probe is absent
+        if frame[14] != UNSPECIFIED_VALUE and frame[15] != UNSPECIFIED_VALUE:
+            ph_value = int.from_bytes(frame[14:16], "big") / 100
+            if not 0 <= ph_value <= 14:
+                reasons.append(f"pH {ph_value} outside 0-14")
+        required_ph = frame[52] / 10
+        if not 6 <= required_ph <= 10:
+            reasons.append(f"required pH {required_ph} outside 6-10")
+        return reasons
+
+    async def _report_implausible(self, frame: bytes, addr: Any) -> None:
+        serial = int.from_bytes(frame[0:4], "big")
+        for reason in self._implausible_values(frame):
+            key = (serial, reason)
+            log = _LOGGER.debug if key in self._warned else _LOGGER.warning
+            self._warned.add(key)
+            log(
+                "Implausible v7 frame from %s (serial %s): %s; decoding it anyway",
+                addr,
+                serial,
+                reason,
+            )
+            if self._frame_warning_sink:
+                try:
+                    await self._maybe_await(self._frame_warning_sink(serial, reason))
+                except Exception:
+                    _LOGGER.error(
+                        "Frame warning sink raised an exception", exc_info=True
+                    )
 
     async def _call_v8_raw_sink(self, data: bytes) -> None:
         if self._v8_raw_sink:
@@ -221,29 +264,9 @@ class AsekoDeviceServer:
                     # Forward CORRECTED data to cloud
                     await self._call_forward_cb(frame)
 
-                    # 🔎 Plausibility check before decoding: pH values must be between 0 and 14
-                    # 0xFF 0xFF (UNSPECIFIED_VALUE) means the probe is absent — skip the check
-                    if (
-                        frame[14] != UNSPECIFIED_VALUE
-                        and frame[15] != UNSPECIFIED_VALUE
-                    ):
-                        ph_value = int.from_bytes(frame[14:16], "big") / 100
-                        if not (0 <= ph_value <= 14):
-                            _LOGGER.error(
-                                "Unreasonable pH value (%s) received from %s → closing connection",
-                                ph_value,
-                                addr,
-                            )
-                            break  # leave loop → connection will be closed
-
-                    required_ph = frame[52] / 10
-                    if not (6 <= required_ph <= 10):
-                        _LOGGER.error(
-                            "Unreasonable required pH value (%s) received from %s → closing connection",
-                            required_ph,
-                            addr,
-                        )
-                        break  # leave loop → connection will be closed
+                    # Implausible values are reported, not fatal: the frame is
+                    # still decoded and the connection stays open.
+                    await self._report_implausible(frame, addr)
 
                     device = AsekoDecoder.decode(frame, self._profile_memory)
 
@@ -388,11 +411,12 @@ class AsekoDeviceServer:
         on_data: Optional[Callable[[AsekoDevice], Any]] = None,
         raw_sink: Optional[Callable[[bytes], Any]] = None,
         v8_raw_sink: Optional[Callable[[bytes], Any]] = None,
+        frame_warning_sink: Optional[Callable[[int, str], Any]] = None,
     ) -> "AsekoDeviceServer":
         key = f"{host}:{port}"
         if key not in cls._instances:
             cls._instances[key] = AsekoDeviceServer(
-                host, port, on_data, raw_sink, v8_raw_sink
+                host, port, on_data, raw_sink, v8_raw_sink, frame_warning_sink
             )
             await cls._instances[key].start()
         else:
@@ -400,6 +424,8 @@ class AsekoDeviceServer:
                 cls._instances[key]._raw_sink = raw_sink
             if v8_raw_sink:
                 cls._instances[key]._v8_raw_sink = v8_raw_sink
+            if frame_warning_sink:
+                cls._instances[key]._frame_warning_sink = frame_warning_sink
             if on_data:
                 cls._instances[key].on_data = on_data
         return cls._instances[key]

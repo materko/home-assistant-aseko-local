@@ -140,6 +140,7 @@ async def async_setup_entry(
         on_data=coordinator.devices_update_callback,
         raw_sink=raw_sink,
         v8_raw_sink=coordinator.store_v8_frame,
+        frame_warning_sink=coordinator.store_frame_warning,
     )
 
     if not server.running:

@@ -56,6 +56,9 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         # Last decoding of every unit whose type nobody has mapped, by serial
         # number -- kept for diagnostics only, never handed to the platforms
         self._unrecognised_devices: dict[int, AsekoDevice] = {}
+        # Why the server found a unit's frames implausible, by serial number
+        # and reason -- for diagnostics
+        self._frame_warnings: dict[int, dict[str, dict[str, Any]]] = {}
         # Unsubscribe handle for the periodic stale-check
         self._stale_check_unsub: Callable[[], None] | None = None
         # Per-platform listeners called whenever a brand-new device is discovered
@@ -340,6 +343,19 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
             self._last_partial_frames[serial] = bytes(raw_frame)
         else:
             self._last_raw_frames[serial] = bytes(raw_frame)
+
+    def store_frame_warning(self, serial_number: int, reason: str) -> None:
+        """Count one implausible frame from a unit, by reason, for diagnostics."""
+        now = dt_util.utcnow().isoformat()
+        entry = self._frame_warnings.setdefault(serial_number, {}).setdefault(
+            reason, {"count": 0, "first_seen": now}
+        )
+        entry["count"] += 1
+        entry["last_seen"] = now
+
+    def get_frame_warnings(self, serial_number: int) -> dict[str, dict[str, Any]]:
+        """Return the implausible-frame reasons recorded for a serial number."""
+        return self._frame_warnings.get(serial_number, {})
 
     def get_raw_frame(self, serial_number: int) -> bytes | None:
         """Return the last full raw frame for a given device serial number."""
