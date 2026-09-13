@@ -10,7 +10,7 @@ Every frame carries three things that decide how the rest of it must be read. Th
 |---|---|---|
 | 1 · protocol | v7 binary, v8 text | 120-byte frame on port 47524, or a text frame starting with `{v1 ` on port 51050. Detected by the server from the first bytes. |
 | 2 · model | HOME, NET, OXY, PROFI, SALT | v7: `byte[4]`. v8: header field `f2`. Decides which outputs exist (filtration, backwash, filling valve, electrolyser) and which bytes carry them. |
-| 3 · firmware variant | HOME A, HOME B | Same bytes, different encoding of `byte[37]`. Discriminated by bit `0x40`. The frame carries no firmware number, so this is inferred from content. |
+| 3 · firmware variant | HOME A, HOME B | Same bytes, different encoding of `byte[37]`. Discriminated by bit `0x40`. The frame carries no firmware number, so this is inferred from content. *Update:* the HOME A / B split turned out to be the Waterlevel setting, not a firmware; no model has a firmware variant today. |
 
 Every variant has to be kept forever: units in the field do not get firmware updates, and each new Aseko model adds another one.
 
@@ -41,65 +41,58 @@ The decoder becomes a generic loop. The only protocol-specific code left is a fr
 
 ### Where the "this profile reads it this way" logic lives
 
-The feature file holds the *how*, the profile holds the *which*. Filtration schedule as the example:
+The feature file holds the *how*, the profile holds the *which*. Filtration pump state as the example:
 
 ```python
-# decoders/filtration_schedule.py — one value, knows nothing about models
-class FiltrationSchedule(Decoder):
-    field = "filtration_schedule"
-    depends_on = ()
+# decoders/filtration_running.py — one value, knows nothing about models
+class FiltrationRunning(Feature):
+    field = "filtration_running"
+    depends_on = (ServiceMenuOpen,)
 
-    def decode_v7(self, view, device):            # default: bit flags
-        b = view.bytes[37]
-        if b == 0xFF:
-            return None
-        return {0x00: NONSTOP_24H, 0x10: TIMER_PERIOD_1, 0x30: TIMER_PERIOD_1_AND_2}.get(b & 0x30)
+    def decode_v7(self, frame, device):               # default: the relay bit
+        return bool(frame[29] & 0x08)
 
-    def decode_v7_home_a(self, view, device):     # HOME firmware A
-        b = view.bytes[37]
-        if b == 0x43: return NONSTOP_24H
-        if b == 0x53: return TIMER_PERIOD_1_AND_2
-        if b & 0x02:  return None                 # transitional edit state
-        return _from_period_bytes(view)           # fallback to bytes 56–63
+    def decode_v7_menu_override(self, frame, device):  # HOME: the menu stops the pump
+        if device.service_menu_open:
+            return False
+        return bool(frame[29] & 0x08)
 
-    # no decode_v8 yet → not listed in any v8 profile
-
-# service_menu_open is a separate value, so a separate file:
-# decoders/service_menu_open.py → bool(view.bytes[37] & 0x04)
+    def decode_v8(self, frame, device):
+        return bool(frame.get("outs", 2))
 ```
 
 ```python
-# profiles/v7.py — the only place that knows models
-HOME_A = Profile(
-    protocol=V7, model=HOME, firmware=A,
-    features=[Ph, Redox, ..., Flowrates, FiltrationSchedule, PumpStates, ...],
-    overrides={FiltrationSchedule: "decode_v7_home_a"},
-    evidence={FiltrationSchedule: "confirmed, serial 110128063, issue #110"},
+# profiles/v7/common.py — only what the v7 models share
+FILTRATION = (FiltrationPeriod1Start, ..., FiltrationSchedule, FiltrationRunning)
+
+# profiles/v7/home.py — one module per model, the only place that knows it
+HOME = Profile(
+    protocol=V7, model=HOME,
+    features=(*IDENTITY, ..., *FILTRATION, ServiceMenuOpen, ...),
+    overrides={FiltrationRunning: "decode_v7_menu_override"},
+    evidence={FiltrationRunning: "confirmed: byte[29] 0x08 stays set under the override (Issue #133)"},
 )
-HOME_B = Profile(
-    protocol=V7, model=HOME, firmware=B,
-    features=[..., FiltrationSchedule, ...],
-    overrides={},                                  # decode_v7 by default
-    evidence={FiltrationSchedule: "confirmed, serial 110169464, issue #133"},
-)
+
+# profiles/v7/salt.py
 SALT = Profile(
     protocol=V7, model=SALT,
-    features=[..., FiltrationSchedule, ...],
-    flags={"menu_bit_is_presence_only": True},     # read by backwash_tracker
+    features=(..., *FILTRATION, ...),              # decode_v7 by default
+    flags={MENU_BIT_IS_PRESENCE_ONLY},             # read by backwash_tracker
 )
+
+# profiles/v7/net.py
 NET = Profile(
     protocol=V7, model=NET,
-    features=[Ph, Redox, FreeChlorine, Alarms, PumpStates, ...],   # no FiltrationSchedule
+    features=(*IDENTITY, *CHLORINE_PROBES, ..., *ALARMS),   # no FILTRATION
 )
 ```
 
-| profile | FILTRATION_SCHEDULE listed? | override? | variant used | example |
+| profile | FiltrationRunning listed? | override? | variant used | example |
 |---|---|---|---|---|
-| v7 · SALT | yes | no | `decode_v7` (default): `byte[37] & 0x30` | `0xD3` → period 1 |
-| v7 · HOME · B | yes | no | `decode_v7` (default): `byte[37] & 0x30` | `0x31` → period 1 and 2 |
-| v7 · HOME · A | yes | **yes** | `decode_v7_home_a`: `0x43` / `0x53`, fallback to bytes 56–63 | `0x43` → nonstop 24 h |
+| v7 · SALT | yes | no | `decode_v7` (default): `byte[29] & 0x08` | `0x18` → running |
+| v7 · HOME | yes | **yes** | `decode_v7_menu_override`: off while the menu is open | `byte[37] 0x04` → off |
 | v7 · NET | no (no filtration output) | — | never called | field stays `None` |
-| v8 · NET | no v8 variant yet | — | never called | field stays `None` |
+| v8 · NET | yes | no | `decode_v8`: `outs[2]` | `1` → running |
 
 So: for a feature read the same way everywhere, the answer is the default variant in its file. For a feature that differs, the answer is one line in that profile's `overrides`. For a feature a model does not have, the answer is its absence from that profile's `features`.
 
@@ -121,7 +114,7 @@ So: for a feature read the same way everywhere, the answer is the default varian
 
 ## Three things the design has to respect
 
-**Detection is per frame, not once.** The model byte is reliable in every frame, but the firmware variant on HOME comes from `byte[37]`, which is often `0xFF`. Locking a profile on the first frame would lock a bad guess. Detect every time; the coordinator remembers the last confident profile per serial number as the fallback.
+**Detection is per frame, not once.** The model byte is reliable in every frame, and settings such as the menu bit in `byte[37]` change from frame to frame (and are often `0xFF`). Detect every time, never lock a profile on the first frame.
 
 **Features depend on each other.** Algicide pump state is only read when its flow rate was present. Filtration pump state on HOME B depends on `service_menu_open`. Setpoints depend on the probe configuration. Variants receive the partially filled device, and each feature declares `depends_on` so the loop can sort them. Registration by import order would lose that.
 
@@ -135,9 +128,9 @@ A reading can answer with a value, with `None`, or with `NOT_PRESENT` (see `deco
 - a unit that lacks it (a SALT with a REDOX probe has no free chlorine; a shared pump port routed to flocculant has no algicide) never gets the entity, because the reading answered `NOT_PRESENT`;
 - a unit that has it but whose first frame could not say (a SALT sending `byte[37] = 0xFF` at startup) gets the entity in state "unknown" instead of no entity until the next reload.
 
-Presence is sticky and entities can arrive late. The coordinator keeps a device's feature set as the union of everything the unit has ever shown, and when a frame adds to it (the shared port gets configured, a setting is made, a firmware variant is recognised after an unset first frame) it calls the platforms' new-features listeners with just the added fields. Each platform builds the entities for those fields and nothing else, so a quantity that only becomes present after the device was first seen still gets its entity, without a reload. Entities are never removed: a quantity that stops being readable keeps its entity and shows "unknown".
+Presence is sticky and entities can arrive late. The coordinator keeps a device's feature set as the union of everything the unit has ever shown, and when a frame adds to it (the shared port gets configured, a setting is made) it calls the platforms' new-features listeners with just the added fields. Each platform builds the entities for those fields and nothing else, so a quantity that only becomes present after the device was first seen still gets its entity, without a reload. Entities are never removed: a quantity that stops being readable keeps its entity and shows "unknown".
 
-A HOME frame with `byte[37]` unset cannot be told apart between firmware A and B, so it decodes with a profile that lists only what both revisions share. Nothing gets an entity on the strength of a guess.
+HOME used to have a firmware A and B profile, told apart by `byte[37]` bit 0x40. That bit turned out to be the Waterlevel setting, so one HOME profile reads every HOME frame and the bit is a value of its own.
 
 A frame whose `byte[4]` maps to no model decodes with a profile that reads everything that has a generic v7 reading. It gets no entities, since nothing about it is verified, but the coordinator keeps it aside and the diagnostics download reports it under `unrecognised_devices` with the annotated raw frame and those generic values, which is what adding the model needs. Neither fallback profile appears in the support matrix tables, because no unit is meant to decode with them.
 
@@ -154,4 +147,4 @@ The v7 decoder was 939 lines with about 80 tests. The entry points stayed, so th
 3. **Move pump presence and the SALT check out of the entity layer.** `sensor.py`, `button.py` and `backwash_tracker` stop importing v7 helpers. The v8 mask mismatch disappears with it.
 4. **Cut `_fill_*` and the v8 decoder body into feature files and switch to the loop.** Feature by feature, running the decoder tests after each move. Overrides appear only where a test proves a model reads differently.
 
-Layout, all under `custom_components/aseko_local/decoding/`: `decoders/<field>.py` (one per target value, both protocols inside; 64 files), `profiles/v7.py` and `profiles/v8.py` (the registry, with `evidence` per entry), `frame.py` (the two parsers), `profile.py` (the `Profile` class, detection helpers and the per-serial firmware memory), `engine.py` (the loop) and `support_matrix.py` (renders `docs/support_matrix.md`).  `aseko_decoder.py` and `aseko_decoder_v8.py` remain as thin facades.
+Layout, all under `custom_components/aseko_local/decoding/`: `decoders/<field>.py` (one per target value, both protocols inside; 64 files), `profiles/v7/` and `profiles/v8/` (one module per model with its `evidence`, plus `common.py` for what the models of a protocol share and `__init__.py` for the model lookup), `frame.py` (the two parsers), `profile.py` (the `Profile` class and detection helpers), `engine.py` (the loop) and `support_matrix.py` (renders `docs/support_matrix.md`).  `aseko_decoder.py` and `aseko_decoder_v8.py` remain as thin facades.
