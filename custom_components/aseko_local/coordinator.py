@@ -496,6 +496,16 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
             "seconds_since_last_frame": since,
         }
 
+    def mark_exported(self, through: int) -> None:
+        """Record that markers up to ``through`` were downloaded, and save."""
+        self.frame_log.mark_exported(through)
+        self._request_frame_log_save(delay=5)
+
+    def forget_markers(self) -> None:
+        """Clear the list of cases shown on the mark card, and save."""
+        self.frame_log.forget_markers()
+        self._request_frame_log_save(delay=5)
+
     def get_v8_frame(self, serial_number: int) -> bytes | None:
         """Return the last raw v8 text frame for a given device serial number."""
         return self._last_v8_frames.get(serial_number)

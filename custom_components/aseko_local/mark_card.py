@@ -67,6 +67,8 @@ async def async_setup_mark_card(hass: HomeAssistant, version: str) -> None:
     )
     add_extra_js_url(hass, f"{STATIC_URL}/{CARD_FILE}?v={version}")
     hass.http.register_view(AsekoPhotoView())
+    hass.http.register_view(AsekoPhotoFileView())
+    hass.http.register_view(AsekoForgetView())
     hass.http.register_view(AsekoStatusView())
     hass.http.register_view(AsekoExportView())
 
@@ -133,8 +135,38 @@ class AsekoPhotoView(HomeAssistantView):
         )
 
 
+class AsekoPhotoFileView(HomeAssistantView):
+    """One stored photo, for the card's case list."""
+
+    url = f"/api/{DOMAIN}/photo/{{name}}"
+    name = f"api:{DOMAIN}:photo_file"
+
+    async def get(self, request: web.Request, name: str) -> web.StreamResponse:
+        hass = _require_admin(request)
+        store = photo_store(hass)
+        if "/" in name or "\\" in name or name.startswith("."):
+            return self.json_message("Bad photo name", 400)
+        path = store.directory / name
+        if not await hass.async_add_executor_job(path.is_file):
+            return self.json_message("No such photo", 404)
+        return web.FileResponse(path)
+
+
+class AsekoForgetView(HomeAssistantView):
+    """Clear the list of cases (frames and photos stay)."""
+
+    url = f"/api/{DOMAIN}/forget"
+    name = f"api:{DOMAIN}:forget"
+
+    async def post(self, request: web.Request) -> web.Response:
+        hass = _require_admin(request)
+        for entry in _loaded_entries(hass):
+            entry.runtime_data.coordinator.forget_markers()
+        return self.json({"ok": True})
+
+
 class AsekoStatusView(HomeAssistantView):
-    """How long ago each unit's last frame arrived."""
+    """How long ago each unit's last frame arrived, and the cases clicked so far."""
 
     url = f"/api/{DOMAIN}/status"
     name = f"api:{DOMAIN}:status"
@@ -155,7 +187,8 @@ class AsekoStatusView(HomeAssistantView):
                                 now
                             ).items()
                         },
-                        "markers": entry.runtime_data.coordinator.frame_log.marker_count(),
+                        "markers": entry.runtime_data.coordinator.frame_log.markers(),
+                        "not_downloaded": entry.runtime_data.coordinator.frame_log.not_downloaded(),
                     }
                     for entry in _loaded_entries(hass)
                 ],
@@ -176,20 +209,36 @@ class AsekoExportView(HomeAssistantView):
         from .diagnostics import async_get_config_entry_diagnostics  # noqa: PLC0415
 
         hass = _require_admin(request)
+        only_new = request.query.get("new") == "1"
         created = dt_util.now()
-        entries = [
-            {
-                "title": entry.title,
-                "records": entry.runtime_data.coordinator.frame_log.records(),
-                "diagnostics": await async_get_config_entry_diagnostics(hass, entry),
-            }
-            for entry in _loaded_entries(hass)
-        ]
+        loaded = _loaded_entries(hass)
+        entries = []
+        wanted_photos: set[str] = set()
+        newest: dict[str, int] = {}
+        for entry in loaded:
+            log = entry.runtime_data.coordinator.frame_log
+            markers = [m for m in log.markers() if not (only_new and m["downloaded"])]
+            wanted_photos.update(m["photo"] for m in markers if m.get("photo"))
+            newest[entry.entry_id] = max((m["n"] for m in log.markers()), default=0)
+            entries.append(
+                {
+                    "title": entry.title,
+                    "records": log.records(),
+                    "cases": markers,
+                    "diagnostics": await async_get_config_entry_diagnostics(
+                        hass, entry
+                    ),
+                }
+            )
         store = photo_store(hass)
         photos = await hass.async_add_executor_job(store.files)
+        if only_new:
+            photos = [p for p in photos if p.name in wanted_photos]
         body = await hass.async_add_executor_job(
             build_export_zip, entries, photos, created
         )
+        for entry in loaded:
+            entry.runtime_data.coordinator.mark_exported(newest[entry.entry_id])
         filename = f"aseko-local-export-{created.strftime('%Y%m%d-%H%M%S')}.zip"
         return web.Response(
             body=body,

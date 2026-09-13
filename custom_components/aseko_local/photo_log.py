@@ -159,7 +159,10 @@ def build_export_zip(
             "",
             "frames-<entry>.jsonl  every frame and marker, oldest first, one JSON",
             "                      object a line; 'k' is v7 / v8 / partial / mark",
-            "markers-<entry>.json  the markers only; 'photo' names the file in photos/",
+            "cases-<entry>.json    the cases (markers) in this export; 'photo' names the",
+            "                      file in photos/, 'frames' is false once the frames",
+            "                      of that time have aged out of the log",
+            "markers-<entry>.json  every marker still in the frame log",
             "diagnostics-<entry>.json  the diagnostics download of that entry",
             "photos/               display photos, named by upload time (UTC)",
         ]
@@ -174,6 +177,10 @@ def build_export_zip(
             archive.writestr(
                 f"markers-{slug}.json",
                 json.dumps([r for r in records if r.get("k") == "mark"], indent=2),
+            )
+            archive.writestr(
+                f"cases-{slug}.json",
+                json.dumps(entry.get("cases", []), indent=2, ensure_ascii=False),
             )
             archive.writestr(
                 f"diagnostics-{slug}.json",

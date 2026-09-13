@@ -40,6 +40,9 @@ _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_MAX_BYTES = 256 * 1024
 DEFAULT_CHUNK_BYTES = 16 * 1024
+# Markers are also kept in a list of their own, outside the capped frame
+# chunks, so the cases a user clicked stay listed after their frames age out.
+MAX_MARKERS = 500
 # Records reach the compressor in batches: a sync flush after every record
 # would cost a few bytes each, and a batch this small keeps the uncompressed
 # remainder, which counts against the cap at full size, small.
@@ -88,6 +91,8 @@ class FrameLog:
         self._sealed_bytes = 0
         self._dropped_chunks = 0
         self._next_marker = 1
+        self._markers: list[dict[str, Any]] = []
+        self._exported_through = 0
         self._start_chunk()
 
     # -- writing -----------------------------------------------------------
@@ -130,6 +135,8 @@ class FrameLog:
         if extra:
             record.update({key: value for key, value in extra.items() if value})
         self._append(received, record)
+        self._markers.append({"t": received.isoformat(), **record})
+        del self._markers[:-MAX_MARKERS]
         return number
 
     def _append(self, received: datetime, body: dict[str, Any]) -> None:
@@ -189,6 +196,43 @@ class FrameLog:
         """How many markers have been written since the log began."""
         return self._next_marker - 1
 
+    def markers(self) -> list[dict[str, Any]]:
+        """Every marker still listed, oldest first, with a ``downloaded`` flag.
+
+        ``frames`` says whether the frame log still holds frames from that
+        marker's time -- older ones have aged out of the capped buffer.
+        """
+        oldest = self._oldest_time()
+        return [
+            {
+                **marker,
+                "downloaded": marker["n"] <= self._exported_through,
+                "frames": oldest is not None
+                and datetime.fromisoformat(marker["t"]) >= oldest,
+            }
+            for marker in self._markers
+        ]
+
+    def not_downloaded(self) -> int:
+        """How many listed markers have not been in an export yet."""
+        return sum(1 for m in self._markers if m["n"] > self._exported_through)
+
+    def mark_exported(self, through: int) -> None:
+        """Every marker up to number ``through`` has been downloaded."""
+        self._exported_through = max(self._exported_through, through)
+
+    def forget_markers(self) -> None:
+        """Clear the list of markers (the frames stay)."""
+        self._markers = []
+
+    def _oldest_time(self) -> datetime | None:
+        for chunk in self._chunks:
+            first = zlib.decompress(chunk).split(b"\n", 1)[0]
+            return datetime.fromisoformat(json.loads(first)["t"])
+        if self._current_lines:
+            return datetime.fromisoformat(json.loads(self._current_lines[0])["t"])
+        return None
+
     # -- reading -----------------------------------------------------------
 
     def _stored_lines(self) -> Iterator[bytes]:
@@ -233,6 +277,8 @@ class FrameLog:
             ).decode(),
             "dropped_chunks": self._dropped_chunks,
             "next_marker": self._next_marker,
+            "markers": self._markers,
+            "exported_through": self._exported_through,
         }
 
     def load_store(self, data: dict[str, Any]) -> None:
@@ -253,6 +299,11 @@ class FrameLog:
         self._sealed_bytes = sum(len(chunk) for chunk in chunks)
         self._dropped_chunks = int(data.get("dropped_chunks", 0))
         self._next_marker = int(data.get("next_marker", 1))
+        self._markers = [
+            m for m in data.get("markers", []) if isinstance(m, dict) and "n" in m
+        ][-MAX_MARKERS:]
+        self._exported_through = int(data.get("exported_through", 0))
+        backfill = "markers" not in data
         self._start_chunk()
         # Re-encode rather than replay the lines: a chunk sealed on the way
         # must start again with an absolute time.
@@ -260,3 +311,9 @@ class FrameLog:
             received = datetime.fromisoformat(record.pop("t"))
             self._append(received, record)
         self._enforce_cap()
+        if backfill:
+            # A store written before cases were listed: rebuild the list from
+            # the markers still in the frames.
+            self._markers = [r for r in self.records() if r.get("k") == KIND_MARK][
+                -MAX_MARKERS:
+            ]

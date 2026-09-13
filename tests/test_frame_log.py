@@ -223,3 +223,50 @@ def test_mark_dump_notification_says_whether_the_marker_is_written() -> None:
 
     immediate = {**written, "waited_for_frame": None}
     assert "last frame 0.2 s before" in _mark_dump_message([immediate], False, "")
+
+
+def test_cases_list_survives_restart_and_tracks_downloads() -> None:
+    log = FrameLog(max_bytes=32 * 1024, chunk_bytes=4 * 1024)
+    frames = list(_v8_frames(200))
+    for received, raw in frames[:100]:
+        log.append_frame(received, KIND_V8, raw)
+    log.append_marker(frames[99][0], "Heating control ON", extra={"photo": "a.jpg"})
+    log.append_marker(frames[99][0] + timedelta(seconds=5), "Winter mode ON")
+
+    assert [m["note"] for m in log.markers()] == [
+        "Heating control ON",
+        "Winter mode ON",
+    ]
+    assert log.not_downloaded() == 2
+    assert all(m["frames"] and not m["downloaded"] for m in log.markers())
+
+    log.mark_exported(1)
+    restored = FrameLog(max_bytes=32 * 1024, chunk_bytes=4 * 1024)
+    restored.load_store(log.to_store())
+    assert [m["downloaded"] for m in restored.markers()] == [True, False]
+    assert restored.markers()[0]["photo"] == "a.jpg"
+    assert restored.not_downloaded() == 1
+
+    # the frames of old cases age out, the cases stay listed
+    for received, raw in _v8_frames(20000, seed=2):
+        restored.append_frame(received + timedelta(days=3), KIND_V8, raw)
+    assert len(restored.markers()) == 2
+    assert not restored.markers()[0]["frames"]
+
+    restored.forget_markers()
+    assert restored.markers() == []
+
+
+def test_an_older_store_gets_its_cases_rebuilt_from_the_frames() -> None:
+    log = FrameLog()
+    frames = list(_v8_frames(20))
+    for received, raw in frames:
+        log.append_frame(received, KIND_V8, raw)
+    log.append_marker(frames[-1][0], "heating on")
+    old_store = log.to_store()
+    del old_store["markers"], old_store["exported_through"]
+
+    restored = FrameLog()
+    restored.load_store(old_store)
+    assert [m["note"] for m in restored.markers()] == ["heating on"]
+    assert restored.not_downloaded() == 1
