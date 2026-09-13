@@ -70,9 +70,52 @@ class V7Frame:
         return self.raw[4]
 
 
+V7_SEGMENT_LENGTH = 40
+V7_CHECKSUM_SEED = 0xAA
+
+# Serials whose bad checksum was already logged as a warning; later ones go to
+# debug so a unit that keeps sending them does not flood the log.
+_checksum_warned: set[int] = set()
+
+
+def v7_bad_checksum_segments(raw: bytes) -> list[int]:
+    """Return the indexes (0-2) of the 40-byte segments whose checksum fails.
+
+    The last byte of every segment (39, 79, 119) is 0xAA XOR the 39 bytes
+    before it -- the rule of the manufacturer's RS485 protocol document,
+    which matches every segment of the captured v7 frames.  A trailing
+    partial segment is not checked.
+    """
+    bad = []
+    for index in range(len(raw) // V7_SEGMENT_LENGTH):
+        start = index * V7_SEGMENT_LENGTH
+        checksum = V7_CHECKSUM_SEED
+        for value in raw[start : start + V7_SEGMENT_LENGTH - 1]:
+            checksum ^= value
+        if checksum != raw[start + V7_SEGMENT_LENGTH - 1]:
+            bad.append(index)
+    return bad
+
+
 def parse_v7(raw: bytes) -> V7Frame:
-    """Wrap a binary frame.  Alignment is the server's job, not this one's."""
-    return V7Frame(bytes(raw))
+    """Wrap a binary frame.  Alignment is the server's job, not this one's.
+
+    A failed segment checksum is only logged: the frame is decoded as before.
+    """
+    frame = V7Frame(bytes(raw))
+    bad = v7_bad_checksum_segments(frame.raw)
+    if bad:
+        serial = frame.serial_number if len(frame.raw) >= 4 else 0
+        log = _LOGGER.debug if serial in _checksum_warned else _LOGGER.warning
+        _checksum_warned.add(serial)
+        log(
+            "v7 frame from serial %s failed the checksum of segment(s) %s; "
+            "decoding it anyway. Frame: %s",
+            serial,
+            bad,
+            frame.raw.hex(),
+        )
+    return frame
 
 
 def normalize_value(value: int | str | None, type_: type[T]) -> T | None:

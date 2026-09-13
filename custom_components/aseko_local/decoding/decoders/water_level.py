@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 
 from ..feature import Feature
 from ..frame import byte_or_absent
+from ..presence import NOT_PRESENT
 
 if TYPE_CHECKING:
     from ...aseko_data import AsekoDevice
@@ -28,10 +29,19 @@ if TYPE_CHECKING:
     from ..presence import NotPresent
 
 
+LEVEL_SENSOR_DISCONNECTED = 0xFE  # manufacturer's RS485 protocol document
+
+
 class WaterLevel(Feature):
-    """v7: byte[27]."""
+    """v7: byte[27]; 0xFE = level sensor disconnected."""
 
     field = "water_level"
 
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | NotPresent:
+        if frame[27] == LEVEL_SENSOR_DISCONNECTED:
+            # No sensor is wired (every captured OXY frame reads 0xFE) or it
+            # dropped out.  Absent rather than 254 cm: a unit that never had
+            # one gets no entity, and presence is sticky, so an existing
+            # entity just shows no value while the sensor is off.
+            return NOT_PRESENT
         return byte_or_absent(frame[27])

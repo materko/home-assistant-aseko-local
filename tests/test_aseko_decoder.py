@@ -1308,6 +1308,20 @@ def test_home_water_level_unspecified() -> None:
     assert device.water_level is None
 
 
+def test_water_level_sensor_disconnected() -> None:
+    """byte[27] = 0xFE means no level sensor reading, not 254 cm.
+
+    Every captured OXY frame reads 0xFE there; the manufacturer's RS485
+    protocol document calls it "sensor disconnected".
+    """
+    data = _make_home_bytes()
+    data[27] = 0xFE
+
+    device = AsekoDecoder.decode(bytes(data))
+    assert device.water_level is None
+    assert "water_level" not in device.features
+
+
 def test_home_water_filling_active() -> None:
     """byte[29] bit 0x02: water filling active for HOME devices."""
     data = _make_home_bytes()

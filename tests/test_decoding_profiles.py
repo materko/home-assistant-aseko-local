@@ -9,6 +9,7 @@ for the right frame, and that the device says how it was decoded.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import fields
 
 import pytest
@@ -35,11 +36,13 @@ from custom_components.aseko_local.decoding.decoders import (
     FiltrationStart2,
 )
 from custom_components.aseko_local.decoding.feature import Feature
+from custom_components.aseko_local.decoding import frame as frame_module
 from custom_components.aseko_local.decoding.frame import (
     Protocol,
     parse_frame,
     parse_v7,
     parse_v8,
+    v7_bad_checksum_segments,
 )
 from custom_components.aseko_local.decoding.profile import Profile, ProfileMemory
 from custom_components.aseko_local.decoding.profiles import (
@@ -461,3 +464,42 @@ def test_v8_sentinel_means_not_present() -> None:
     assert "ph" not in device.features
     assert device.ph is None
     assert "redox" in device.features
+
+
+def _with_checksums(data: bytearray) -> bytearray:
+    """Set bytes 39, 79 and 119 to 0xAA XOR the 39 bytes before each."""
+    for start in (0, 40, 80):
+        checksum = 0xAA
+        for value in data[start : start + 39]:
+            checksum ^= value
+        data[start + 39] = checksum
+    return data
+
+
+def test_v7_checksum_rule_holds_for_a_valid_frame() -> None:
+    data = _with_checksums(_make_base_bytes())
+    assert v7_bad_checksum_segments(bytes(data)) == []
+
+
+def test_v7_bad_checksum_is_logged_once_and_decoding_continues(
+    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(frame_module, "_checksum_warned", set())
+    good = _with_checksums(_make_base_bytes())
+    bad = bytearray(good)
+    bad[119] ^= 0x01  # break segment 3 only
+
+    assert v7_bad_checksum_segments(bytes(bad)) == [2]
+
+    with caplog.at_level(logging.DEBUG, logger=frame_module.__name__):
+        expected = AsekoDecoder.decode(bytes(good))
+        assert not [r for r in caplog.records if "checksum" in r.getMessage()]
+
+        first = AsekoDecoder.decode(bytes(bad))
+        second = AsekoDecoder.decode(bytes(bad))
+
+    # Same values as the intact frame: the checksum changes nothing.
+    assert first == expected
+    assert second == expected
+    levels = [r.levelno for r in caplog.records if "checksum" in r.getMessage()]
+    assert levels == [logging.WARNING, logging.DEBUG]
