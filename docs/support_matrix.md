@@ -13,75 +13,81 @@ A **profile** is one (protocol, model, firmware) combination.  A **feature** is 
 | 🔍 | this model has the value (its menu or manual shows it), but where the frame carries it is not known yet: the entity exists and reads unknown — **a diagnostics dump before and after changing it on the unit would settle it** |
 | `decode_…` | the profile uses this reading instead of the protocol default |
 
-Two further profiles exist that no unit is meant to decode with and that the tables leave out: **v7 HOME firmware not yet known** and **v7 unknown unit type**.  The first reads what both HOME firmware revisions share while a frame with `byte[37]` unset cannot tell them apart; the second reads everything that has a generic v7 reading so an unmapped unit shows as much as possible in diagnostics, where it is reported as unrecognised.
+Two further profiles exist that no unit is meant to decode with and that the tables leave out: **v7 unknown unit type**.  The first reads what both HOME firmware revisions share while a frame with `byte[37]` unset cannot tell them apart; the second reads everything that has a generic v7 reading so an unmapped unit shows as much as possible in diagnostics, where it is reported as unrecognised.
 
 ## v7
 
-| field | HOME firmware A | HOME firmware B | SALT | OXY | NET | PROFI |
-|---|---|---|---|---|---|---|
-| `air_temperature` | ❓ | ❓ | ✅ | ❓ | — | — |
-| `alarm_max_disinfection_dose` | ✅ | ✅ | ✅ | ❓ | ❓ | ❓ |
-| `alarm_no_flow_to_probes` | ✅ | ✅ | ✅ | ❓ | ✅ | ❓ |
-| `alarm_ph_dosing_ineffective` | ✅ | ✅ | ✅ | ❓ | ❓ | ❓ |
-| `alarm_rapid_ph_change` | ❓ | ❓ | ❓ | ❓ | ❓ | ❓ |
-| `algaecide_dose_target` | ✅ | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | — | — |
-| `algaecide_flow_rate` | ✅ | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | — | — |
-| `algaecide_pump_running` | ❓ | ❓ | ✅ | ✅ `decode_v7_oxy` | — | — |
-| `backwash_duration` | ✅ | ✅ | ✅ | 👁 | — | ❓ |
-| `backwash_interval` | ✅ | ✅ | ✅ | 👁 | — | ❓ |
-| `backwash_running` | ❓ | ❓ | ✅ | ❓ | — | ❓ |
-| `backwash_start_time` | ✅ | ✅ | ✅ | 👁 | — | ❓ |
-| `chlorine_dose_target` | ❓ | ❓ | ❓ | — | 👁 | ❓ |
-| `chlorine_flow_rate` | ✅ | ✅ | — | — | ✅ | ❓ |
-| `chlorine_production` | — | — | ✅ | — | — | — |
-| `chlorine_pump_running` | ❓ | ❓ | — | — | ✅ `decode_v7_net` | ❓ |
-| `configuration` | ✅ `decode_v7_by_unit_type_byte` | ✅ `decode_v7_by_unit_type_byte` | ✅ | ✅ `decode_v7_ph_and_oxy` | ✅ | ❓ `decode_v7_without_dose` |
-| `dosing_delay` | ✅ | ✅ | ✅ | 👁 | 👁 | ❓ |
-| `electrode_polarity` | — | — | ✅ | — | — | — |
-| `electrolysis_running` | — | — | ✅ | — | — | — |
-| `filtration_period_1_end` | ✅ | ✅ | ✅ | 👁 | — | ❓ |
-| `filtration_period_1_start` | ✅ | ✅ | ✅ | 👁 | — | ❓ |
-| `filtration_period_2_end` | ✅ | ✅ | ✅ | 👁 | — | ❓ |
-| `filtration_period_2_start` | ✅ | ✅ | ✅ | 👁 | — | ❓ |
-| `filtration_running` | 👁 | ✅ `decode_v7_menu_override` | ✅ | ✅ | — | ❓ |
-| `filtration_schedule` | ✅ `decode_v7_home_a` | ✅ | ✅ | 👁 | — | ❓ |
-| `flocculant_dose_target` | ✅ | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | — | ❓ `decode_v7_routed_by_byte37` |
-| `flocculant_flow_rate` | ✅ | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | — | ❓ `decode_v7_routed_by_byte37` |
-| `flocculant_pump_running` | ❓ | ❓ | ✅ | ✅ | — | ❓ |
-| `free_chlorine` | ✅ | ✅ | ✅ | — | ✅ | ❓ |
-| `free_chlorine_mv` | ✅ | ✅ | ✅ | — | ✅ | ❓ |
-| `free_chlorine_target` | ✅ | ✅ | ✅ | — | 👁 | ❓ |
-| `freeze_protection_enabled` | ✅ | ❓ | 🔍 | 🔍 | — | — |
-| `heating_control_enabled` | ✅ | ❓ | 🔍 | 🔍 | — | — |
-| `heating_running` | ❓ | ❓ | ❓ | ❓ | — | ❓ |
-| `max_ph_doses` | 👁 | 👁 | ✅ | 👁 | — | ❓ |
-| `max_refill_time` | ❓ | ❓ | ✅ | ❓ | — | ❓ |
-| `oxygen_dose_target` | — | — | — | ✅ | — | — |
-| `oxygen_flow_rate` | — | — | — | ✅ | — | — |
-| `oxygen_pump_running` | — | — | — | ✅ | — | — |
-| `ph` | ✅ | ✅ | ✅ | 👁 | ✅ | ❓ |
-| `ph_minus_concentration` | ✅ | ✅ | ✅ | ❓ | — | ❓ |
-| `ph_minus_flow_rate` | ✅ | ✅ | ✅ | ✅ | ✅ | ❓ |
-| `ph_minus_pump_running` | ❓ | ❓ | ❓ | ✅ | ✅ `decode_v7_net` | ❓ |
-| `ph_target` | ✅ | ✅ | ✅ | 👁 | ✅ | ❓ |
-| `pool_volume` | ✅ | ✅ | ✅ | 👁 | 👁 | ❓ |
-| `redox` | ❓ | ❓ | ✅ | — | ❓ | ❓ |
-| `redox_target` | ❓ | ❓ | ✅ | — | ❓ | — |
-| `refilling` | ✅ | ✅ | ❓ | ❓ | — | ❓ |
-| `salinity` | — | — | ✅ | — | — | — |
-| `serial_number` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `service_menu_open` | — | ✅ | ✅ | 👁 | — | ❓ |
-| `startup_delay` | ✅ | ✅ | ✅ | 👁 | ❓ | ❓ |
-| `timestamp` | ✅ | ✅ | ✅ | ✅ | ❓ | ❓ |
-| `variable_speed_pump_running` | ✅ | ✅ | ✅ | ❓ | — | — |
-| `water_flow_to_probes` | ✅ | ✅ | ✅ | 👁 | ✅ | ❓ |
-| `water_level` | ✅ | ✅ | ✅ | ❓ | — | ❓ |
-| `water_level_high_alarm` | ✅ | ✅ | ✅ | ❓ | — | ❓ |
-| `water_level_low_alarm` | ✅ | ✅ | ✅ | ❓ | — | ❓ |
-| `water_level_refill_start` | ❓ | ❓ | ✅ | ❓ | — | ❓ |
-| `water_level_refill_stop` | ✅ | ✅ | ✅ | ❓ | — | ❓ |
-| `water_temperature` | ✅ | ✅ | ✅ | 👁 | ✅ | ❓ |
-| `water_temperature_target` | ✅ | ✅ | ✅ | 👁 | — | ❓ |
+| field | HOME | SALT | OXY | NET | PROFI |
+|---|---|---|---|---|---|
+| `air_temperature` | ❓ | ✅ | ❓ | — | — |
+| `alarm_max_disinfection_dose` | ✅ | ✅ | ❓ | ❓ | ❓ |
+| `alarm_no_flow_to_probes` | ✅ | ✅ | ❓ | ✅ | ❓ |
+| `alarm_ph_dosing_ineffective` | ✅ | ✅ | ❓ | ❓ | ❓ |
+| `alarm_rapid_ph_change` | ❓ | ❓ | ❓ | ❓ | ❓ |
+| `algaecide_dose_target` | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | — | — |
+| `algaecide_flow_rate` | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | — | — |
+| `algaecide_pump_running` | ❓ | ✅ | ✅ `decode_v7_oxy` | — | — |
+| `backwash_duration` | ✅ | ✅ | 👁 | — | ❓ |
+| `backwash_interval` | ✅ | ✅ | 👁 | — | ❓ |
+| `backwash_running` | ❓ | ✅ | ❓ | — | ❓ |
+| `backwash_schedule_enabled` | 👁 | ✅ | — | — | — |
+| `backwash_start_time` | ✅ | ✅ | 👁 | — | ❓ |
+| `chlorine_dose_target` | ❓ | ❓ | — | 👁 | ❓ |
+| `chlorine_flow_rate` | ✅ | — | — | ✅ | ❓ |
+| `chlorine_production` | — | ✅ | — | — | — |
+| `chlorine_pump_running` | ❓ | — | — | ✅ `decode_v7_net` | ❓ |
+| `configuration` | ✅ `decode_v7_by_unit_type_byte` | ✅ | ✅ `decode_v7_ph_and_oxy` | ✅ | ❓ `decode_v7_without_dose` |
+| `dosing_delay` | ✅ | ✅ | 👁 | 👁 | ❓ |
+| `electrode_polarity` | — | ✅ | — | — | — |
+| `electrolysis_running` | — | ✅ | — | — | — |
+| `filtration_period_1_end` | ✅ | ✅ | 👁 | — | ❓ |
+| `filtration_period_1_start` | ✅ | ✅ | 👁 | — | ❓ |
+| `filtration_period_2_end` | ✅ | ✅ | 👁 | — | ❓ |
+| `filtration_period_2_start` | ✅ | ✅ | 👁 | — | ❓ |
+| `filtration_running` | ✅ `decode_v7_menu_override` | ✅ | ✅ | — | ❓ |
+| `filtration_schedule` | ✅ | ✅ | 👁 | — | ❓ |
+| `flocculant_dose_target` | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | — | ❓ `decode_v7_routed_by_byte37` |
+| `flocculant_flow_rate` | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | — | ❓ `decode_v7_routed_by_byte37` |
+| `flocculant_pump_running` | ❓ | ✅ | ✅ | — | ❓ |
+| `flow_detection_enabled` | ✅ | ✅ | ❓ | — | — |
+| `free_chlorine` | ✅ | ✅ | — | ✅ | ❓ |
+| `free_chlorine_mv` | ✅ | ✅ | — | ✅ | ❓ |
+| `free_chlorine_target` | ✅ | ✅ | — | 👁 | ❓ |
+| `freeze_protection_enabled` | ✅ | ✅ `decode_v7_winter_mode` | 🔍 | — | — |
+| `heating_allowed` | — | ✅ | — | — | — |
+| `heating_condition` | — | ✅ | — | — | — |
+| `heating_control_enabled` | ✅ | ✅ | 🔍 | — | — |
+| `heating_running` | ❓ | ❓ | ❓ | — | ❓ |
+| `max_ph_doses` | 👁 | ✅ | 👁 | — | ❓ |
+| `max_refill_time` | ❓ | ✅ | ❓ | — | ❓ |
+| `oxygen_dose_target` | — | — | ✅ | — | — |
+| `oxygen_flow_rate` | — | — | ✅ | — | — |
+| `oxygen_pump_running` | — | — | ✅ | — | — |
+| `ph` | ✅ | ✅ | 👁 | ✅ | ❓ |
+| `ph_minus_concentration` | ✅ | ✅ | ❓ | — | ❓ |
+| `ph_minus_flow_rate` | ✅ | ✅ | ✅ | ✅ | ❓ |
+| `ph_minus_pump_running` | ❓ | ❓ | ✅ | ✅ `decode_v7_net` | ❓ |
+| `ph_target` | ✅ | ✅ | 👁 | ✅ | ❓ |
+| `pool_volume` | ✅ | ✅ | 👁 | 👁 | ❓ |
+| `redox` | ❓ | ✅ | — | ❓ | ❓ |
+| `redox_target` | ❓ | ✅ | — | ❓ | — |
+| `refilling` | ✅ | ❓ | ❓ | — | ❓ |
+| `salinity` | — | ✅ | — | — | — |
+| `serial_number` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `service_menu_open` | ✅ | ✅ | 👁 | — | ❓ |
+| `startup_delay` | ✅ | ✅ | 👁 | ❓ | ❓ |
+| `timestamp` | ✅ | ✅ | ✅ | ❓ | ❓ |
+| `variable_speed_pump_enabled` | ✅ | ✅ | ❓ | — | — |
+| `variable_speed_pump_type` | ✅ | ✅ | — | — | — |
+| `water_flow_to_probes` | ✅ | ✅ | 👁 | ✅ | ❓ |
+| `water_level` | ✅ | ✅ | ❓ | — | ❓ |
+| `water_level_high_alarm` | ✅ | ✅ | ❓ | — | ❓ |
+| `water_level_low_alarm` | ✅ | ✅ | ❓ | — | ❓ |
+| `water_level_refill_start` | ❓ | ✅ | ❓ | — | ❓ |
+| `water_level_refill_stop` | ✅ | ✅ | ❓ | — | ❓ |
+| `water_level_sensor_enabled` | ✅ | ✅ | ❓ | — | — |
+| `water_temperature` | ✅ | ✅ | 👁 | ✅ | ❓ |
+| `water_temperature_target` | ✅ | ✅ | 👁 | — | ❓ |
 
 ## v8
 
@@ -109,7 +115,7 @@ Two further profiles exist that no unit is meant to decode with and that the tab
 
 Every entry below is read today without a confirming capture.  If you own one of these units, a diagnostics download taken while the value is visible on the unit or in the Aseko Live app is exactly what is needed.
 
-### v7 HOME firmware A
+### v7 HOME
 
 - `air_temperature` — unverified: bytes 23-24 = 0xFE70 (no air probe, the SALT marker) in every captured HOME frame, so no entity yet; the Aseko Live app shows air temperature on HOME units
 - `alarm_rapid_ph_change` — unconfirmed: byte[13] 0x08 was set on serial 110128063 with no matching alarm known in the app
@@ -118,24 +124,6 @@ Every entry below is read today without a confirming capture.  If you own one of
 - `chlorine_dose_target` — no evidence recorded
 - `chlorine_pump_running` — uncertain: byte[29] 0x40, port may be chlorine or OXY Pure
 - `flocculant_pump_running` — uncertain: byte[29] 0x20 assumed
-- `heating_running` — assumed: byte[29] 0x04 per JS-DE-Tech relay_byte bit 2; no HOME frame with the heater running (open item 9)
-- `max_refill_time` — assumed: bytes 76-77 = 10800 s on serial 110128063, plausible (180 min); verified on SALT only
-- `ph_minus_pump_running` — uncertain: byte[29] 0x80 assumed
-- `redox` — no evidence recorded
-- `redox_target` — no evidence recorded
-- `water_level_refill_start` — unconfirmed: byte[103] = 33 on serial 110128063 is read both as this threshold (cm) and as algaecide_flow_rate (ml/min); the two mappings cannot both be right
-
-### v7 HOME firmware B
-
-- `air_temperature` — unverified: bytes 23-24 = 0xFE70 (no air probe, the SALT marker) in every captured HOME frame, so no entity yet; the Aseko Live app shows air temperature on HOME units
-- `alarm_rapid_ph_change` — unconfirmed: byte[13] 0x08 was set on serial 110128063 with no matching alarm known in the app
-- `algaecide_pump_running` — uncertain: byte[29] 0x20 assumed
-- `backwash_running` — assumed: byte[29] 0x01, confirmed on SALT
-- `chlorine_dose_target` — no evidence recorded
-- `chlorine_pump_running` — uncertain: byte[29] 0x40, port may be chlorine or OXY Pure
-- `flocculant_pump_running` — uncertain: byte[29] 0x20 assumed
-- `freeze_protection_enabled` — unverified: byte[37] 0x80 read as on firmware A, no capture on B
-- `heating_control_enabled` — unverified: byte[37] 0x08 read as on firmware A, no capture on B
 - `heating_running` — assumed: byte[29] 0x04 per JS-DE-Tech relay_byte bit 2; no HOME frame with the heater running (open item 9)
 - `max_refill_time` — assumed: bytes 76-77 = 10800 s on serial 110128063, plausible (180 min); verified on SALT only
 - `ph_minus_pump_running` — uncertain: byte[29] 0x80 assumed
@@ -159,16 +147,18 @@ Every entry below is read today without a confirming capture.  If you own one of
 - `alarm_ph_dosing_ineffective` — unconfirmed: bytes 12-13 were 0x00 in every OXY frame; HOME encoding assumed
 - `alarm_rapid_ph_change` — unconfirmed: byte[13] 0x08 from error_codes.md; never set in the OXY frames
 - `backwash_running` — assumed: byte[29] 0x01, confirmed on SALT
+- `flow_detection_enabled` — assumed: byte[37] 0x02 as on SALT; set in the OXY frames (0x03)
 - `heating_running` — assumed: byte[29] 0x04 per JS-DE-Tech relay_byte bit 2
 - `max_refill_time` — assumed: bytes 76-77 = 3600 s on the Winnetoux OXY, plausible (60 min); verified on SALT only
 - `ph_minus_concentration` — assumed: byte[112], confirmed on HOME
 - `refilling` — assumed: byte[29] 0x02, confirmed on HOME
-- `variable_speed_pump_running` — assumed: byte[22] 0x08, confirmed on HOME
+- `variable_speed_pump_enabled` — assumed: byte[22] 0x08, confirmed on HOME
 - `water_level` — assumed: byte[27], confirmed on HOME
 - `water_level_high_alarm` — no evidence recorded
 - `water_level_low_alarm` — no evidence recorded
 - `water_level_refill_start` — unconfirmed: byte[103] is algaecide_flow_rate on OXY (confirmed, 60 ml/min); reading it as a level threshold too cannot be right
 - `water_level_refill_stop` — no evidence recorded
+- `water_level_sensor_enabled` — assumed: byte[37] 0x40 as on SALT; clear in the OXY frames (0x03), which fits byte[27] = 0xFE (no level sensor)
 
 ### v7 NET
 
@@ -258,11 +248,6 @@ Every entry below is read today without a confirming capture.  If you own one of
 
 Values these models have but nobody has found in the frame.  If you own one of these units, download diagnostics, change the setting on the unit, wait a minute and download again: the two frames show where it is.
 
-### v7 SALT
-
-- `freeze_protection_enabled` — not located: the unit's Configuration menu has Winter mode ON/OFF; HOME's byte[37] 0x80 is the algicide routing on SALT, so it lives elsewhere
-- `heating_control_enabled` — not located: the unit's Configuration menu has Heating control ON/OFF; HOME's byte[37] 0x08 was clear in every own SALT frame with it OFF, the ON state was never captured
-
 ### v7 OXY
 
 - `freeze_protection_enabled` — not located: the ASIN AQUA Oxygen manual describes freeze protection; no OXY frame has been compared with it
@@ -272,13 +257,9 @@ Values these models have but nobody has found in the frame.  If you own one of t
 
 Values captured from real units that nobody has yet checked against the unit display or the app.  If you own one of these units, comparing the entity with what the unit shows is all it takes.
 
-### v7 HOME firmware A
+### v7 HOME
 
-- `filtration_running` — observed: byte[29] 0x08 clear while Aseko Live showed STOP, serial 110128063; the set state was not captured on firmware A
-- `max_ph_doses` — observed: byte[115] = 20 on serial 110128063; the position is confirmed on SALT, the HOME setting was never compared
-
-### v7 HOME firmware B
-
+- `backwash_schedule_enabled` — observed: byte[22] 0x10 set on serial 110128063 with backwash every 3 days (0x90); confirmed on an ASIN AQUA Salt (2026-09-13)
 - `max_ph_doses` — observed: byte[115] = 20 on serial 110128063; the position is confirmed on SALT, the HOME setting was never compared
 
 ### v7 OXY
@@ -318,7 +299,7 @@ Fields that exist on `AsekoDevice` but that nothing knows how to read yet.
 
 ## Totals
 
-- features known: 65
-- with a v7 reading: 63
+- features known: 71
+- with a v7 reading: 69
 - with a v8 reading: 17
-- profiles: 10
+- profiles: 8

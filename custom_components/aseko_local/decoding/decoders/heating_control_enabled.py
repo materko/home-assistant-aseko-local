@@ -1,9 +1,9 @@
 """Heating-control master enable (Issue #135).
 
 v7: byte[37] bit 0x08 on HOME.  Confirmed on serial 110175608 (ASIN AQUA
-Home REDOX, byte[4] = 0x03, firmware A): 0x49 with heating ON, 0x41 with it
-OFF.  Read on HOME firmware B as well, where the bit is unused as far as is
-known, to keep the entity the earlier decoder created there.
+Home REDOX, byte[4] = 0x03): 0x49 with heating ON, 0x41 with it
+OFF, and on an ASIN AQUA Salt by toggling Heating control (2026-09-13).  The
+same bit on every model with the byte[37] bit field.
 """
 
 from __future__ import annotations

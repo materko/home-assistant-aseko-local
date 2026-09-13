@@ -354,7 +354,7 @@ from different days and are listed only to show the encoding, not the number.
 | `electrode_polarity` / `chlorine_production` | waiting / 0 | display "Power 0 g/h WAITING"; app "STOP WAITING" | ✓ |
 | `salinity` | 4.0 kg/m³ (Aug) | 4.4 kg/m³ (Sep) | ✓ encoding; different day |
 | `air_temperature` | None (open-circuit value) | display "air OFF", app "Air ---" | ✓ no probe → no value |
-| `variable_speed_pump_running` (byte[22] bit 0x08) | False | display "VS Pump OFF" | ✓; the maintainer's other SALT has the bit set |
+| `variable_speed_pump_enabled` (byte[22] bit 0x08) | False | display "VS Pump OFF" | ✓; the maintainer's other SALT has the bit set |
 | `max_ph_doses` (byte[115]) | 20 | the unit's Safety Functions setting, 20 | ✓ — and changing it to 17 on 2026-09-12 moved the byte to 0x11 |
 | `heating_running` | False | display "Heating control OFF", app "Heating ---" | consistent; the running state itself never captured |
 | `water_level` | 31 cm (Aug) | 30 cm, "Filling OFF – Level OK" | ✓ encoding; the status text is derived from the thresholds |

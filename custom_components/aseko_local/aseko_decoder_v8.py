@@ -15,18 +15,16 @@ from .decoding.profiles import detect_profile
 
 if TYPE_CHECKING:
     from .aseko_data import AsekoDevice
-    from .decoding.profile import ProfileMemory
 
 
 class AsekoV8Decoder:
     """Decoder for Aseko fw v8 text frames."""
 
     @classmethod
-    def decode(cls, raw: bytes, memory: ProfileMemory | None = None) -> AsekoDevice:
+    def decode(cls, raw: bytes) -> AsekoDevice:
         """Decode a raw v8 frame into an ``AsekoDevice``.
 
         Raises ValueError if the frame cannot be parsed.
         """
         frame = parse_v8(raw)
-        profile, firmware = detect_profile(frame, memory)
-        return engine.decode(frame, profile, firmware)
+        return engine.decode(frame, detect_profile(frame))

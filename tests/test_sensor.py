@@ -310,7 +310,7 @@ async def test_async_setup_salt_redox(hass) -> None:
     # + 2 heating_control_enabled / freeze_protection_enabled binary sensors: the
     #   SALT Configuration menu has Heating control and Winter mode, but
     #   their place in the frame is not known yet, so they read unknown
-    assert len(added_entities) == 44
+    assert len(added_entities) == 46
     # Nothing has been observed yet, so the history is unknown rather than
     # guessed from the schedule.
     backwash_history = {
@@ -451,7 +451,7 @@ async def test_async_setup_salt_clf(hass) -> None:
     # + 2 heating_control_enabled / freeze_protection_enabled binary sensors: the
     #   SALT Configuration menu has Heating control and Winter mode, but
     #   their place in the frame is not known yet, so they read unknown
-    assert len(added_entities) == 45
+    assert len(added_entities) == 47
     assert any(
         getattr(e.entity_description, "key", None) != "water_flow_to_probes"
         for e in added_entities

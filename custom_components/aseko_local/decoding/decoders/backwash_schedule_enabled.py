@@ -1,7 +1,8 @@
-"""Whether the variable-speed filtration pump is on.
+"""Whether the automatic filter backwash is enabled.
 
-v7: byte[22] bit 0x08.  Confirmed on serial 110175608 (ASIN AQUA Home REDOX):
-0x83 with the pump off, 0x8b with it on (any brand).  0xFF = not reported.
+v7: byte[22] bit 0x10.  Confirmed on an ASIN AQUA Salt: switching the
+backwash schedule off cleared the bit together with byte[68] (interval)
+dropping to 0 (2026-09-13 marked test case).
 """
 
 from __future__ import annotations
@@ -18,15 +19,15 @@ if TYPE_CHECKING:
     from ..presence import NotPresent
 
 
-VSP_PUMP = 0x08
+MASK = 0x10
 
 
-class VariableSpeedPumpRunning(Feature):
-    """v7: byte[22] bit 0x08."""
+class BackwashScheduleEnabled(Feature):
+    """v7: byte[22] bit 0x10."""
 
-    field = "variable_speed_pump_running"
+    field = "backwash_schedule_enabled"
 
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool | NotPresent:
         if frame[22] == UNSPECIFIED_VALUE:
             return NOT_PRESENT
-        return bool(frame[22] & VSP_PUMP)
+        return bool(frame[22] & MASK)

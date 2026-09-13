@@ -1,8 +1,10 @@
 """Electrolyser polarity: left, right, or waiting.
 
 byte[29] bit 0x10 = electrolyser running (confirmed: 25 SALT frames read
-0x18 = 0x08 | 0x10, PR #87).  Bit 0x40 on top of it marks the left polarity
-(tentative: a single Apr 2 frame read 0x58 = 0x08 | 0x10 | 0x40).
+0x18 = 0x08 | 0x10, PR #87).  Bit 0x40 = right polarity, clear = left:
+confirmed on an ASIN AQUA Salt by switching the electrode by hand to right
+(bit set) and to left (bit clear) with a marker after each (2026-09-13).  The
+earlier reading had it the other way round, from a single frame.
 """
 
 from __future__ import annotations
@@ -17,20 +19,20 @@ if TYPE_CHECKING:
     from ..frame import V7Frame
 
 
-RUNNING_RIGHT = 0x10  # confirmed: same dataset as electrolysis_running
-RUNNING_LEFT = 0x50  # tentative: single frame
+RUNNING = 0x10
+RIGHT = 0x40
 
 
 class ElectrodePolarity(Feature):
-    """v7: byte[29] 0x50 = left, 0x10 = right, neither = waiting."""
+    """v7: byte[29] 0x10 running, then 0x40 = right, clear = left."""
 
     field = "electrode_polarity"
 
     def decode_v7(
         self, frame: V7Frame, device: AsekoDevice
     ) -> AsekoElectrolyzerDirection:
-        if (frame[29] & RUNNING_LEFT) == RUNNING_LEFT:
-            return AsekoElectrolyzerDirection.LEFT
-        if frame[29] & RUNNING_RIGHT:
+        if not frame[29] & RUNNING:
+            return AsekoElectrolyzerDirection.WAITING
+        if frame[29] & RIGHT:
             return AsekoElectrolyzerDirection.RIGHT
-        return AsekoElectrolyzerDirection.WAITING
+        return AsekoElectrolyzerDirection.LEFT

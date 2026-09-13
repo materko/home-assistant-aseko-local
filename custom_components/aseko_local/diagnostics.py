@@ -251,13 +251,10 @@ def _device_state(device: Any) -> dict[str, Any]:
     return {
         "serial_number": serial,
         "device_type": device.device_type.value if device.device_type else None,
-        # How the frame was read: which firmware variant detection settled
-        # on, which fields the chosen profile decodes, and the semantic
-        # flags it carries.  A field missing from "features" is one this
-        # model does not have, not one that failed to decode.
-        "firmware_variant": (
-            device.firmware_variant.value if device.firmware_variant else None
-        ),
+        # How the frame was read: which fields the chosen profile decodes,
+        # and the semantic flags it carries.  A field missing from
+        # "features" is one this model does not have, not one that failed
+        # to decode.
         "features": sorted(device.features),
         "flags": sorted(flag.value for flag in device.flags),
         "configuration": [p.value for p in (device.configuration or [])],

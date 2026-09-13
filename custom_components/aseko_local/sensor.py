@@ -29,6 +29,8 @@ from . import AsekoLocalConfigEntry
 from .aseko_data import (
     AsekoDevice,
     AsekoElectrolyzerDirection,
+    AsekoHeatingCondition,
+    AsekoVariableSpeedPumpType,
 )
 from .coordinator import AsekoLocalDataUpdateCoordinator
 from .entity import AsekoLocalEntity
@@ -593,6 +595,32 @@ SENSORS: list[AsekoSensorEntityDescription] = [
         value_fn=lambda device: (
             device.filtration_schedule.value
             if device.filtration_schedule is not None
+            else None
+        ),
+    ),
+    AsekoSensorEntityDescription(
+        key="heating_condition",
+        feature="heating_condition",
+        translation_key="heating_condition",
+        icon="mdi:thermostat-auto",
+        device_class=SensorDeviceClass.ENUM,
+        options=[condition.value for condition in AsekoHeatingCondition],
+        value_fn=lambda device: (
+            device.heating_condition.value
+            if device.heating_condition is not None
+            else None
+        ),
+    ),
+    AsekoSensorEntityDescription(
+        key="variable_speed_pump_type",
+        feature="variable_speed_pump_type",
+        translation_key="variable_speed_pump_type",
+        icon="mdi:pump",
+        device_class=SensorDeviceClass.ENUM,
+        options=[pump.value for pump in AsekoVariableSpeedPumpType],
+        value_fn=lambda device: (
+            device.variable_speed_pump_type.value
+            if device.variable_speed_pump_type is not None
             else None
         ),
     ),

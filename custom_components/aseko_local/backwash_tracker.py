@@ -88,7 +88,7 @@ def _service_menu_open(device: "AsekoDevice") -> bool:
 
     Honoured only where the device's profile says the bit means presence and
     nothing more (``AsekoProfileFlag.MENU_BIT_IS_PRESENCE_ONLY``, SALT
-    today).  On HOME firmware B (Issue #133) the same bit is a standing
+    today).  On HOME (Issue #133) the same bit is a standing
     manual override that forces the pump off and can stay set indefinitely;
     honouring it there would misclassify every scheduled cycle that ran
     while the override was on, so that profile does not carry the flag.

@@ -1,4 +1,4 @@
-"""A profile: what one (protocol, model, firmware) combination reads, and how.
+"""A profile: what one (protocol, model) combination reads, and how.
 
 The profile is the only place that knows models.  It lists the features a
 device has, names a different reading for the few that are encoded
@@ -18,14 +18,13 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from ..aseko_data import AsekoDeviceType, AsekoFirmwareVariant, AsekoProfileFlag
+from ..aseko_data import AsekoDeviceType, AsekoProfileFlag
 from ..const import (
     UNIT_TYPE_HOME,
     UNIT_TYPE_NET,
     UNIT_TYPE_OXY,
     UNIT_TYPE_PROFI,
     UNIT_TYPE_SALT,
-    UNSPECIFIED_VALUE,
 )
 from .frame import Protocol
 
@@ -40,13 +39,12 @@ Reader = Callable[[Any, "AsekoDevice"], Any]
 
 @dataclass(frozen=True)
 class Profile:
-    """One (protocol, model, firmware) combination and everything it reads."""
+    """One (protocol, model) combination and everything it reads."""
 
     name: str
     protocol: Protocol
     #: None for a v7 unit type nobody has mapped yet.
     model: AsekoDeviceType | None
-    firmware: AsekoFirmwareVariant | None = None
     #: The features this device has.  Order is a hint only; dependencies win.
     features: tuple[type[Feature], ...] = ()
     #: Feature -> name of the reading to use instead of the protocol default.
@@ -147,7 +145,7 @@ def _ordered(features: tuple[type[Feature], ...]) -> list[type[Feature]]:
 
 
 # ---------------------------------------------------------------------------
-# Detection helpers: frame bytes -> model / firmware.  Pure functions; the
+# Detection helpers: frame bytes -> model.  Pure functions; the
 # lookup into the registry lives in ``profiles/__init__.py``.
 # ---------------------------------------------------------------------------
 
@@ -183,36 +181,3 @@ def unit_type_from_byte(value: int) -> AsekoDeviceType | None:
 
     _LOGGER.warning("Unknown unit type: %s", value)
     return None
-
-
-# HOME firmware A sets bit 0x40 of byte[37] in every observed value (high
-# nibble 0x4 / 0x5); firmware B never does (0x0 / 0x1 / 0x3).
-_HOME_FIRMWARE_A_BIT = 0x40
-
-
-def home_firmware_from_byte37(value: int) -> AsekoFirmwareVariant | None:
-    """Tell the two HOME encodings apart, or None when byte[37] is unset."""
-    if value == UNSPECIFIED_VALUE:
-        return None
-    if value & _HOME_FIRMWARE_A_BIT:
-        return AsekoFirmwareVariant.HOME_A
-    return AsekoFirmwareVariant.HOME_B
-
-
-class ProfileMemory:
-    """The last firmware variant confidently detected, per serial number.
-
-    Detection runs on every frame, but byte[37] is 0xFF on some HOME frames
-    and then says nothing about the firmware.  Rather than lock a guess in
-    at setup, the decoder remembers the last frame that did allow the
-    variant to be told apart and falls back to that.
-    """
-
-    def __init__(self) -> None:
-        self._firmware: dict[int, AsekoFirmwareVariant] = {}
-
-    def remember(self, serial_number: int, firmware: AsekoFirmwareVariant) -> None:
-        self._firmware[serial_number] = firmware
-
-    def recall(self, serial_number: int) -> AsekoFirmwareVariant | None:
-        return self._firmware.get(serial_number)

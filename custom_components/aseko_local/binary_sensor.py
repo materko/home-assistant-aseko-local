@@ -8,6 +8,7 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
     BinarySensorEntityDescription,
 )
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -76,10 +77,41 @@ BINARY_SENSORS: tuple[AsekoLocalBinarySensorEntityDescription, ...] = (
     ),
     AsekoLocalBinarySensorEntityDescription(
         key="vsp_pump_running",
-        feature="variable_speed_pump_running",
-        translation_key="variable_speed_pump_running",
+        feature="variable_speed_pump_enabled",
+        translation_key="variable_speed_pump_enabled",
         icon="mdi:pump",
-        value_fn=lambda device: device.variable_speed_pump_running,
+        value_fn=lambda device: device.variable_speed_pump_enabled,
+    ),
+    AsekoLocalBinarySensorEntityDescription(
+        key="water_level_sensor_enabled",
+        feature="water_level_sensor_enabled",
+        translation_key="water_level_sensor_enabled",
+        icon="mdi:waves-arrow-up",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda device: device.water_level_sensor_enabled,
+    ),
+    AsekoLocalBinarySensorEntityDescription(
+        key="flow_detection_enabled",
+        feature="flow_detection_enabled",
+        translation_key="flow_detection_enabled",
+        icon="mdi:waves-arrow-right",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda device: device.flow_detection_enabled,
+    ),
+    AsekoLocalBinarySensorEntityDescription(
+        key="backwash_schedule_enabled",
+        feature="backwash_schedule_enabled",
+        translation_key="backwash_schedule_enabled",
+        icon="mdi:calendar-sync",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda device: device.backwash_schedule_enabled,
+    ),
+    AsekoLocalBinarySensorEntityDescription(
+        key="heating_allowed",
+        feature="heating_allowed",
+        translation_key="heating_allowed",
+        icon="mdi:radiator",
+        value_fn=lambda device: device.heating_allowed,
     ),
     AsekoLocalBinarySensorEntityDescription(
         key="cl_pump_running",

@@ -339,7 +339,7 @@ def test_decode_electrolyzer_data() -> None:
     data[4] = 0x0E  # SALT with REDOX probe
     data[20] = 32  # salinity = 3.2
     data[21] = 80  # chlorine_production
-    data[29] = 0x10  # ELECTROLYZER_RUNNING_RIGHT
+    data[29] = 0x50  # electrolysis running, polarity bit 0x40 = right
     data[16:18] = (50).to_bytes(2, "big")  # free_chlorine < MAX_CLF_LIMIT
     data[14:16] = (700).to_bytes(2, "big")  # ph
     data[52] = 70
@@ -359,7 +359,7 @@ def test_decode_electrolyzer_data_left_direction() -> None:
     data[4] = 0x0E  # SALT with REDOX probe
     data[20] = 32
     data[21] = 80
-    data[29] = 0x50  # ELECTROLYZER_RUNNING_LEFT
+    data[29] = 0x10  # electrolysis running, polarity bit clear = left
 
     device = AsekoDecoder.decode(bytes(data))
     assert device.electrode_polarity == AsekoElectrolyzerDirection.LEFT
@@ -731,16 +731,16 @@ def test_decode_salt_pump_states() -> None:
     data[20] = 32  # salinity
     data[21] = 80  # chlorine_production
 
-    # Electrolyzer running, right direction (no filtration bit)
-    data[29] = 0x10  # ELECTROLYZER_RUNNING_RIGHT
+    # Electrolyzer running, right polarity (no filtration bit)
+    data[29] = 0x50
     device = AsekoDecoder.decode(bytes(data))
     assert device.filtration_running is False
     assert device.electrolysis_running is True
     assert device.electrode_polarity == AsekoElectrolyzerDirection.RIGHT
     assert device.chlorine_pump_running is None  # SALT has no CL pump
 
-    # Electrolyzer running, left direction
-    data[29] = 0x58  # 0x50 | 0x08 (LEFT + FILTRATION)
+    # Electrolyzer running, left polarity
+    data[29] = 0x18  # 0x10 | 0x08 (running + filtration, polarity bit clear)
     device = AsekoDecoder.decode(bytes(data))
     assert device.filtration_running is True
     assert device.electrolysis_running is True
@@ -1552,20 +1552,25 @@ def test_filtration_schedule_old_encoding_24h() -> None:
 
 
 def test_filtration_schedule_old_encoding_timer() -> None:
-    """Firmware A byte[37] = 0x53 → TIMER_PERIOD_1_AND_2 (cannot distinguish P1 vs P1&P2)."""
+    """byte[37] = 0x53 is period 1 with the Waterlevel setting (0x40) on."""
     data = _make_home_bytes()
     data[37] = 0x53
     device = AsekoDecoder.decode(bytes(data))
-    assert device.filtration_schedule == AsekoFiltrationSchedule.TIMER_PERIOD_1_AND_2
+    assert device.filtration_schedule == AsekoFiltrationSchedule.TIMER_PERIOD_1
+    assert device.water_level_sensor_enabled is True
 
 
-def test_filtration_schedule_old_encoding_transitional() -> None:
-    """Firmware A byte[37] = 0x47 / 0x57 → leave as None (transitional edit state)."""
-    for transitional in (0x47, 0x57):
+def test_filtration_schedule_with_the_menu_open_is_read_from_the_bits() -> None:
+    """0x47 / 0x57: the old "transitional" values are the menu bit 0x04."""
+    for byte37, schedule in (
+        (0x47, AsekoFiltrationSchedule.NONSTOP_24H),
+        (0x57, AsekoFiltrationSchedule.TIMER_PERIOD_1),
+    ):
         data = _make_home_bytes()
-        data[37] = transitional
+        data[37] = byte37
         device = AsekoDecoder.decode(bytes(data))
-        assert device.filtration_schedule is None
+        assert device.filtration_schedule is schedule
+        assert device.service_menu_open is True
 
 
 def test_filtration_schedule_unspecified() -> None:
@@ -2078,8 +2083,9 @@ def test_home_issue_110_frame() -> None:
     assert device.water_flow_to_probes is True  # byte[28] = 0xAA
     assert device.refilling is False  # byte[29] = 0x08, bit 0x02 not set
     assert (
-        device.filtration_schedule == AsekoFiltrationSchedule.TIMER_PERIOD_1_AND_2
+        device.filtration_schedule == AsekoFiltrationSchedule.TIMER_PERIOD_1
     )  # byte[37] = 0x53
+    assert device.water_level_sensor_enabled is True  # byte[37] 0x40
     assert device.water_level_low_alarm == 9  # byte[102]
     assert device.water_level_refill_start == 11  # byte[103]
     assert device.water_level_refill_stop == 13  # byte[104]
@@ -2282,21 +2288,6 @@ def test_filtration_schedule_salt_unknown_bits_stay_unknown() -> None:
 
     assert device.device_type == AsekoDeviceType.SALT
     assert device.filtration_schedule is None
-    assert device.filtration_schedule is None
-
-
-def test_filtration_schedule_home_transitional_still_suppressed() -> None:
-    """The transitional check keeps working where it came from.
-
-    0x47 is a half-finished edit on HOME firmware A: no mode should be
-    reported for it, even though the schedule bytes are populated.
-    """
-    data = _make_home_bytes()
-    data[37] = 0x47
-
-    device = AsekoDecoder.decode(bytes(data))
-
-    assert device.device_type == AsekoDeviceType.HOME
     assert device.filtration_schedule is None
 
 

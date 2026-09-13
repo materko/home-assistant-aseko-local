@@ -10,23 +10,18 @@ from .presence import NOT_PRESENT
 from .profiles import detect_profile
 
 if TYPE_CHECKING:
-    from ..aseko_data import AsekoFirmwareVariant
     from .frame import V7Frame, V8Frame
-    from .profile import Profile, ProfileMemory
+    from .profile import Profile
 
 
 def decode(
     frame: V7Frame | V8Frame,
     profile: Profile,
-    firmware: AsekoFirmwareVariant | None = None,
 ) -> AsekoDevice:
     """Fill an ``AsekoDevice`` from ``frame`` the way ``profile`` says to.
 
     Each feature's chosen reading gets the frame and the device as filled so
     far, so a feature listed after its dependencies can read their values.
-    ``firmware`` is what detection actually established for this frame; it
-    can differ from ``profile.firmware`` when the frame did not allow the
-    variant to be told apart and the profile is a fallback.
 
     ``device.features`` ends up as the fields *this unit* has: the profile's
     list minus every reading that answered ``NOT_PRESENT`` (see
@@ -35,7 +30,6 @@ def decode(
     """
     device = AsekoDevice(
         device_type=profile.model,
-        firmware_variant=firmware,
         flags=profile.flags,
     )
     present: set[str] = set()
@@ -50,8 +44,7 @@ def decode(
     return device
 
 
-def decode_raw(raw: bytes, memory: ProfileMemory | None = None) -> AsekoDevice:
+def decode_raw(raw: bytes) -> AsekoDevice:
     """Parse, detect and decode in one go.  Raises ValueError on a bad v8 frame."""
     frame = parse_frame(raw)
-    profile, firmware = detect_profile(frame, memory)
-    return decode(frame, profile, firmware)
+    return decode(frame, detect_profile(frame))

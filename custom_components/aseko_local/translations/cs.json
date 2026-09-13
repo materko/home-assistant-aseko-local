@@ -56,7 +56,7 @@
       "freeze_protection_enabled": {
         "name": "Ochrana proti zamrznutí"
       },
-      "variable_speed_pump_running": {
+      "variable_speed_pump_enabled": {
         "name": "Čerpadlo s proměnnými otáčkami"
       },
       "chlorine_pump_running": {
@@ -100,13 +100,33 @@
       },
       "service_menu": {
         "name": "Servisní menu"
+      },
+      "water_level_sensor_enabled": {
+        "name": "Hladinoměr"
+      },
+      "flow_detection_enabled": {
+        "name": "Detekce průtoku"
+      },
+      "backwash_schedule_enabled": {
+        "name": "Plán proplachu"
+      },
+      "heating_allowed": {
+        "name": "Ohřev povolen"
       }
     },
     "sensor": {
-      "filtration_period_1_start": { "name": "Filtrace 1 začátek" },
-      "filtration_period_1_end": { "name": "Filtrace 1 konec" },
-      "filtration_period_2_start": { "name": "Filtrace 2 začátek" },
-      "filtration_period_2_end": { "name": "Filtrace 2 konec" },
+      "filtration_period_1_start": {
+        "name": "Filtrace 1 začátek"
+      },
+      "filtration_period_1_end": {
+        "name": "Filtrace 1 konec"
+      },
+      "filtration_period_2_start": {
+        "name": "Filtrace 2 začátek"
+      },
+      "filtration_period_2_end": {
+        "name": "Filtrace 2 konec"
+      },
       "filtration_schedule": {
         "name": "Rozvrh filtrace",
         "state": {
@@ -115,9 +135,15 @@
           "timer_period_1_and_2": "Časová období 1 a 2"
         }
       },
-      "pool_volume": { "name": "Objem bazénu" },
-      "startup_delay": { "name": "Prodleva po startu" },
-      "dosing_delay": { "name": "Prodleva po dávce" },
+      "pool_volume": {
+        "name": "Objem bazénu"
+      },
+      "startup_delay": {
+        "name": "Prodleva po startu"
+      },
+      "dosing_delay": {
+        "name": "Prodleva po dávce"
+      },
       "ph_minus_concentration": {
         "name": "Koncentrace pH-"
       },
@@ -294,6 +320,23 @@
       },
       "oxy_total_consumed": {
         "name": "Spotřeba OXY Pure (celkem)"
+      },
+      "heating_condition": {
+        "name": "Podmínka ohřevu",
+        "state": {
+          "always": "Vždy",
+          "time_window": "Časové okno",
+          "outside_temperature_above": "Venkovní teplota nad",
+          "outside_temperature_below": "Venkovní teplota pod"
+        }
+      },
+      "variable_speed_pump_type": {
+        "name": "Typ čerpadla s proměnnými otáčkami",
+        "state": {
+          "speck_uwe": "Speck / Uwe",
+          "pentair_dab": "Pentair / Dab",
+          "hayward": "Hayward"
+        }
       }
     },
     "number": {

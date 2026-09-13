@@ -4,11 +4,11 @@ This module defines the **protocol-agnostic target schema** (``AsekoDevice``)
 that the entity layer (sensors, binary sensors, buttons, ...) consumes.  It
 also defines the device-type enum, the probe-type enum, the electrolyser
 direction enum, the filtration-schedule enum, and the two enums that describe
-*how* a device was decoded: its firmware variant and the semantic flags its
+*how* a device was decoded: the fields its profile reads and the semantic flags its
 profile carries.
 
 Byte-level knowledge lives in ``decoding/``: one decoder file per field in
-``decoding/decoders/``, and one profile per (protocol, model, firmware) in
+``decoding/decoders/``, and one profile per (protocol, model) in
 ``decoding/profiles/``.  Nothing in this module knows a byte offset, and
 nothing outside ``decoding/`` should either: the entity layer asks
 ``AsekoDevice.features`` and ``AsekoDevice.flags`` instead.
@@ -31,28 +31,6 @@ class AsekoDeviceType(Enum):
     SALT = "ASIN AQUA Salt"
 
 
-class AsekoFirmwareVariant(Enum):
-    """A firmware revision that changes how a model's frame must be read.
-
-    The frame carries no firmware number, so a variant is inferred from the
-    frame's content and only exists where two encodings of the same bytes
-    have actually been observed.  Today that is HOME only:
-
-    HOME_A -- ``byte[37]`` high nibble ``0x4`` / ``0x5`` (serials 110128063,
-        110175608): exact byte values for the filtration schedule, plus the
-        heating-control (``0x08``) and antifreeze (``0x80``) master enables.
-    HOME_B -- ``byte[37]`` high nibble ``0x0`` / ``0x1`` / ``0x3`` (serial
-        110169464, Issue #133): bit flags -- ``0x10`` period 1, ``0x20``
-        period 2, ``0x04`` settings menu open.
-
-    Discriminated by bit ``0x40`` of ``byte[37]``.  See
-    ``decoding.profile.detect_profile``.
-    """
-
-    HOME_A = "home_a"
-    HOME_B = "home_b"
-
-
 class AsekoProfileFlag(Enum):
     """Semantic facts about a model that are not values in the frame.
 
@@ -64,7 +42,7 @@ class AsekoProfileFlag(Enum):
     # byte[37] bit 0x04 (``service_menu_open``) marks a person standing at
     # the unit's settings menu and nothing more.  Where set, a backwash that
     # runs while the bit is on is manual as a matter of observation.  Where
-    # not set (HOME firmware B, Issue #133) the same bit is a standing pump
+    # not set (HOME, Issue #133) the same bit is a standing pump
     # override that can stay on indefinitely, so it proves nothing about who
     # started a backwash.  Read by ``backwash_tracker``.
     MENU_BIT_IS_PRESENCE_ONLY = "menu_bit_is_presence_only"
@@ -87,6 +65,23 @@ class AsekoElectrolyzerDirection(Enum):
     LEFT = "left"
     RIGHT = "right"
     WAITING = "waiting"
+
+
+class AsekoHeatingCondition(Enum):
+    """What heating control waits for (byte[22] bits 0x01 / 0x02 / 0x20)."""
+
+    ALWAYS = "always"
+    TIME_WINDOW = "time_window"
+    OUTSIDE_TEMPERATURE_ABOVE = "outside_temperature_above"
+    OUTSIDE_TEMPERATURE_BELOW = "outside_temperature_below"
+
+
+class AsekoVariableSpeedPumpType(Enum):
+    """Variable-speed pump type (byte[78] bits 0x0C); brands share a protocol."""
+
+    SPECK_UWE = "speck_uwe"
+    PENTAIR_DAB = "pentair_dab"
+    HAYWARD = "hayward"
 
 
 class AsekoBackwashTrigger(Enum):
@@ -148,12 +143,10 @@ class AsekoDevice:
     """Holds data received from Aseko device."""
 
     device_type: AsekoDeviceType | None = None  # v7 byte[4], v8 header f2
-    # How this device was decoded.  All three come from the profile that
+    # How this device was decoded.  Both come from the profile that
     # ``decoding.profile.detect_profile`` picked for the frame, and they are
     # what the entity layer consults instead of byte masks or device types:
     #
-    # firmware_variant -- None where the model has a single known encoding,
-    #     or where the frame did not allow the variant to be told apart.
     # features -- names of the AsekoDevice fields *this unit* has: the
     #     profile's list minus the readings that answered "not present" for
     #     this unit (probe not installed, shared port configured for the
@@ -161,7 +154,6 @@ class AsekoDevice:
     #     entity; a field in here that reads None is unknown right now and
     #     its entity shows "unknown".  See ``decoding.presence``.
     # flags -- semantic facts about the model, see ``AsekoProfileFlag``.
-    firmware_variant: AsekoFirmwareVariant | None = None
     features: frozenset[str] = field(default_factory=frozenset)
     flags: frozenset[AsekoProfileFlag] = field(default_factory=frozenset)
     configuration: set[AsekoProbeType] = field(default_factory=set)
@@ -186,7 +178,13 @@ class AsekoDevice:
     heating_running: bool | None = None  # byte 29 (2-nd bit, 0x04)
     heating_control_enabled: bool | None = None  # byte 37 bit 3 (0x08) on HOME
     freeze_protection_enabled: bool | None = None  # byte 37 bit 7 (0x80) on HOME
-    variable_speed_pump_running: bool | None = None  # byte 22 bit 3 (0x08) on HOME
+    variable_speed_pump_enabled: bool | None = None  # byte 22 bit 0x08 (setting)
+    variable_speed_pump_type: AsekoVariableSpeedPumpType | None = None  # byte 78 0x0C
+    water_level_sensor_enabled: bool | None = None  # byte 37 bit 0x40
+    flow_detection_enabled: bool | None = None  # byte 37 bit 0x02
+    backwash_schedule_enabled: bool | None = None  # byte 22 bit 0x10
+    heating_condition: AsekoHeatingCondition | None = None  # byte 22 0x01/0x02/0x20
+    heating_allowed: bool | None = None  # byte 78 bit 0x80 (live)
     ph_minus_concentration: int | None = None  # byte 112 (%) on HOME (Issue #139)
     chlorine_pump_running: bool | None = None  # byte 29 (6-th bit)
     ph_minus_pump_running: bool | None = None  # byte 29 (7-th bit)
@@ -278,7 +276,7 @@ class AsekoDevice:
     # touched — and what — is not observable at all.  It may well override
     # filtration; there is no way to see that from here.
     #
-    # Only the bit-flag firmware encodes it.  Left None on firmware A, where
+    # Read from byte[37] bit 0x04 on every model with the bit field; left None where
     # bit 0x04 belongs to the transitional edit states, and on NET.
     service_menu_open: bool | None = None
 

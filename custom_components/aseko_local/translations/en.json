@@ -56,8 +56,8 @@
       "freeze_protection_enabled": {
         "name": "Freeze protection"
       },
-      "variable_speed_pump_running": {
-        "name": "Variable speed pump running"
+      "variable_speed_pump_enabled": {
+        "name": "Variable speed pump"
       },
       "chlorine_pump_running": {
         "name": "Chlorine pump running"
@@ -100,6 +100,18 @@
       },
       "service_menu": {
         "name": "Service menu"
+      },
+      "water_level_sensor_enabled": {
+        "name": "Water level meter"
+      },
+      "flow_detection_enabled": {
+        "name": "Flow detection"
+      },
+      "backwash_schedule_enabled": {
+        "name": "Backwash schedule"
+      },
+      "heating_allowed": {
+        "name": "Heating allowed"
       }
     },
     "sensor": {
@@ -308,6 +320,23 @@
       },
       "oxy_total_consumed": {
         "name": "OXY Pure consumed (total)"
+      },
+      "heating_condition": {
+        "name": "Heating condition",
+        "state": {
+          "always": "Always",
+          "time_window": "Time window",
+          "outside_temperature_above": "Outside temperature above",
+          "outside_temperature_below": "Outside temperature below"
+        }
+      },
+      "variable_speed_pump_type": {
+        "name": "Variable speed pump type",
+        "state": {
+          "speck_uwe": "Speck / Uwe",
+          "pentair_dab": "Pentair / Dab",
+          "hayward": "Hayward"
+        }
       }
     },
     "number": {

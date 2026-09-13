@@ -17,7 +17,7 @@ import pytest
 from custom_components.aseko_local.aseko_data import (
     AsekoDevice,
     AsekoDeviceType,
-    AsekoFirmwareVariant,
+    AsekoFiltrationSchedule,
     AsekoProfileFlag,
 )
 from custom_components.aseko_local.aseko_decoder import AsekoDecoder
@@ -45,7 +45,7 @@ from custom_components.aseko_local.decoding.frame import (
     parse_v8,
     v7_bad_checksum_segments,
 )
-from custom_components.aseko_local.decoding.profile import Profile, ProfileMemory
+from custom_components.aseko_local.decoding.profile import Profile
 from custom_components.aseko_local.decoding.profiles import (
     ALL_PROFILES,
     detect_profile,
@@ -84,7 +84,6 @@ def test_every_frame_derived_field_has_a_feature() -> None:
     owned = {f.field for f in ALL_FEATURES}
     not_from_the_frame = {
         "device_type",  # set from the profile
-        "firmware_variant",
         "features",
         "flags",
         "last_seen",  # stamped by the coordinator
@@ -101,10 +100,7 @@ def test_every_frame_derived_field_has_a_feature() -> None:
 def test_default_and_named_variants() -> None:
     assert FiltrationSchedule.default_variant(Protocol.V7) == "decode_v7"
     assert FiltrationSchedule.default_variant(Protocol.V8) is None
-    assert FiltrationSchedule.variants(Protocol.V7) == (
-        "decode_v7",
-        "decode_v7_home_a",
-    )
+    assert FiltrationSchedule.variants(Protocol.V7) == ("decode_v7",)
     assert FiltrationSchedule.protocols() == (Protocol.V7,)
     assert Ph.protocols() == (Protocol.V7, Protocol.V8)
 
@@ -146,17 +142,15 @@ def test_profile_readings_match_its_protocol(profile: Profile) -> None:
 
 
 def test_overrides_pick_the_named_reading() -> None:
-    assert v7.HOME_A.variant_for(FiltrationSchedule) == "decode_v7_home_a"
-    assert v7.HOME_B.variant_for(FiltrationSchedule) == "decode_v7"
-    assert v7.HOME_B.variant_for(FiltrationRunning) == "decode_v7_menu_override"
+    assert v7.HOME.variant_for(FiltrationSchedule) == "decode_v7"
+    assert v7.HOME.variant_for(FiltrationRunning) == "decode_v7_menu_override"
     assert v7.SALT.variant_for(FiltrationRunning) == "decode_v7"
     assert v7.OXY.variant_for(AlgaecidePumpRunning) == "decode_v7_oxy"
 
 
 def test_a_feature_absent_from_a_profile_is_a_model_without_it() -> None:
     assert FiltrationPeriod2Start not in v7.NET.features
-    assert ServiceMenuOpen not in v7.HOME_A.features
-    assert ServiceMenuOpen in v7.HOME_B.features
+    assert ServiceMenuOpen in v7.HOME.features
     assert "backwash_running" not in v7.NET.feature_names
     assert "backwash_running" in v7.SALT.feature_names
 
@@ -271,61 +265,17 @@ def test_profile_detects_a_dependency_cycle() -> None:
 def test_detect_v7_model_from_byte4(unit_type: int, expected: Profile) -> None:
     data = _make_base_bytes()
     data[4] = unit_type
-    profile, firmware = detect_profile(parse_v7(bytes(data)))
-    assert profile is expected
-    assert firmware is None
-
-
-@pytest.mark.parametrize(
-    ("byte37", "expected_profile", "expected_firmware"),
-    [
-        (0x43, v7.HOME_A, AsekoFirmwareVariant.HOME_A),
-        (0x53, v7.HOME_A, AsekoFirmwareVariant.HOME_A),
-        (0x49, v7.HOME_A, AsekoFirmwareVariant.HOME_A),
-        (0x01, v7.HOME_B, AsekoFirmwareVariant.HOME_B),
-        (0x31, v7.HOME_B, AsekoFirmwareVariant.HOME_B),
-        (0xFF, v7.HOME_UNKNOWN_FIRMWARE, None),
-    ],
-)
-def test_detect_home_firmware_from_byte37(
-    byte37: int, expected_profile: Profile, expected_firmware
-) -> None:
-    profile, firmware = detect_profile(parse_v7(_home_bytes(byte37)))
-    assert profile is expected_profile
-    assert firmware is expected_firmware
-
-
-def test_memory_carries_the_firmware_over_an_unset_byte37() -> None:
-    """Detection runs per frame; a frame that says nothing borrows the last that did."""
-    memory = ProfileMemory()
-
-    profile, firmware = detect_profile(parse_v7(_home_bytes(0x43)), memory)
-    assert (profile, firmware) == (v7.HOME_A, AsekoFirmwareVariant.HOME_A)
-
-    profile, firmware = detect_profile(parse_v7(_home_bytes(0xFF)), memory)
-    assert (profile, firmware) == (v7.HOME_A, AsekoFirmwareVariant.HOME_A)
-
-    # and a frame that does say something wins over the memory
-    profile, firmware = detect_profile(parse_v7(_home_bytes(0x11)), memory)
-    assert (profile, firmware) == (v7.HOME_B, AsekoFirmwareVariant.HOME_B)
-
-    # a different unit shares nothing
-    other = _make_base_bytes()
-    other[0:4] = (4321).to_bytes(4, "big")
-    other[4] = 0x02
-    other[37] = 0xFF
-    profile, firmware = detect_profile(parse_v7(bytes(other)), memory)
-    assert (profile, firmware) == (v7.HOME_UNKNOWN_FIRMWARE, None)
+    assert detect_profile(parse_v7(bytes(data))) is expected
 
 
 def test_detect_v8_model_from_header_type() -> None:
-    assert detect_profile(parse_v8(REFERENCE_FRAME)) == (v8.NET, None)
-    assert detect_profile(parse_v8(REFERENCE_FRAME_105)) == (v8.SALT, None)
+    assert detect_profile(parse_v8(REFERENCE_FRAME)) is v8.NET
+    assert detect_profile(parse_v8(REFERENCE_FRAME_105)) is v8.SALT
 
 
 def test_detect_v8_unknown_header_falls_back_to_net() -> None:
     frame = parse_v8(REFERENCE_FRAME.replace(b" 804 ", b" 999 "))
-    assert detect_profile(frame) == (v8.NET, None)
+    assert detect_profile(frame) is v8.NET
 
 
 def test_parse_frame_picks_the_protocol() -> None:
@@ -334,15 +284,32 @@ def test_parse_frame_picks_the_protocol() -> None:
     assert parse_frame(b"\n" + REFERENCE_FRAME).protocol is Protocol.V8
 
 
-def test_profile_for_home_without_a_firmware_reads_only_the_shared_part() -> None:
-    assert profile_for(Protocol.V7, AsekoDeviceType.HOME) is v7.HOME_UNKNOWN_FIRMWARE
-    assert ServiceMenuOpen not in v7.HOME_UNKNOWN_FIRMWARE.features
-    assert v7.HOME_UNKNOWN_FIRMWARE.feature_names <= v7.HOME_B.feature_names
-    assert (
-        profile_for(Protocol.V7, AsekoDeviceType.HOME, AsekoFirmwareVariant.HOME_A)
-        is v7.HOME_A
-    )
+@pytest.mark.parametrize("byte37", [0x43, 0x53, 0x49, 0x01, 0x31, 0xFF])
+def test_every_home_frame_uses_the_one_home_profile(byte37: int) -> None:
+    """The old firmware A / B split was byte[37] bit 0x40, the Waterlevel setting."""
+    assert detect_profile(parse_v7(_home_bytes(byte37))) is v7.HOME
+    assert profile_for(Protocol.V7, AsekoDeviceType.HOME) is v7.HOME
     assert profile_for(Protocol.V7, None) is v7.UNKNOWN
+
+
+@pytest.mark.parametrize(
+    ("byte37", "level_meter", "flow_detection", "menu", "schedule"),
+    [
+        (0x43, True, True, False, AsekoFiltrationSchedule.NONSTOP_24H),  # once "A"
+        (0x53, True, True, False, AsekoFiltrationSchedule.TIMER_PERIOD_1),  # once "A"
+        (0x47, True, True, True, AsekoFiltrationSchedule.NONSTOP_24H),  # "transitional"
+        (0x11, False, False, False, AsekoFiltrationSchedule.TIMER_PERIOD_1),  # once "B"
+        (0x35, False, False, True, AsekoFiltrationSchedule.TIMER_PERIOD_1_AND_2),
+    ],
+)
+def test_home_byte37_is_one_bit_field(
+    byte37: int, level_meter: bool, flow_detection: bool, menu: bool, schedule
+) -> None:
+    device = AsekoDecoder.decode(_home_bytes(byte37))
+    assert device.water_level_sensor_enabled is level_meter
+    assert device.flow_detection_enabled is flow_detection
+    assert device.service_menu_open is menu
+    assert device.filtration_schedule is schedule
 
 
 # ── the engine, and what the device says about itself ───────────────────────
@@ -351,13 +318,11 @@ def test_profile_for_home_without_a_firmware_reads_only_the_shared_part() -> Non
 def test_decoded_device_says_how_it_was_read() -> None:
     device = AsekoDecoder.decode(_home_bytes(0x43))
     assert device.device_type is AsekoDeviceType.HOME
-    assert device.firmware_variant is AsekoFirmwareVariant.HOME_A
-    assert device.features <= v7.HOME_A.feature_names
+    assert device.features <= v7.HOME.feature_names
     assert "filtration_schedule" in device.features
     assert device.flags == frozenset()
 
     salt = AsekoDecoder.decode(bytes(_make_base_bytes()))
-    assert salt.firmware_variant is None
     assert AsekoProfileFlag.MENU_BIT_IS_PRESENCE_ONLY in salt.flags
 
     net_v8 = AsekoV8Decoder.decode(REFERENCE_FRAME)
@@ -382,13 +347,12 @@ def test_a_field_outside_the_profile_stays_none_whatever_the_frame_says() -> Non
     assert device.filtration_running is None
 
 
-def test_home_b_menu_override_forces_the_pump_off() -> None:
+def test_home_menu_override_forces_the_pump_off() -> None:
     data = _make_base_bytes()
     data[4] = 0x02
     data[29] = 0x08  # relay bit says running
-    data[37] = 0x15  # firmware B, period 1, settings menu open
+    data[37] = 0x15  # period 1, settings menu open
     device = AsekoDecoder.decode(bytes(data))
-    assert device.firmware_variant is AsekoFirmwareVariant.HOME_B
     assert device.service_menu_open is True
     assert device.filtration_running is False
 
@@ -450,7 +414,8 @@ def test_a_value_unknown_in_this_frame_stays_present() -> None:
     home = AsekoDecoder.decode(_home_bytes(0xFF))
     assert "heating_control_enabled" in home.features
     assert home.heating_control_enabled is None
-    assert "service_menu_open" not in home.features  # firmware unknown: not guessed
+    assert "service_menu_open" in home.features
+    assert home.service_menu_open is None
 
 
 def test_shared_port_routing_decides_which_chemical_is_present() -> None:
@@ -558,12 +523,43 @@ def test_not_located_reading_keeps_the_value_unknown_but_present() -> None:
     Every feature accepts ``decode_v7_not_located``; it reads None, so the
     device lists the field (the entity exists) and the value stays unknown.
     """
-    assert v7.SALT.variant_for(HeatingControlEnabled) == "decode_v7_not_located"
+    assert v7.OXY.variant_for(HeatingControlEnabled) == "decode_v7_not_located"
     assert "decode_v7_not_located" not in HeatingControlEnabled.variants()
 
-    data = _make_base_bytes()  # SALT
-    data[37] = 0xFF
+    data = _make_base_bytes()
+    data[4] = 0x05  # OXY
     device = AsekoDecoder.decode(bytes(data))
     for field in ("heating_control_enabled", "freeze_protection_enabled"):
         assert field in device.features, field
         assert getattr(device, field) is None, field
+
+
+def test_salt_settings_found_with_marked_test_cases() -> None:
+    """byte[22] / byte[37] / byte[78] flags toggled one at a time on an ASIN AQUA Salt."""
+    data = _make_base_bytes()  # SALT
+    data[37] = 0xDB  # flow detection, heating control, period 1, level meter, algicide
+    data[22] = 0x3A  # backwash schedule, below, outside temperature, VS pump on
+    data[78] = 0x85  # heating allowed, Pentair / Dab
+    data[29] = 0x50  # electrolysis running, right polarity
+    device = AsekoDecoder.decode(bytes(data))
+    assert device.flow_detection_enabled is True
+    assert device.water_level_sensor_enabled is True
+    assert device.heating_control_enabled is True
+    assert device.backwash_schedule_enabled is True
+    assert device.freeze_protection_enabled is False
+    assert device.variable_speed_pump_enabled is True
+    assert device.heating_condition.value == "outside_temperature_below"
+    assert device.heating_allowed is True
+    assert device.variable_speed_pump_type.value == "pentair_dab"
+    assert device.electrode_polarity.value == "right"
+
+    data[22] = 0x05  # time window, winter mode
+    data[78] = 0x49  # winter, Hayward
+    data[29] = 0x10  # running, left
+    device = AsekoDecoder.decode(bytes(data))
+    assert device.heating_condition.value == "time_window"
+    assert device.freeze_protection_enabled is True
+    assert device.backwash_schedule_enabled is False
+    assert device.heating_allowed is False
+    assert device.variable_speed_pump_type.value == "hayward"
+    assert device.electrode_polarity.value == "left"

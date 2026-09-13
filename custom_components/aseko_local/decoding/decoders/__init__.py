@@ -10,6 +10,12 @@ from __future__ import annotations
 
 from ..feature import Feature
 from .air_temperature import AirTemperature
+from .water_level_sensor_enabled import WaterLevelSensorEnabled
+from .flow_detection_enabled import FlowDetectionEnabled
+from .backwash_schedule_enabled import BackwashScheduleEnabled
+from .heating_allowed import HeatingAllowed
+from .heating_condition import HeatingCondition
+from .variable_speed_pump_type import VariableSpeedPumpType
 from .alarm_no_flow_to_probes import AlarmNoFlowToProbes
 from .alarm_max_disinfection_dose import AlarmMaxDisinfectionDose
 from .alarm_ph_dosing_ineffective import AlarmPhDosingIneffective
@@ -65,7 +71,7 @@ from .salinity import Salinity
 from .serial_number import SerialNumber
 from .service_menu_open import ServiceMenuOpen
 from .timestamp import Timestamp
-from .variable_speed_pump_running import VariableSpeedPumpRunning
+from .variable_speed_pump_enabled import VariableSpeedPumpEnabled
 from .refilling import Refilling
 from .water_flow_to_probes import WaterFlowToProbes
 from .water_level import WaterLevel
@@ -76,6 +82,12 @@ from .water_level_low_alarm import WaterLevelLowAlarm
 from .water_temperature import WaterTemperature
 
 ALL_FEATURES: tuple[type[Feature], ...] = (
+    WaterLevelSensorEnabled,
+    FlowDetectionEnabled,
+    BackwashScheduleEnabled,
+    HeatingAllowed,
+    HeatingCondition,
+    VariableSpeedPumpType,
     AirTemperature,
     AlarmNoFlowToProbes,
     AlarmMaxDisinfectionDose,
@@ -132,7 +144,7 @@ ALL_FEATURES: tuple[type[Feature], ...] = (
     SerialNumber,
     ServiceMenuOpen,
     Timestamp,
-    VariableSpeedPumpRunning,
+    VariableSpeedPumpEnabled,
     Refilling,
     WaterFlowToProbes,
     WaterLevel,
@@ -144,6 +156,12 @@ ALL_FEATURES: tuple[type[Feature], ...] = (
 )
 
 __all__ = [
+    "WaterLevelSensorEnabled",
+    "FlowDetectionEnabled",
+    "BackwashScheduleEnabled",
+    "HeatingAllowed",
+    "HeatingCondition",
+    "VariableSpeedPumpType",
     "ALL_FEATURES",
     "AirTemperature",
     "AlarmNoFlowToProbes",
@@ -201,7 +219,7 @@ __all__ = [
     "SerialNumber",
     "ServiceMenuOpen",
     "Timestamp",
-    "VariableSpeedPumpRunning",
+    "VariableSpeedPumpEnabled",
     "Refilling",
     "WaterFlowToProbes",
     "WaterLevel",

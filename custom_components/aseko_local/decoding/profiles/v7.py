@@ -1,7 +1,7 @@
 """v7 profiles: the 120-byte binary protocol, firmware up to 7.x, port 47524.
 
-One profile per model, two for HOME because its firmware revisions encode
-byte[37] differently.  A feature listed here is one the model has; a
+One profile per model.  HOME once had two, for a "firmware A / B" split
+that turned out to be bit 0x40 of byte[37] -- the Waterlevel setting.  A feature listed here is one the model has; a
 feature missing from a profile is one it does not have, and its field stays
 None so no entity is created for it.  ``overrides`` name the reading to use
 where this model's frame differs from the protocol default; everything else
@@ -19,9 +19,15 @@ The support matrix in the docs is generated from these dictionaries.
 
 from __future__ import annotations
 
-from ...aseko_data import AsekoDeviceType, AsekoFirmwareVariant, AsekoProfileFlag
+from ...aseko_data import AsekoDeviceType, AsekoProfileFlag
 from ..decoders import (
     AirTemperature,
+    BackwashScheduleEnabled,
+    FlowDetectionEnabled,
+    HeatingAllowed,
+    HeatingCondition,
+    VariableSpeedPumpType,
+    WaterLevelSensorEnabled,
     AlarmNoFlowToProbes,
     AlarmMaxDisinfectionDose,
     AlarmPhDosingIneffective,
@@ -75,7 +81,7 @@ from ..decoders import (
     SerialNumber,
     ServiceMenuOpen,
     Timestamp,
-    VariableSpeedPumpRunning,
+    VariableSpeedPumpEnabled,
     Refilling,
     WaterFlowToProbes,
     WaterLevel,
@@ -127,7 +133,7 @@ _WATER_LEVEL = (
     WaterLevelHighAlarm,
     Refilling,
 )
-_UNIT_STATE = (HeatingRunning, VariableSpeedPumpRunning, PhMinusConcentration)
+_UNIT_STATE = (HeatingRunning, VariableSpeedPumpEnabled, PhMinusConcentration)
 
 # The disinfection setpoint family on chlorine units: byte[53] is one of
 # these three depending on the installed probes, each answers only when it
@@ -176,23 +182,34 @@ SALT = Profile(
         *_UNIT_STATE,
         HeatingControlEnabled,
         FreezeProtectionEnabled,
+        WaterLevelSensorEnabled,
+        FlowDetectionEnabled,
+        BackwashScheduleEnabled,
+        HeatingCondition,
+        HeatingAllowed,
+        VariableSpeedPumpType,
         *_BACKWASH,
         *_ALARMS,
     ),
     overrides={
         **_SHARED_THIRD_PUMP,
-        HeatingControlEnabled: "decode_v7_not_located",
-        FreezeProtectionEnabled: "decode_v7_not_located",
+        FreezeProtectionEnabled: "decode_v7_winter_mode",
     },
     flags=frozenset({AsekoProfileFlag.MENU_BIT_IS_PRESENCE_ONLY}),
     evidence={
+        BackwashScheduleEnabled: "confirmed: byte[22] 0x10, cleared with byte[68] dropping to 0; confirmed on the own SALT by toggling it on the unit with a frame-log marker after each change, 2026-09-13/14",
+        FlowDetectionEnabled: "confirmed: byte[37] 0x02; confirmed on the own SALT by toggling it on the unit with a frame-log marker after each change, 2026-09-13/14",
+        HeatingAllowed: "confirmed: byte[78] 0x80 follows the heating time window and the outside-temperature condition; confirmed on the own SALT by toggling it on the unit with a frame-log marker after each change, 2026-09-13/14",
+        HeatingCondition: "confirmed: byte[22] 0x01 time window, 0x02 outside temperature, 0x20 below; confirmed on the own SALT by toggling it on the unit with a frame-log marker after each change, 2026-09-13/14",
+        VariableSpeedPumpType: "confirmed: byte[78] 0x0C, every brand selected in turn; confirmed on the own SALT by toggling it on the unit with a frame-log marker after each change, 2026-09-13/14",
+        WaterLevelSensorEnabled: "confirmed: byte[37] 0x40; confirmed on the own SALT by toggling it on the unit with a frame-log marker after each change, 2026-09-13/14",
         AirTemperature: "confirmed: two dumps from one SALT vs the unit display (Issue #155); matches the app and unit display, 2026-09-11",
         AlarmNoFlowToProbes: "confirmed: byte[13] 0x04 (DomSchCoding, NET frame)",
         AlarmMaxDisinfectionDose: "confirmed on HOME: byte[12] 0x20 (Issue #134), byte[13] 0x01 (Issue #151)",
         AlarmPhDosingIneffective: "confirmed on HOME: byte[12] 0x40 (Issue #134); byte[13] 0x02 inferred",
         AlarmRapidPhChange: "unconfirmed: byte[13] 0x08 from error_codes.md; never set in the own SALT dumps, 37 frames 2026-08-08..28",
         AlgaecidePumpRunning: "confirmed: byte[29] 0x20, 27 frames (PR #87)",
-        FreezeProtectionEnabled: "not located: the unit's Configuration menu has Winter mode ON/OFF; HOME's byte[37] 0x80 is the algicide routing on SALT, so it lives elsewhere",
+        FreezeProtectionEnabled: "confirmed: Winter mode is byte[22] 0x04 (byte[37] 0x80 is the algicide routing here); confirmed on the own SALT by toggling it on the unit with a frame-log marker after each change, 2026-09-13/14",
         BackwashRunning: "confirmed: byte[29] 0x01, 2026-08-11 capture of a manual backwash",
         BackwashDuration: "confirmed: byte[71] * 10 matched the relay window; matches the app and unit display, 2026-09-11",
         BackwashInterval: "confirmed: byte[68] vs the unit's backwash settings (own SALT, the v1.8.0 backwash tracker classifies cycles against it); matches the app and unit display, 2026-09-11",
@@ -203,7 +220,7 @@ SALT = Profile(
         DosingDelay: "confirmed: bytes 106-107; matches the app and unit display, 2026-09-11",
         StartupDelay: "confirmed: bytes 74-75; matches the app and unit display, 2026-09-11",
         ElectrolysisRunning: "confirmed: byte[29] 0x10, 25 frames (PR #87)",
-        ElectrodePolarity: "confirmed: left, right and waiting all seen (own SALT dumps, 37 frames 2026-08-08..28, checked against the unit by the maintainer); matches the app and unit display, 2026-09-11",
+        ElectrodePolarity: "confirmed: byte[29] 0x40 = right, clear = left, switched by hand both ways; confirmed on the own SALT by toggling it on the unit with a frame-log marker after each change, 2026-09-13/14",
         ChlorineProduction: "confirmed: byte[21] while 0x10 set (PR #87); matches the app and unit display, 2026-09-11",
         FiltrationRunning: "confirmed: byte[29] 0x08 in every active phase (PR #87)",
         FiltrationSchedule: "confirmed: 0xC3 / 0xD3 / 0xF3, every transition both ways; matches the app and unit display, 2026-09-11",
@@ -212,7 +229,7 @@ SALT = Profile(
         FlocculantFlowRate: "confirmed: byte[101] via byte[37] 0x80 clear (Issue #84, SALT v5.0, shows 0x13 with bit 7 clear while set to algicide: an older firmware may route differently)",
         PhMinusFlowRate: "confirmed: byte[95] (Issue #110, #115)",
         HeatingRunning: "assumed: byte[29] 0x04 per JS-DE-Tech relay_byte bit 2; never set in the own SALT dumps, whose unit has heating control OFF",
-        HeatingControlEnabled: "not located: the unit's Configuration menu has Heating control ON/OFF; HOME's byte[37] 0x08 was clear in every own SALT frame with it OFF, the ON state was never captured",
+        HeatingControlEnabled: "confirmed: byte[37] 0x08; confirmed on the own SALT by toggling it on the unit with a frame-log marker after each change, 2026-09-13/14",
         MaxRefillTime: "confirmed: bytes 76-77 vs Aseko Live (1800 s = 30 min); matches the app and unit display, 2026-09-11",
         MaxPhDoses: "confirmed: byte[115] followed a change of the unit's Safety Functions setting from 20 to 17 on the REDOX unit, 2026-09-12 19:47 -- and 17 appears nowhere else in that frame; 40 on the CLF unit",
         Ph: "confirmed: bytes 14-15 / 100 on every model",
@@ -235,7 +252,7 @@ SALT = Profile(
         FiltrationPeriod1End: "confirmed: bytes 58-59 changed 18:05 / 19:00 / 21:35 with the timer settings during the own SALT dumps, 37 frames 2026-08-08..28, checked against the unit by the maintainer; matches the app and unit display, 2026-09-11",
         FiltrationPeriod2End: "confirmed: bytes 62-63 changed 22:00 -> 23:55 with the timer settings during the own SALT dumps, 37 frames 2026-08-08..28, checked against the unit by the maintainer; matches the app and unit display, 2026-09-11",
         Timestamp: "confirmed: bytes 6-11",
-        VariableSpeedPumpRunning: "confirmed: byte[22] bit 0x08 clear on the REDOX unit (display: VS Pump OFF) and set on the CLF one; own SALT dumps Aug 2026, checked against the unit by the maintainer",
+        VariableSpeedPumpEnabled: "confirmed: byte[22] 0x08 is the VS Pump setting, not the run state; confirmed on the own SALT by toggling it on the unit with a frame-log marker after each change, 2026-09-13/14",
         Refilling: "assumed: byte[29] 0x02, confirmed on HOME only; never set in the own SALT dumps, 37 frames 2026-08-08..28",
         WaterFlowToProbes: "confirmed: byte[28] == 0xAA",
         WaterLevel: "confirmed: byte[27] 14..25 cm across the own SALT dumps, 37 frames 2026-08-08..28, checked against the unit by the maintainer",
@@ -248,7 +265,7 @@ SALT = Profile(
 )
 
 # ---------------------------------------------------------------------------
-# HOME, two firmware revisions
+# HOME
 # ---------------------------------------------------------------------------
 
 _HOME_FEATURES = (
@@ -274,21 +291,29 @@ _HOME_FEATURES = (
     *_UNIT_STATE,
     HeatingControlEnabled,
     FreezeProtectionEnabled,
+    ServiceMenuOpen,
+    WaterLevelSensorEnabled,
+    FlowDetectionEnabled,
+    BackwashScheduleEnabled,
+    VariableSpeedPumpType,
     *_BACKWASH,
     *_ALARMS,
 )
 
-HOME_A = Profile(
-    name="v7 HOME firmware A",
+HOME = Profile(
+    name="v7 HOME",
     protocol=Protocol.V7,
     model=AsekoDeviceType.HOME,
-    firmware=AsekoFirmwareVariant.HOME_A,
     features=_HOME_FEATURES,
     overrides={
         Configuration: "decode_v7_by_unit_type_byte",
-        FiltrationSchedule: "decode_v7_home_a",
+        FiltrationRunning: "decode_v7_menu_override",
     },
     evidence={
+        BackwashScheduleEnabled: "observed: byte[22] 0x10 set on serial 110128063 with backwash every 3 days (0x90); confirmed on an ASIN AQUA Salt (2026-09-13)",
+        FlowDetectionEnabled: "derived: byte[37] 0x02, confirmed on an ASIN AQUA Salt (2026-09-13); on HOME 0x43 / 0x53 have it set and Issue #135's 0x41 / 0x45 / 0x49 clear",
+        VariableSpeedPumpType: "confirmed: byte[78] 0x22 / 0x26 / 0x2a for Speck-Uwe / Pentair-Dab / Hayward (Issue #137); the same bits on an ASIN AQUA Salt (2026-09-13/14)",
+        WaterLevelSensorEnabled: "derived: byte[37] 0x40, confirmed on an ASIN AQUA Salt (2026-09-13); set in every frame of the level-meter HOME units (once 'firmware A'), clear on serial 110169464 (once 'firmware B')",
         AirTemperature: "unverified: bytes 23-24 = 0xFE70 (no air probe, the SALT marker) in every captured HOME frame, so no entity yet; the Aseko Live app shows air temperature on HOME units",
         AlarmNoFlowToProbes: "confirmed: byte[13] 0x04 (DomSchCoding, NET frame)",
         AlarmMaxDisinfectionDose: "confirmed on HOME: byte[12] 0x20 (Issue #134), byte[13] 0x01 (Issue #151)",
@@ -306,81 +331,15 @@ HOME_A = Profile(
         Configuration: "confirmed: byte[4] exact sub-type, 0x02 CLF / 0x03 REDOX (Issue #110)",
         DosingDelay: "confirmed: bytes 106-107 = 240 s vs '4 min' in Aseko Live, serial 110128063",
         StartupDelay: "confirmed: bytes 74-75 = 480 s vs '8 min' in Aseko Live, serial 110128063",
-        FiltrationRunning: "observed: byte[29] 0x08 clear while Aseko Live showed STOP, serial 110128063; the set state was not captured on firmware A",
-        FiltrationSchedule: "confirmed: 0x43 nonstop / 0x53 timer, serial 110128063; fallback for 0x41 / 0x45 / 0x49 (Issue #135)",
-        FlocculantPumpRunning: "uncertain: byte[29] 0x20 assumed",
-        AlgaecideFlowRate: "confirmed: byte[103], Issues #110, #115 -- but the same byte is also read as water_level_refill_start, and one of the two must be wrong",
-        ChlorineFlowRate: "confirmed: byte[99], serials 110071590 / 110128063 (Issues #110, #115)",
-        FlocculantFlowRate: "confirmed: byte[101], Issues #110, #115",
-        PhMinusFlowRate: "confirmed: byte[95] = 60, Aseko Live lists the pH- pump, serial 110128063",
-        HeatingRunning: "assumed: byte[29] 0x04 per JS-DE-Tech relay_byte bit 2; no HOME frame with the heater running (open item 9)",
-        HeatingControlEnabled: "confirmed: byte[37] 0x08, serial 110175608 (Issue #135)",
-        MaxRefillTime: "assumed: bytes 76-77 = 10800 s on serial 110128063, plausible (180 min); verified on SALT only",
-        MaxPhDoses: "observed: byte[115] = 20 on serial 110128063; the position is confirmed on SALT, the HOME setting was never compared",
-        Ph: "confirmed: bytes 14-15 = 6.29 vs 6.56 in Aseko Live (later reading), serial 110128063",
-        PhMinusConcentration: "confirmed: byte[112], serial 110175608 (Issue #139)",
-        PhMinusPumpRunning: "uncertain: byte[29] 0x80 assumed",
-        PoolVolume: "confirmed: bytes 92-93 = 60 m3 vs Aseko Live, serial 110128063",
-        AlgaecideDoseTarget: "confirmed: byte[72], serial 110128063 (2026-04-28)",
-        FreeChlorineTarget: "confirmed: byte[53] / 10 = 0.3 mg/l vs Aseko Live, serial 110128063",
-        FlocculantDoseTarget: "confirmed: byte[54], serial 110128063 (2026-04-28)",
-        PhTarget: "confirmed: byte[52] / 10 = 7.0 vs Aseko Live, serial 110128063",
-        WaterTemperatureTarget: "confirmed: byte[55] is the heating setpoint on serial 110175608 (Issue #135); 25 C with heating disabled on 110128063",
-        SerialNumber: "confirmed: bytes 0-3, repeated in every segment header",
-        FiltrationPeriod1Start: "confirmed: bytes 56-57 = 08:00 last-configured, serial 110128063 (Issues #110, #133)",
-        FiltrationPeriod2Start: "confirmed: bytes 60-61 = 18:00 last-configured, serial 110128063 (Issues #110, #133)",
-        FiltrationPeriod1End: "confirmed: bytes 58-59 = 16:00 last-configured, serial 110128063 (Issues #110, #133)",
-        FiltrationPeriod2End: "confirmed: bytes 62-63 = 22:00 last-configured, serial 110128063 (Issues #110, #133)",
-        Timestamp: "confirmed: bytes 6-11",
-        VariableSpeedPumpRunning: "confirmed: byte[22] 0x08, serial 110175608",
-        Refilling: "confirmed: byte[29] 0x02 (DomSchCoding #100)",
-        WaterFlowToProbes: "confirmed: byte[28] != 0xAA while Aseko Live showed 'NO', serial 110128063",
-        WaterLevel: "confirmed: byte[27] (domin211, Issue #110)",
-        WaterLevelRefillStop: "confirmed: byte[104] (domin211, DomSchCoding, Issue #110)",
-        WaterLevelRefillStart: "unconfirmed: byte[103] = 33 on serial 110128063 is read both as this threshold (cm) and as algaecide_flow_rate (ml/min); the two mappings cannot both be right",
-        WaterLevelHighAlarm: "confirmed: byte[105] (domin211, Issue #110)",
-        WaterLevelLowAlarm: "confirmed: byte[102] (domin211, Issue #110)",
-        WaterTemperature: "confirmed: bytes 25-26 = 37.9 C vs 38.2 C in Aseko Live (later reading), serial 110128063",
-    },
-)
-
-HOME_B = Profile(
-    name="v7 HOME firmware B",
-    protocol=Protocol.V7,
-    model=AsekoDeviceType.HOME,
-    firmware=AsekoFirmwareVariant.HOME_B,
-    features=(*_HOME_FEATURES, ServiceMenuOpen),
-    overrides={
-        Configuration: "decode_v7_by_unit_type_byte",
-        FiltrationRunning: "decode_v7_menu_override",
-    },
-    evidence={
-        AirTemperature: "unverified: bytes 23-24 = 0xFE70 (no air probe, the SALT marker) in every captured HOME frame, so no entity yet; the Aseko Live app shows air temperature on HOME units",
-        AlarmNoFlowToProbes: "confirmed: byte[13] 0x04 (DomSchCoding, NET frame)",
-        AlarmMaxDisinfectionDose: "confirmed on HOME: byte[12] 0x20 (Issue #134), byte[13] 0x01 (Issue #151)",
-        AlarmPhDosingIneffective: "confirmed on HOME: byte[12] 0x40 (Issue #134); byte[13] 0x02 inferred",
-        AlarmRapidPhChange: "unconfirmed: byte[13] 0x08 was set on serial 110128063 with no matching alarm known in the app",
-        AlgaecidePumpRunning: "uncertain: byte[29] 0x20 assumed",
-        FreezeProtectionEnabled: "unverified: byte[37] 0x80 read as on firmware A, no capture on B",
-        BackwashRunning: "assumed: byte[29] 0x01, confirmed on SALT",
-        BackwashDuration: "confirmed: byte[71] * 10 = 120 s vs '02:00 min' in Aseko Live, serial 110128063",
-        BackwashInterval: "confirmed: byte[68] = 3 vs 'every 3 days' in Aseko Live, serial 110128063",
-        BackwashStartTime: "confirmed: bytes 69-70 = 21:00 vs Aseko Live, serial 110128063",
-        FreeChlorine: "confirmed: bytes 16-17 = 0.00 mg/l vs Aseko Live, serial 110128063 (2026-04-28)",
-        FreeChlorineMv: "confirmed: bytes 20-21 = 2 mV, serial 110128063 (2026-04-28)",
-        ChlorinePumpRunning: "uncertain: byte[29] 0x40, port may be chlorine or OXY Pure",
-        Configuration: "confirmed: byte[4] exact sub-type, 0x02 CLF / 0x03 REDOX (Issue #110)",
-        DosingDelay: "confirmed: bytes 106-107 = 240 s vs '4 min' in Aseko Live, serial 110128063",
-        StartupDelay: "confirmed: bytes 74-75 = 480 s vs '8 min' in Aseko Live, serial 110128063",
         FiltrationRunning: "confirmed: byte[29] 0x08 stays set under the override, so 0x04 wins (Issue #133)",
-        FiltrationSchedule: "confirmed: 0x01 / 0x11 / 0x31, serial 110169464 (Issue #133)",
+        FiltrationSchedule: "confirmed: byte[37] 0x10 / 0x20, 0x01 / 0x11 / 0x31 on serial 110169464 (Issue #133); the values once read as firmware A (0x43 nonstop, 0x53 timer) are the same bits with Waterlevel (0x40) and Flow detection (0x02) set",
         FlocculantPumpRunning: "uncertain: byte[29] 0x20 assumed",
         AlgaecideFlowRate: "confirmed: byte[103], Issues #110, #115 -- but the same byte is also read as water_level_refill_start, and one of the two must be wrong",
         ChlorineFlowRate: "confirmed: byte[99], serials 110071590 / 110128063 (Issues #110, #115)",
         FlocculantFlowRate: "confirmed: byte[101], Issues #110, #115",
         PhMinusFlowRate: "confirmed: byte[95] = 60, Aseko Live lists the pH- pump, serial 110128063",
         HeatingRunning: "assumed: byte[29] 0x04 per JS-DE-Tech relay_byte bit 2; no HOME frame with the heater running (open item 9)",
-        HeatingControlEnabled: "unverified: byte[37] 0x08 read as on firmware A, no capture on B",
+        HeatingControlEnabled: "confirmed: byte[37] 0x08, serial 110175608 (Issue #135); the same bit on an ASIN AQUA Salt (2026-09-13)",
         MaxRefillTime: "assumed: bytes 76-77 = 10800 s on serial 110128063, plausible (180 min); verified on SALT only",
         MaxPhDoses: "observed: byte[115] = 20 on serial 110128063; the position is confirmed on SALT, the HOME setting was never compared",
         Ph: "confirmed: bytes 14-15 = 6.29 vs 6.56 in Aseko Live (later reading), serial 110128063",
@@ -393,80 +352,13 @@ HOME_B = Profile(
         PhTarget: "confirmed: byte[52] / 10 = 7.0 vs Aseko Live, serial 110128063",
         WaterTemperatureTarget: "confirmed: byte[55] is the heating setpoint on serial 110175608 (Issue #135); 25 C with heating disabled on 110128063",
         SerialNumber: "confirmed: bytes 0-3, repeated in every segment header",
-        ServiceMenuOpen: "confirmed: byte[37] 0x04 as a standing pump override (Issue #133)",
+        ServiceMenuOpen: "confirmed: byte[37] 0x04 as a standing pump override (Issue #133); the 0x47 / 0x57 values once called a transitional edit state are the same bit",
         FiltrationPeriod1Start: "confirmed: bytes 56-57 = 08:00 last-configured, serial 110128063 (Issues #110, #133)",
         FiltrationPeriod2Start: "confirmed: bytes 60-61 = 18:00 last-configured, serial 110128063 (Issues #110, #133)",
         FiltrationPeriod1End: "confirmed: bytes 58-59 = 16:00 last-configured, serial 110128063 (Issues #110, #133)",
         FiltrationPeriod2End: "confirmed: bytes 62-63 = 22:00 last-configured, serial 110128063 (Issues #110, #133)",
         Timestamp: "confirmed: bytes 6-11",
-        VariableSpeedPumpRunning: "confirmed: byte[22] 0x08, serial 110175608",
-        Refilling: "confirmed: byte[29] 0x02 (DomSchCoding #100)",
-        WaterFlowToProbes: "confirmed: byte[28] != 0xAA while Aseko Live showed 'NO', serial 110128063",
-        WaterLevel: "confirmed: byte[27] (domin211, Issue #110)",
-        WaterLevelRefillStop: "confirmed: byte[104] (domin211, DomSchCoding, Issue #110)",
-        WaterLevelRefillStart: "unconfirmed: byte[103] = 33 on serial 110128063 is read both as this threshold (cm) and as algaecide_flow_rate (ml/min); the two mappings cannot both be right",
-        WaterLevelHighAlarm: "confirmed: byte[105] (domin211, Issue #110)",
-        WaterLevelLowAlarm: "confirmed: byte[102] (domin211, Issue #110)",
-        WaterTemperature: "confirmed: bytes 25-26 = 37.9 C vs 38.2 C in Aseko Live (later reading), serial 110128063",
-    },
-)
-
-# A HOME frame with byte[37] unset says nothing about its firmware.  Read
-# what both revisions share and nothing that only one of them has, so that no
-# entity is created on the strength of a guess: service_menu_open exists only
-# on firmware B and is left out.  Every byte[37] reading returns "unknown"
-# on such a frame anyway, so the values cannot differ from either revision.
-HOME_UNKNOWN_FIRMWARE = Profile(
-    name="v7 HOME firmware not yet known",
-    protocol=Protocol.V7,
-    model=AsekoDeviceType.HOME,
-    features=_HOME_FEATURES,
-    overrides={Configuration: "decode_v7_by_unit_type_byte"},
-    evidence={
-        AirTemperature: "unverified: bytes 23-24 = 0xFE70 (no air probe, the SALT marker) in every captured HOME frame, so no entity yet; the Aseko Live app shows air temperature on HOME units",
-        AlarmNoFlowToProbes: "confirmed: byte[13] 0x04 (DomSchCoding, NET frame)",
-        AlarmMaxDisinfectionDose: "confirmed on HOME: byte[12] 0x20 (Issue #134), byte[13] 0x01 (Issue #151)",
-        AlarmPhDosingIneffective: "confirmed on HOME: byte[12] 0x40 (Issue #134); byte[13] 0x02 inferred",
-        AlarmRapidPhChange: "unconfirmed: byte[13] 0x08 was set on serial 110128063 with no matching alarm known in the app",
-        AlgaecidePumpRunning: "uncertain: byte[29] 0x20 assumed",
-        FreezeProtectionEnabled: "n/a: byte[37] is unset on every frame decoded with this profile",
-        BackwashRunning: "assumed: byte[29] 0x01, confirmed on SALT",
-        BackwashDuration: "confirmed: byte[71] * 10 = 120 s vs '02:00 min' in Aseko Live, serial 110128063",
-        BackwashInterval: "confirmed: byte[68] = 3 vs 'every 3 days' in Aseko Live, serial 110128063",
-        BackwashStartTime: "confirmed: bytes 69-70 = 21:00 vs Aseko Live, serial 110128063",
-        FreeChlorine: "confirmed: bytes 16-17 = 0.00 mg/l vs Aseko Live, serial 110128063 (2026-04-28)",
-        FreeChlorineMv: "confirmed: bytes 20-21 = 2 mV, serial 110128063 (2026-04-28)",
-        ChlorinePumpRunning: "uncertain: byte[29] 0x40, port may be chlorine or OXY Pure",
-        Configuration: "confirmed: byte[4] exact sub-type, 0x02 CLF / 0x03 REDOX (Issue #110)",
-        DosingDelay: "confirmed: bytes 106-107 = 240 s vs '4 min' in Aseko Live, serial 110128063",
-        StartupDelay: "confirmed: bytes 74-75 = 480 s vs '8 min' in Aseko Live, serial 110128063",
-        FiltrationRunning: "observed: byte[29] 0x08 clear while Aseko Live showed STOP, serial 110128063; the set state was not captured on firmware A",
-        FiltrationSchedule: "n/a: byte[37] is unset on every frame decoded with this profile",
-        FlocculantPumpRunning: "uncertain: byte[29] 0x20 assumed",
-        AlgaecideFlowRate: "confirmed: byte[103], Issues #110, #115 -- but the same byte is also read as water_level_refill_start, and one of the two must be wrong",
-        ChlorineFlowRate: "confirmed: byte[99], serials 110071590 / 110128063 (Issues #110, #115)",
-        FlocculantFlowRate: "confirmed: byte[101], Issues #110, #115",
-        PhMinusFlowRate: "confirmed: byte[95] = 60, Aseko Live lists the pH- pump, serial 110128063",
-        HeatingRunning: "assumed: byte[29] 0x04 per JS-DE-Tech relay_byte bit 2; no HOME frame with the heater running (open item 9)",
-        HeatingControlEnabled: "n/a: byte[37] is unset on every frame decoded with this profile",
-        MaxRefillTime: "assumed: bytes 76-77 = 10800 s on serial 110128063, plausible (180 min); verified on SALT only",
-        MaxPhDoses: "observed: byte[115] = 20 on serial 110128063; the position is confirmed on SALT, the HOME setting was never compared",
-        Ph: "confirmed: bytes 14-15 = 6.29 vs 6.56 in Aseko Live (later reading), serial 110128063",
-        PhMinusConcentration: "confirmed: byte[112], serial 110175608 (Issue #139)",
-        PhMinusPumpRunning: "uncertain: byte[29] 0x80 assumed",
-        PoolVolume: "confirmed: bytes 92-93 = 60 m3 vs Aseko Live, serial 110128063",
-        AlgaecideDoseTarget: "confirmed: byte[72], serial 110128063 (2026-04-28)",
-        FreeChlorineTarget: "confirmed: byte[53] / 10 = 0.3 mg/l vs Aseko Live, serial 110128063",
-        FlocculantDoseTarget: "confirmed: byte[54], serial 110128063 (2026-04-28)",
-        PhTarget: "confirmed: byte[52] / 10 = 7.0 vs Aseko Live, serial 110128063",
-        WaterTemperatureTarget: "confirmed: byte[55] is the heating setpoint on serial 110175608 (Issue #135); 25 C with heating disabled on 110128063",
-        SerialNumber: "confirmed: bytes 0-3, repeated in every segment header",
-        FiltrationPeriod1Start: "confirmed: bytes 56-57 = 08:00 last-configured, serial 110128063 (Issues #110, #133)",
-        FiltrationPeriod2Start: "confirmed: bytes 60-61 = 18:00 last-configured, serial 110128063 (Issues #110, #133)",
-        FiltrationPeriod1End: "confirmed: bytes 58-59 = 16:00 last-configured, serial 110128063 (Issues #110, #133)",
-        FiltrationPeriod2End: "confirmed: bytes 62-63 = 22:00 last-configured, serial 110128063 (Issues #110, #133)",
-        Timestamp: "confirmed: bytes 6-11",
-        VariableSpeedPumpRunning: "confirmed: byte[22] 0x08, serial 110175608",
+        VariableSpeedPumpEnabled: "confirmed: byte[22] 0x08, serial 110175608",
         Refilling: "confirmed: byte[29] 0x02 (DomSchCoding #100)",
         WaterFlowToProbes: "confirmed: byte[28] != 0xAA while Aseko Live showed 'NO', serial 110128063",
         WaterLevel: "confirmed: byte[27] (domin211, Issue #110)",
@@ -510,6 +402,8 @@ OXY = Profile(
         *_UNIT_STATE,
         HeatingControlEnabled,
         FreezeProtectionEnabled,
+        WaterLevelSensorEnabled,
+        FlowDetectionEnabled,
         *_BACKWASH,
         *_ALARMS,
     ),
@@ -520,6 +414,8 @@ OXY = Profile(
         FreezeProtectionEnabled: "decode_v7_not_located",
     },
     evidence={
+        FlowDetectionEnabled: "assumed: byte[37] 0x02 as on SALT; set in the OXY frames (0x03)",
+        WaterLevelSensorEnabled: "assumed: byte[37] 0x40 as on SALT; clear in the OXY frames (0x03), which fits byte[27] = 0xFE (no level sensor)",
         AirTemperature: "unverified: bytes 23-24 = 0xFE70 (no air probe, the SALT marker) in every captured OXY frame, so no entity yet; the Aseko Live app shows air temperature on Oxygen units",
         AlarmNoFlowToProbes: "unconfirmed: byte[13] was 0x00 in every OXY frame; confirmed on NET and HOME only",
         AlarmMaxDisinfectionDose: "unconfirmed: bytes 12-13 were 0x00 in every OXY frame; HOME encoding assumed",
@@ -562,7 +458,7 @@ OXY = Profile(
         FiltrationPeriod1End: "observed: bytes 58-59 = 16:00 in every frame on the Winnetoux OXY (serial 110157165); not compared with the app",
         FiltrationPeriod2End: "observed: bytes 62-63 = 22:00 in every frame on the Winnetoux OXY (serial 110157165); not compared with the app",
         Timestamp: "confirmed: bytes 6-11",
-        VariableSpeedPumpRunning: "assumed: byte[22] 0x08, confirmed on HOME",
+        VariableSpeedPumpEnabled: "assumed: byte[22] 0x08, confirmed on HOME",
         Refilling: "assumed: byte[29] 0x02, confirmed on HOME",
         WaterFlowToProbes: "observed: byte[28] = 0xAA on the Winnetoux OXY (serial 110157165); not compared with the app",
         WaterLevel: "assumed: byte[27], confirmed on HOME",
@@ -807,7 +703,7 @@ UNKNOWN = Profile(
         FiltrationPeriod1End: "unverified: unmapped unit type, read with the generic v7 reading",
         FiltrationPeriod2End: "unverified: unmapped unit type, read with the generic v7 reading",
         Timestamp: "unverified: unmapped unit type, read with the generic v7 reading",
-        VariableSpeedPumpRunning: "unverified: unmapped unit type, read with the generic v7 reading",
+        VariableSpeedPumpEnabled: "unverified: unmapped unit type, read with the generic v7 reading",
         Refilling: "unverified: unmapped unit type, read with the generic v7 reading",
         WaterFlowToProbes: "unverified: unmapped unit type, read with the generic v7 reading",
         WaterLevel: "unverified: unmapped unit type, read with the generic v7 reading",
@@ -820,6 +716,7 @@ UNKNOWN = Profile(
 )
 
 BY_MODEL: dict[AsekoDeviceType | None, Profile] = {
+    AsekoDeviceType.HOME: HOME,
     AsekoDeviceType.SALT: SALT,
     AsekoDeviceType.OXY: OXY,
     AsekoDeviceType.NET: NET,

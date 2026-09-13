@@ -34,7 +34,7 @@ class FiltrationRunning(Feature):
     def decode_v7_menu_override(self, frame: V7Frame, device: AsekoDevice) -> bool:
         """The relay bit, unless the settings menu says the pump was switched off.
 
-        On HOME firmware B (Issue #133) byte[29] bit 0x08 stays set while the
+        On HOME (Issue #133) byte[29] bit 0x08 stays set while the
         user has manually switched the pump off at the unit -- the override
         state lives in byte[37] bit 0x04, not in byte[29].  Trust the explicit
         flag over the schedule-driven bit.

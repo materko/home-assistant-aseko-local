@@ -7,8 +7,6 @@ suite keep calling ``AsekoDecoder.decode(bytes)``.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from .aseko_data import AsekoDevice, AsekoDeviceType, AsekoProbeType
 from .decoding import engine
 from .decoding.decoders import Configuration
@@ -21,24 +19,15 @@ from .decoding.frame import (
 )
 from .decoding.profiles import detect_profile, profile_for
 
-if TYPE_CHECKING:
-    from .decoding.profile import ProfileMemory
-
 
 class AsekoDecoder:
     """Decoder of Aseko unit data."""
 
     @staticmethod
-    def decode(data: bytes, memory: ProfileMemory | None = None) -> AsekoDevice:
-        """Decode one 120-byte frame into an ``AsekoDevice``.
-
-        ``memory`` lets a long-lived caller (the server) carry the last
-        confidently detected firmware variant from frame to frame; without
-        it every frame is decoded on its own.
-        """
+    def decode(data: bytes) -> AsekoDevice:
+        """Decode one 120-byte frame into an ``AsekoDevice``."""
         frame = parse_v7(data)
-        profile, firmware = detect_profile(frame, memory)
-        return engine.decode(frame, profile, firmware)
+        return engine.decode(frame, detect_profile(frame))
 
     # -- helpers kept for existing callers and tests ------------------------
 

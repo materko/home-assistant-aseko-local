@@ -89,7 +89,7 @@ Seg3 (bytes 80–119): 06 90 6b bf  02 02  1a 04 1c 08 1b 07
 
 § **byte[37] = `0x43`**: HOME filtration mode flag, firmware A. The value `0x43` means *FILTRATION NONSTOP 24H* here. HOME devices have **independent pump ports** for flocculant and algicide (same layout as OXY Pure), so the SALT-style "shared third-pump port" routing rule (bit 7 = algicide) does **not** apply. The full encoding table (firmware A vs B) is in the *Device Specifications → byte[37]* section below.
 
-¶ **byte[22] bit 3 (0x08)**: On devices with a variable-speed filtration pump (serial 110175608 REDOX HOME, Issue #137), `0x83` → pump OFF, `0x8b` → pump ON (any brand). Decoded as `variable_speed_pump_running` — see *Variable-speed pump* section below. On this CLF frame (no VSP fitted) the byte carries an unknown value (`0x90fe`).
+¶ **byte[22] bit 3 (0x08)**: On devices with a variable-speed filtration pump (serial 110175608 REDOX HOME, Issue #137), `0x83` → pump OFF, `0x8b` → pump ON (any brand). Decoded as `variable_speed_pump_enabled` — see *Variable-speed pump* section below. On this CLF frame (no VSP fitted) the byte carries an unknown value (`0x90fe`).
 
 ---
 
@@ -231,7 +231,7 @@ share the `alarm_max_disinfection_dose` sensor.
 | algaecide_flow_rate         | 33               | Algicide listed   | ✓ (fixed) |
 | heating_control_enabled   | True / False     | — (app setting)   | ✓ (Issue #135, serial 110175608 REDOX HOME) |
 | freeze_protection_enabled        | True / False     | — (app setting)   | ✓ (Issue #136, serial 110175608 REDOX HOME) |
-| variable_speed_pump_running          | True / False     | — (app setting)   | ✓ (Issue #137, serial 110175608 REDOX HOME) |
+| variable_speed_pump_enabled          | True / False     | — (app setting)   | ✓ (Issue #137, serial 110175608 REDOX HOME) |
 | ph_minus_concentration    | 5%               | 5%                | ✓ (Issue #139, serial 110175608 REDOX HOME) |
 
 ---
@@ -456,7 +456,7 @@ Dab E.SWIM, Uwe EO PM).
 - `0x83` (`1000_0011`) → pump OFF
 - `0x8b` (`1000_1011`) → pump ON (any brand)
 
-The field is decoded as `variable_speed_pump_running` and gated on `AsekoDeviceType.HOME` in
+The field is decoded as `variable_speed_pump_enabled` and gated on `AsekoDeviceType.HOME` in
 `_fill_vsp_pump()` — other device types (SALT, OXY, PROFI, NET) leave it `None`.
 
 **byte[78]** changes with the brand selection but is not a unique brand ID:
