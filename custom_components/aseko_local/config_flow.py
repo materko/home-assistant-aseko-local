@@ -48,6 +48,14 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     return {"title": f"Aseko Local - {data[CONF_HOST]}:{data[CONF_PORT]}"}
 
 
+async def _remove_entry_server(config_entry: Any) -> None:
+    """Stop the server of this entry only; an entry without an address has none."""
+    host = config_entry.data.get(CONF_HOST)
+    port = config_entry.data.get(CONF_PORT)
+    if host is not None and port is not None:
+        await AsekoDeviceServer.remove(host, port)
+
+
 class AsekoLocalConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Aseko Local."""
 
@@ -101,9 +109,7 @@ class AsekoLocalConfigFlow(ConfigFlow, domain=DOMAIN):
             else:
                 # Stop only this entry's server; the reload's unload removes it
                 # too, and the other entries keep receiving.
-                await AsekoDeviceServer.remove(
-                    config_entry.data[CONF_HOST], config_entry.data[CONF_PORT]
-                )
+                await _remove_entry_server(config_entry)
                 return self.async_update_reload_and_abort(
                     config_entry,
                     title=info["title"],
@@ -156,9 +162,7 @@ class AsekoLocalOptionsFlowHandler(OptionsFlow):
         if user_input is not None:
             # Stop only this entry's server before its reload; other entries
             # keep receiving.
-            await AsekoDeviceServer.remove(
-                config_entry.data[CONF_HOST], config_entry.data[CONF_PORT]
-            )
+            await _remove_entry_server(config_entry)
 
             # save the options
             entry = self.async_create_entry(title="", data=user_input)

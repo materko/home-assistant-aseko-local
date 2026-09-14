@@ -790,9 +790,9 @@ async def test_async_setup_profi_clf_redox(hass) -> None:
         getattr(e.entity_description, "key", None) == "water_filling_active"
         for e in added_entities
     )
-    # Issue #129: PROFI has no filling valve, so max_refill_time stays None
-    # and no entity is created even though bytes 94-95 carry a real value.
-    assert not any(
+    # The 2021 PROFI manual shows a water filling relay and a max. filling
+    # time, so the PROFI profile reads it again (bytes 76-77 = 3600 s here).
+    assert any(
         getattr(e.entity_description, "key", None) == "max_filling_time"
         for e in added_entities
     )
