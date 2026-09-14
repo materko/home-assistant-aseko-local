@@ -12,6 +12,21 @@
 | byte[4] | `0x10` → `UNIT_TYPE_PROFI` → `AsekoDeviceType.PROFI` |
 | `byte37_routes_pump_type` | **False** (PROFI has 5 independent pump ports: CL, pH−, pH+, algicide, flocculant) |
 
+> **Current decoder.** The PROFI profile is
+> `custom_components/aseko_local/decoding/profiles/v7/profi.py`: the values the model has, the
+> readings that differ from the protocol defaults, and the evidence for each. What is confirmed per
+> value is generated into [`docs/support_matrix.md`](../support_matrix.md). Sections below that name
+> `_fill_*` methods, `ACTUATOR_MASKS` or `FILTRATION_TYPES` describe the decoder before it was split
+> into device profiles and are kept as history.
+
+> What the PROFI profile lists today, following the Aseko Live app and the PROFI manuals: the chlorine
+> probes and targets (free chlorine, chlorine dose), pH−, the flocculant dose target and flow rate on
+> the shared flocculant / algicide output (routed by `byte[37]` bit `0x80` like SALT), the chlorine,
+> pH− and flocculant pumps, filtration with its schedule and the menu bit, water level and max. refill
+> time, heating output, pH− concentration, max. pH doses, backwash and the alarms. It lists **no**
+> algicide values, air temperature, VS pump or redox target. Every entry is *assumed* until a real
+> PROFI frame is captured.
+
 > **Note on PROFI identification** (`aseko_decoder.py`):
 >
 > ```python
@@ -123,7 +138,7 @@ Like SALT, HOME, and OXY, the PROFI controller is expected to keep sending
 the last-configured `start2`/`stop2` times in bytes 60-63 even after the
 user disables Period 2 in the controller UI.  This was first verified on
 SALT (PR #122 frame diff) and on HOME (Issue #133 diagnostic files from
-@dtpugh, serial 110169464, firmware B).  The same protocol behaviour is
+@dtpugh, serial 110169464).  The same protocol behaviour is
 **assumed** for PROFI because:
 
 1.  PROFI shares the SALT/HOME byte layout for the filtration schedule
@@ -383,4 +398,4 @@ early-return (like OXY and HOME) once the correct byte positions are confirmed.
   after PR #120; was 34 before, then 35 after the water-level blacklist fix)
 - Related water-level analysis: [`water_level_backwash_analysis.md`](../temp/water_level_backwash_analysis.md)
 - Sibling device analyses: [`home_device_analysis.md`](home_device_analysis.md), [`salt_device_analysis.md`](salt_device_analysis.md), [`net_device_analysis.md`](net_device_analysis.md), [`oxy_device_analysis.md`](oxy_device_analysis.md)
-- Issue #133: Period 2 schedule bytes (60-63) are now read unconditionally for any device in `FILTRATION_TYPES` (SALT, HOME, OXY, PROFI) to avoid "unknown" entities when the user toggles the controller.  Same fix applies to PROFI per the assumption above.  See [`home_device_analysis.md`](home_device_analysis.md) §"Note on Period 2 schedule bytes (Issue #133)" for the full discussion.
+- Issue #133: Period 2 schedule bytes (60-63) are now read unconditionally on every model with filtration (SALT, HOME, OXY, PROFI) to avoid "unknown" entities when the user toggles the controller.  Same fix applies to PROFI per the assumption above.  See [`home_device_analysis.md`](home_device_analysis.md) §"Note on Period 2 schedule bytes (Issue #133)" for the full discussion.

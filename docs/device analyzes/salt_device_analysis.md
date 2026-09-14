@@ -6,7 +6,7 @@
 |---|---|
 | Model | ASIN AQUA Salt |
 | Firmware | 5.x – 7.x |
-| Source | PR #87 live captures 2026-04-04; earlier frames 2026-04-02, 2026-04-03; Issue #84; maintainer's two units (one REDOX, one CLF), 37 diagnostics downloads Aug 2026 and an app + display review 2026-09-11 |
+| Source | PR #87 live captures 2026-04-04; earlier frames 2026-04-02, 2026-04-03; Issue #84; maintainer's two units (one REDOX, one CLF), 37 diagnostics downloads Aug 2026, an app + display review 2026-09-11, and test cases marked in the frame log on the REDOX unit 2026-09-13/14 (one setting changed at a time, a marker after the next frame) |
 | byte[4] | `0x0E` (Redox) or `0x0D` (CLF) or `0x0f` (DOSE) → `(data[4] & 0x0C) == 0x0C` → **SALT** |
 
 ---
@@ -56,11 +56,12 @@ convention, named `PROBE_X_MISSING` in the code).
 | `[18:20]` | REDOX (if CLF also present on PROFI-style) | Not applicable on basic SALT |
 | `[20]` | Salinity = value / 10 | SALT-specific |
 | `[21]` | Electrolyzer power (% or raw) | `0` when electrolyzer not running |
+| `[22]` | Settings flags | **See §byte[22]** |
 | `[23:25]` | Air temperature = signed value / 10 | °C — see §Air temperature |
 | `[25:27]` | Water temperature = value / 10 | °C |
 | `[28]` | Water flow to probes | `0xAA` = flowing |
 | `[29]` | Actuator bitmask | **See §byte[29]** |
-| `[37]` | Third-pump routing (algicide vs. flocculant) | **See §byte[37]** |
+| `[37]` | Settings flags: menu, filtration periods, heating control, waterlevel, flow detection, third-pump routing | **See §byte[37]** |
 
 ---
 
@@ -93,39 +94,30 @@ not been captured yet, so the cold-weather encoding remains unverified.
 `0xFFFF` is rejected up front as the protocol-wide "unspecified" marker — read
 signed it would otherwise pass the window as -0.1 °C.
 
-**Scope.** Only SALT is enabled (`AIR_TEMPERATURE_TYPES`). Frames from other
-types carry values in these bytes that do not read as an ambient temperature
-(e.g. `0x0C3C` = 313.2 °C on a NET unit), so they stay excluded until a dump
-from that type is checked against its display.
+**Scope.** Confirmed on SALT only. The HOME and OXY profiles list air temperature too — the Aseko Live
+app and the manuals show it on those models — but every captured HOME and OXY frame carries the
+open-circuit value, so the reading is NOT_PRESENT there and no entity appears until a probe is fitted.
+NET is left out: it carries unrelated data in these bytes (e.g. `0x0C3C` = 313.2 °C).
 
 ## byte[29] – Actuator Bitmask
 
-### Confirmed masks
-
-**Source: PR #87 captures 2026-04-04 (55 type-01 frames, two distinct phases)**
-
-| Bit | Mask | Phase | Observed byte[29] | Evidence |
-|---|---|---|---|---|
-| 3 | `0x08` | Filtration | baseline `0x08` | Set in all active phases (04-04) ✅ |
-| 4 | `0x10` | Electrolyzer RIGHT | `0x18 = 0x08\|0x10` | 25 frames (04-04 Phase 4) ✅ |
-| 5 | `0x20` | Algicide / Flocculant pump | `0x28 = 0x08\|0x20` | 27 frames (04-04 Phase 2) ✅ |
-| 6 | `0x40` | Electrolyzer LEFT (tentative) | `0x58 = 0x08\|0x10\|0x40` | 1 frame (04-02) ⚠️ tentative |
-
-**Key insight**: Algicide and Flocculant both use **the same bit `0x20`**. The third pump
-port is a single physical output. The chemical type is determined by `byte[37]`, not by
-a separate bit in byte[29].
-
-### Unconfirmed masks
-
-| Bit candidate | Mask | Hypothesis | Status |
+| Bit | Mask | Meaning | Evidence |
 |---|---|---|---|
-| 7 | `0x80` | pH− pump | ⏳ No frame captured with pH− pump running |
+| 0 | `0x01` | Backwash valve open | ✅ capture of a manual backwash, 2026-08-11 |
+| 1 | `0x02` | Refilling (water filling valve) | ✅ 2026-09-06: set when the level fell to the refill start threshold, cleared at the refill stop threshold |
+| 3 | `0x08` | Filtration running | ✅ every active phase (PR #87) |
+| 4 | `0x10` | Electrolysis running | ✅ 25 frames (PR #87) |
+| 5 | `0x20` | Algicide / flocculant pump (the shared third port) | ✅ 27 frames (PR #87) |
+| 6 | `0x40` | Electrode polarity: **set = right, clear = left** | ✅ polarity switched by hand both ways, 2026-09-13 |
+| 7 | `0x80` | pH− pump | ⏳ never set in a captured SALT frame |
 
-### Pump states are exclusive (not parallel)
+The polarity bit only means something while `0x10` is set; with electrolysis stopped the polarity
+reads *waiting*. Earlier notes had it the other way round (`0x50` = left, from one April frame); the
+by-hand switch settled it, and the decoder was corrected.
 
-The SALT unit has only **one third-pump port**. Algicide and flocculant are mutually
-exclusive configurations — the pump cannot run as both simultaneously. The electrolyzer
-and algicide/flocculant CAN be active at the same time (each has a separate pump/output).
+Algicide and flocculant share **the same bit `0x20`**: the third pump port is a single physical
+output, and `byte[37]` says which chemical it doses. The electrolyser and the third pump can run at
+the same time.
 
 ---
 
@@ -160,7 +152,7 @@ where the algicide-routing bit was clear — which caused already-registered
 entities to flip to "unknown" when the user toggled Period 2 on/off
 (Home Assistant protects the entity registry, so the entity stays but
 the value is read as `None`).  Post-fix, bytes 60-63 are read
-unconditionally for any device in `FILTRATION_TYPES` (SALT included), and
+unconditionally on every model with a filtration output (SALT included), and
 the mode and schedule are decoded from the `byte[37]` bits (see
 §byte[37] – filtration mode and schedule below).  Behaviour was originally verified on SALT by
 diffing two frames
@@ -210,16 +202,11 @@ on the unit itself known, in both directions of each transition:
 | `0xD7` | `True` | `TIMER_PERIOD_1` |
 | `0xF7` | `True` | `TIMER_PERIOD_1_AND_2` |
 
-These are the same mode bits HOME firmware B uses; the constant `0xC0` in the
-high nibble is SALT's own configuration (`0x80` = algicide routing).
+These are the same mode bits HOME uses. The high nibble is SALT's configuration: `0x80` is the
+algicide routing, `0x40` the Waterlevel setting (see §byte[37] – the whole byte).
 
-**Bit `0x40` does not select the firmware variant here.** SALT sets it in every
-frame, so routing on it sent SALT into the HOME firmware-A branch, where it
-matched none of the exact values and came out with no mode at all.  The
-firmware-A branch — and the schedule-derived fallback behind it — are therefore
-HOME-only.  On SALT the fallback could not help anyway: the filtration times in
-bytes 56-63 are reported unchanged in every mode, so deriving the mode from
-them would return one constant answer whatever the unit is doing.
+The filtration times in bytes 56-63 are reported unchanged in every mode, so the mode can only come
+from these bits, never from the times.
 
 **What the bit actually marks.** `0x04` appears the moment the settings menu
 is opened on the unit — the menu holding every Aseko setting, and the place
@@ -253,6 +240,75 @@ after it closes.  A cycle running while somebody is at the menu the button
 lives on is manual by observation, and `trackers.backwash` uses it as such
 rather than inferring from the clock — see `_service_menu_open`.
 
+### byte[37] – the whole byte
+
+Toggling one setting at a time on the unit (2026-09-13) mapped every bit:
+
+| Bit | Mask | Meaning | Field |
+|---|---|---|---|
+| 0 | `0x01` | always set | — |
+| 1 | `0x02` | Flow detection enabled | `flow_detection_enabled` |
+| 2 | `0x04` | settings menu open | `service_menu_open` |
+| 3 | `0x08` | Heating control enabled | `heating_control_enabled` |
+| 4 | `0x10` | filtration period 1 enabled | `filtration_schedule` |
+| 5 | `0x20` | filtration period 2 enabled | `filtration_schedule` |
+| 6 | `0x40` | Waterlevel (level meter) enabled; winter mode clears it | `water_level_sensor_enabled` |
+| 7 | `0x80` | third port doses algicide (clear = flocculant) | routing of `algaecide_*` / `flocculant_*` |
+
+These are **settings, not hardware**: Waterlevel, Heating control or the VS pump can be switched on
+without the sensor, the heater or the pump connected, and the app then simply shows nothing for it.
+
+Bit `0x40` is the bit the decoder once took for a HOME "firmware A / B" split. It is a setting, the
+same on HOME and SALT, so HOME has one profile now (see `home_device_analysis.md`).
+
+---
+
+## byte[22] – settings flags
+
+| Bit | Mask | Meaning | Field |
+|---|---|---|---|
+| 0 | `0x01` | heating only inside its time window | `heating_condition` = `time_window` |
+| 1 | `0x02` | heating by outside temperature | `heating_condition` = `outside_temperature_above` / `_below` |
+| 2 | `0x04` | Winter mode on | `freeze_protection_enabled` |
+| 3 | `0x08` | VS pump enabled (the setting, not the pump running) | `variable_speed_pump_enabled` |
+| 4 | `0x10` | backwash schedule enabled | `backwash_schedule_enabled` |
+| 5 | `0x20` | with `0x02`: heat when **below** the outside temperature (clear = above) | `heating_condition` |
+
+`0x01` and `0x02` were never set together; `heating_condition` is `always` when neither is set.
+
+## byte[78] – live state and VS pump type
+
+| Bits | Meaning | Field |
+|---|---|---|
+| `0x80` | heating allowed right now: follows the time window and the outside-temperature condition as the clock and the settings change | `heating_allowed` |
+| `0x40` | winter mode active | — (same as `byte[22]` 0x04) |
+| `0x0C` | VS pump type: `0x00` Speck / Uwe EO PM, `0x04` Pentair / Dab E.SWIM, `0x08` Hayward. The type is kept while the VS pump is switched off, and changes immediately when another pump is picked | `variable_speed_pump_type` |
+| `0x02` / `0x01` | follow the filtration state: `0x02` while filtration runs, `0x01` while it stands (both or neither only in transitions). Seen the same way on NET and OXY frames | not decoded — `byte[29]` 0x08 says the same |
+
+## Winter mode
+
+Switching winter mode on (2026-09-13, twice):
+
+- `byte[22]` 0x04 and `byte[78]` 0x40 set, `byte[37]` 0x40 cleared (level control off);
+- the setpoint bytes carry the **winter program** instead of the normal settings while it is on:
+  `byte[54]` algicide 2 ml, `byte[55]` water 2 °C, bytes 56-59 filtration 12:00–12:15, bytes 60-63
+  18:00–22:00, `byte[68]` backwash 0 (off); the normal values return when winter mode is switched off;
+- filtration runs for about 15–20 s right after switching it on (`byte[29]` 0x08, `byte[78]` 0x02).
+
+## Settings the frame does not carry
+
+Changed on the unit with a marker after the next frame, and no byte moved:
+the heating time window (start / end), the outside-temperature threshold, the electrode polarity
+switching interval (1 h / 24 h / 7 days / manual), the programmable relay and its periods, and the
+display language.
+
+Settings that did move: `byte[112]` pH− concentration (15 → 21 % on the unit), `byte[115]` max. pH
+doses (17 → 20), `byte[55]` water temperature target (25 → 15 °C).
+
+Still open: `byte[38]` bit `0x10` was set while *heating control is parent to filtration* was
+switched on, but the same session changed other heating settings, and `byte[38]` also takes values
+(`0x20`, `0xA1`, `0x01`) around the winter-mode switch — it needs a clean test of that one setting.
+
 ---
 
 ## Byte Map – Sub-frame 2 (config / setpoints)
@@ -262,7 +318,7 @@ rather than inferring from the clock — see `_service_menu_open`.
 | `[52]` | Required pH = value / 10 | |
 | `[53]` | Required CLF (mg/L ÷10) or REDOX (×10 mV) | Depends on active probe |
 | `[54]` | Required algicide (ml/m³/day) or Required floc (ml/h) | Routed by `byte[37]` |
-| `[55]` | Required water temperature (°C) | |
+| `[55]` | Required water temperature (°C) | Winter program value while winter mode is on |
 | `[56:58]` | Filtration start1 | HH:MM |
 | `[58:60]` | Filtration stop1 | HH:MM |
 | `[60:62]` | Filtration start2 | HH:MM | Always populated — see Issue #133 |
@@ -270,6 +326,8 @@ rather than inferring from the clock — see `_service_menu_open`.
 | `[68]` | Backwash every N days | `0` = disabled |
 | `[69:71]` | Backwash time | HH:MM |
 | `[71]` | Backwash duration | ×10 seconds |
+| `[76:78]` | Max. refill time (s) | |
+| `[78]` | Heating allowed, winter active, VS pump type | **See §byte[78]** |
 
 ---
 
@@ -298,28 +356,18 @@ The SALT unit has an integrated salt-water electrolysis cell for chlorine produc
 |---|---|---|
 | `electrolysis_running` | `[29] & 0x10` | `True` when RIGHT cycle running |
 | `chlorine_production` | `[21]` | Raw value; `0` when not running |
-| `electrode_polarity` | `[29]` bits | `0x10` = RIGHT; `0x50 = 0x10|0x40` = LEFT (tentative) |
+| `electrode_polarity` | `[29]` bit `0x40` | set = RIGHT, clear = LEFT, *waiting* while `0x10` is clear |
 | `salinity` | `[20]` | g/L, value / 10 |
-
-**Electrolyzer direction**: RIGHT direction is confirmed (`0x10`, 25 frames, Phase 4).
-LEFT direction (`0x40`) is tentative — based on a single April 2 frame (`0x58 = 0x08|0x10|0x40`)
-where the interpretation of bit `0x40` is uncertain.
 
 ---
 
-## Confirmed `ACTUATOR_MASKS` for SALT
+## Where this lives in the decoder
 
-```python
-AsekoDeviceType.SALT: AsekoActuatorMasks(
-    filtration=0x08,             # confirmed ✓ 2026-04-04
-    ph_minus=0x80,               # ⏳ unconfirmed – awaiting frame with pH− running
-    algicide=0x20,               # confirmed ✓ 2026-04-04 (27 frames)
-    flocculant=0x20,             # confirmed ✓ 2026-04-03 (same bit as algicide)
-    electrolyzer_running=0x10,   # confirmed ✓ 2026-04-04 (25 frames)
-    electrolyzer_running_right=0x10,  # confirmed ✓
-    electrolyzer_running_left=0x50,   # ⚠️ tentative – 1 frame only
-)
-```
+The SALT profile is `custom_components/aseko_local/decoding/profiles/v7/salt.py`: the list of
+features a SALT has, the readings that differ from the v7 defaults (the third-port routing,
+winter mode from `byte[22]`), and the evidence for every entry. Each value's byte logic is one file in
+`custom_components/aseko_local/decoding/features/`. The per-model table of what is confirmed is
+generated into [`docs/support_matrix.md`](../support_matrix.md).
 
 ---
 
@@ -370,7 +418,9 @@ from different days and are listed only to show the encoding, not the number.
 | 32–36, 94, 100 | Always 0 | — |
 | 72 | Always `0xFF` on SALT | `algaecide_dose_target` on the independent-port models; a SALT has no such port |
 | 73, 108, 109–110, 111, 113, 116, 117, 118 | Constant on **both** SALT units (20, 10, 3000, 15, 1, 0xFF, 252, 1) and different on HOME/OXY | settings or model constants; changing one setting at a time per download would map them |
-| 30, 31, 38, 78, 96, 97, 98, 114 | Vary frame to frame | the only bytes left that could carry anything live |
+| 30, 31, 96, 97, 98, 114 | Vary frame to frame | the only bytes left that could carry anything live |
+| 38 | Mostly 0; `0x10`, `0x20`, `0xA1`, `0x01` around heating and winter-mode changes | not decoded — see §Settings the frame does not carry |
+| 78 | Heating allowed, winter active, VS pump type, filtration state | see §byte[78] |
 
 ---
 
@@ -380,11 +430,10 @@ from different days and are listed only to show the encoding, not the number.
 |---|---|---|
 | Timeline error **"Low pH under 6,7 – increase pH"** | the HOME frame with pH 6.29 in `home_device_analysis.md` carries `byte[13]` = 0x28, i.e. bits 0x08 and 0x20 while the pH was under 6.7; the decoder currently calls 0x08 "rapid pH change" on the strength of error_codes.md alone | a download taken while the app shows this error; bytes 12–13 |
 | Timeline error **"Water level too high"** | unknown; the level bytes are thresholds and the live level, not an alarm bit | a download during the alarm (the level above `water_level_high_alarm`); bytes 12–13 |
-| Config toggles **Heating control**, **Winter mode**, **Waterlevel**, **Flow detection**, **VS Pump**, **Filter backwash**, **Timer filtration**, **Water flow meter** | on HOME firmware A, heating control is `byte[37]` bit 0x08 and antifreeze bit 0x80; on SALT bit 0x80 is the algicide routing, so winter mode must live elsewhere. `byte[37]` bit 0x08 was never set on this unit (heating control OFF) — consistent but unproven | toggle one setting at a time, one download per state |
-| Status **Pool flow OVERFLOW** (overflow vs. skimmer pool) | unknown | a download after switching the pool type |
-| Status **Pump speed ON** | not `byte[22]` bit 0x08: that bit is clear on this unit while the app shows ON | unknown |
+| Config toggle **Water flow meter** | unknown — the other toggles are mapped (§byte[37], §byte[22]) | toggle it with a marker after the next frame |
+| Status **Pool flow OVERFLOW** (overflow vs. skimmer pool) | unknown | a marked test case switching the pool type |
 | Consumption page: electrolyser efficiency / production kg/week, canister levels, pump lifetimes, water filled m³, heating kWh | cloud aggregates, not frame fields; production could be integrated locally from `chlorine_production` | — |
-| The eight bytes that still vary: 30, 31, 38, 78, 96, 97, 98, 114 | measurements or counters — see the table above | correlate with the app's history |
+| The bytes that still vary: 30, 31, 96, 97, 98, 114 | measurements or counters — see the table above | correlate with the app's history |
 
 ---
 
@@ -393,11 +442,13 @@ from different days and are listed only to show the encoding, not the number.
 | Question | Status |
 |---|---|
 | pH− pump mask in byte[29]? | ⏳ Candidate `0x80` — consistent with HOME/OXY; awaiting frame |
-| Electrolyzer LEFT mask? | ⚠️ Tentative `0x40` — single frame, April 2, 2026 |
-| byte[37] full field layout? | ⏳ Bits 0–6 partially known; full semantics not confirmed |
+| Electrode polarity? | ✅ `byte[29]` 0x40 set = right, clear = left — switched by hand both ways 2026-09-13 |
+| byte[37] full field layout? | ✅ every bit mapped 2026-09-13 (§byte[37] – the whole byte); only `0x01` has no known meaning |
 | byte[37] routing for Issue #84 firmware? | ⚠️ `0x13` = algicide but bit 7 NOT set — different firmware variant |
 | byte[103] semantics? | ⏳ Always mirrors byte[101] on SALT — may be a duplicate or separate pump |
 | `byte[115]` = max. number of pH doses? | ✅ Confirmed 2026-09-12 — the setting was changed 20 → 17 on the unit and byte[115] went 0x14 → 0x11, the only 17 in the frame.  Decoded as `max_ph_doses`. |
 | Which `byte[13]` bit is "Low pH under 6,7"? | ⏳ 0x08 or 0x20 — the HOME frame with pH 6.29 had both set; 0x08 is currently read as rapid pH change |
 | "Water level too high" alarm bit? | ⏳ Unknown — needs a download during the alarm |
-| Config toggles (heating control, winter mode, waterlevel, flow detection, VS pump, filter backwash, water flow meter) and pool flow type? | ⏳ Unknown bytes — one toggle per download would map them |
+| Config toggles? | ✅ heating control, winter mode, waterlevel, flow detection, VS pump, backwash schedule, heating condition (2026-09-13/14); ⏳ water flow meter and pool flow type |
+| `byte[38]` bit 0x10 = heating parent to filtration? | ⏳ seen once in a session that changed several heating settings |
+| Alarm bits on SALT (no flow, low salt, pH under 6.7)? | ⏳ needs a marked test case while the alarm is shown |

@@ -9,6 +9,13 @@
 | Source | Issue #66; AquaNET log 2026-04-07 13:15–13:16 (probe-mode switch capture) |
 | byte[4] | `0x09` (CLF active) or `0x0a` (Redox active) or `0x0b` (DOSE mode) → `bool(data[4] & 0x08)` → **NET** |
 
+> **Current decoder.** The NET profile is
+> `custom_components/aseko_local/decoding/profiles/v7/net.py`: the values the model has, the
+> readings that differ from the protocol defaults, and the evidence for each. What is confirmed per
+> value is generated into [`docs/support_matrix.md`](../support_matrix.md). Sections below that name
+> `_fill_*` methods, `ACTUATOR_MASKS` or `FILTRATION_TYPES` describe the decoder before it was split
+> into device profiles and are kept as history.
+
 ---
 
 ## Frame Structure
@@ -201,4 +208,4 @@ AsekoDeviceType.NET: AsekoActuatorMasks(
 | NET-in-DOSE-mode decoded as HOME? | ⚠️ Known bug — filed as separate issue, out of v1.4.0 scope |
 | byte[29] other bits on NET? | ⏳ Only `0x01` and `0x02` confirmed — no further pump outputs known |
 | ph_plus pump on NET? | ⏳ NET hardware may not have pH+ pump — not confirmed |
-| byte[37] = `0xFF` always on NET? | ✅ Confirmed — `0xFF` (UNSPECIFIED) in all captured frames.  NET is not in `FILTRATION_TYPES` anyway, so neither `filtration_schedule` nor `service_menu_open` is decoded for it |
+| byte[37] = `0xFF` always on NET? | ✅ Confirmed — `0xFF` (UNSPECIFIED) in all captured frames.  The NET profile lists no filtration features anyway, so neither `filtration_schedule` nor `service_menu_open` is decoded for it |

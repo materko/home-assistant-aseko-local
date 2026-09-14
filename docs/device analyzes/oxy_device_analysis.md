@@ -6,7 +6,14 @@
 |---|---|
 | Model | ASIN AQUA Oxygen |
 | Source | Log `oxy_log.log`, 2026-04-02 18:20 – 19:34 |
-| byte[4] | `0x05` → **Unknown unit type: 5** (current decoder fails here) |
+| byte[4] | `0x05` → `UNIT_TYPE_OXY` (exact match) → **OXY** |
+
+> **Current decoder.** The OXY profile is
+> `custom_components/aseko_local/decoding/profiles/v7/oxy.py`: the values the model has, the
+> readings that differ from the protocol defaults, and the evidence for each. What is confirmed per
+> value is generated into [`docs/support_matrix.md`](../support_matrix.md). Sections below that name
+> `_fill_*` methods, `ACTUATOR_MASKS` or `FILTRATION_TYPES` describe the decoder before it was split
+> into device profiles and are kept as history.
 
 ---
 
@@ -178,22 +185,25 @@ All bits in byte[29] are independent and additive. Any combination is valid.
 On SALT devices, byte[37] bit 7 (`0x80`) routes the third pump slot to algicide or flocculant.
 On OXY, `0x03` has neither `0x80` nor `0x10` set — the SALT routing logic does **not** apply.
 
-**Status**: unchanged across all captured OXY frames (2026-04-02 and 2026-04-11). The value
-`0x03` = both pump modules present is a stable presence bitmap, not a routing indicator.
+**Status**: unchanged across all captured OXY frames (2026-04-02 and 2026-04-11).
 
-**Hypothesis** (not confirmed with asymmetric frame):
-- bit 0 (`0x01`): flocculant pump module connected
-- bit 1 (`0x02`): algicide pump module connected
-→ `0x03` = both present (consistent with Winnetoux's device showing 4 pumps).
+**Reading** (updated 2026-09): `byte[37]` is a bit field of settings, mapped on an ASIN AQUA Salt by
+toggling one setting at a time (see `salt_device_analysis.md` §byte[37] – the whole byte). Read with
+those bits, `0x03` is `0x01` (always set) + `0x02` *Flow detection enabled*, with no filtration
+period bit (nonstop 24 h, which the Winnetoux unit was running), and `0x40` *Waterlevel* clear, which
+fits `byte[27]` = `0xFE` (no level sensor). The OXY profile reads flow detection and waterlevel this
+way as **assumed**. The earlier guess — two pump-module presence bits — is superseded.
 
 **Implementation**: for `AsekoDeviceType.OXY`, do not apply the `ALGICIDE_CONFIGURED` byte[37]
 routing. Both algaecide_flow_rate and flocculant_flow_rate are read from their own dedicated bytes.
 
-Since Issue #133 the decoder also reads the 4-state filtration mode directly
-from `byte[37]` for every `FILTRATION_TYPES` device (OXY included), using the
-same firmware A/B encodings as HOME — see
-[`home_device_analysis.md`](home_device_analysis.md) §"byte[37] – Filtration
-mode flag".
+The filtration schedule comes from the same bits (`0x10` period 1, `0x20` period 2) on OXY, HOME
+and SALT; the old HOME "firmware A / B" split was the Waterlevel bit — see
+[`home_device_analysis.md`](home_device_analysis.md) §"One HOME, not two firmwares".
+
+`byte[78]` = `0xAA` on the Winnetoux frames: bit `0x02` follows the filtration state on SALT and NET
+(set while filtration runs, as it did here); `0x08` is the VS pump type bit on SALT, but `byte[22]`
+`0x08` (VS pump enabled) is clear on OXY, and `0x20` / `0x80` are not understood on OXY.
 
 ---
 
@@ -424,6 +434,8 @@ No second branch needed. Unconfirmed pump masks default to `0x00` (no false posi
 v1.5.0 will confirm remaining byte[29] bits once more frames are available.
 
 ### Changes per file
+
+_The rest of this section is the v1.4.0 implementation log, written before the decoder was split into device profiles._
 
 #### `const.py`
 - Add `UNIT_TYPE_OXY = 0x05`
