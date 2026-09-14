@@ -14,34 +14,31 @@ The Aseko unit and your Home Assistant need to run on the same network or traffi
 
 ## Device support
 
-### Confirmed supported devices
+### Supported devices
+
+✅ checked on this model · 👁 seen in real frames, not compared with the unit · ❓ assumed, not checked on this model · 🔍 not located in the frame. Per value: [support matrix](docs/support_matrix.md).
 
 | Device | Firmware | Sensors | Pump state | Chemical consumption |
 |---|---|---|---|---|
-| ASIN Aqua Net | ≤ 7.x | ✅ | ✅ cl, PH− | ✅ cl, PH− |
-| ASIN Aqua Net | 8.x | ✅ | ✅ Filtration, cl, PH− | ✅ cl, PH− |
-| ASIN Aqua Salt | ≤ 7.x | ✅ | ✅ Filtration, Electrolyzer, Algicide, Flocculant, pH− | ✅ Algicide, Flocculant, pH− |
-| ASIN Aqua Oxy | ≤ 7.x | ✅ | ✅ Filtration, Oxy, Algicide, Flocculant, pH− | ✅ Oxy,Algicide, Flocculant, pH− |
-| ASIN Aqua Home | ≤ 7.x | ✅ | ✅ Filtration, cl, Algicide, Flocculant, pH− | ✅ Algicide, Flocculant, pH− |
+| ASIN Aqua Net | ≤ 7.x | ✅ | ✅ cl, pH− | ✅ cl, pH− |
+| ASIN Aqua Net | 8.x | ✅ | ✅ filtration · ❓ cl, pH− | ❓ cl, pH− |
+| ASIN Aqua Salt | ≤ 7.x | ✅ | ✅ filtration, electrolyzer, algicide, flocculant · ❓ pH− | ✅ algicide, flocculant · ❓ pH− |
+| ASIN Aqua Oxy | ≤ 7.x | 👁 pH, temperature | ✅ filtration, oxy, algicide, flocculant, pH− | ✅ oxy, algicide, flocculant, pH− |
+| ASIN Aqua Home | ≤ 7.x | ✅ | ✅ filtration · ❓ cl, algicide, flocculant, pH− | ❓ cl, flocculant, pH− · 🔍 algicide (flow rate not located, not counted) |
+| ASIN Aqua Salt NET | 8.x | ❓ | ❓ filtration, pH− | ❓ pH− |
+| ASIN Aqua Profi | ≤ 7.x | ❓ no real frame yet | ❓ filtration, cl, flocculant, pH− | ❓ cl, flocculant, pH− |
+
 > **Firmware note:** This integration supports both the **120-byte binary protocol** (firmware ≤ 7.x, port **47524**) and the **text-frame protocol** (firmware 8.x, port **51050**). The port can be changed in the integration settings to match your device.
 
-### Partially supported / untested devices
+### Not supported yet
 
-The following devices are likely compatible but the byte mapping for pump states and chemical consumption has not been confirmed:
+| Device | Status |
+|---|---|
+| ASIN Aqua Home Pro, Salt Pro, Home Pro Oxy, Eox Pro (07.2026) | ❔ unit type not mapped: the unit gets no entities, but its frames reach the diagnostics — please share them (see *Help wanted* below) |
+| ASIN Aqua Net+ | ❔ as above |
+| ASIN Aqua | ❌ no network connection |
 
-| Device | Status | Known unknowns |
-|---|---|---|
-| ASIN Aqua Pro | ⚠️ Untested | Pump state bits uncertain; pH+ pump bit position unknown |
-| ASIN Aqua Home Pro (07.2026) | ⚠️ Untested | Pump state bits uncertain; pH+ pump bit position unknown |
-| ASIN Aqua Salt Pro (07.2026) | ⚠️ Untested | Pump state bits uncertain; pH+ pump bit position unknown |
-| ASIN Aqua Home Pro Oxy (07.2026) | ⚠️ Untested | Pump state bits uncertain; pH+ pump bit position unknown |
-| ASIN Aqua Eox Pro (07.2026) | ⚠️ Untested | Pump state bits uncertain; pH+ pump bit position unknown |
-| ASIN Aqua Salt NET (01.2026) | ⚠️ Untested | Pump state bits uncertain; pH+ pump bit position unknown |
-| ASIN Aqua Net+  | ⚠️ Untested | Pump state bits uncertain; pH+ pump bit position unknown |
-| ASIN Aqua  | ❌ Unsupported | No network connection |
-
-
-Sensors that cannot be mapped reliably are **not shown** by default to avoid misleading values.
+A value the model does not have gets no entity. A value the unit has not sent yet gets a disabled entity that switches itself on when the value arrives.
 
 ### Help wanted — expanding device support
 
