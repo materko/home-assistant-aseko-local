@@ -30,7 +30,7 @@ from .frames import Protocol, parse_frame
 from .profiles import detect_profile
 
 if TYPE_CHECKING:
-    from ..aseko_data import AsekoDevice
+    from ..models import AsekoDevice
 
 
 def decode(raw: bytes, protocol: Protocol | None = None) -> AsekoDevice:

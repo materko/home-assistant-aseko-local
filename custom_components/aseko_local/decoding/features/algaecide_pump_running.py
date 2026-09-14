@@ -19,7 +19,7 @@ from ..presence import NOT_PRESENT
 from .algaecide_flow_rate import AlgaecideFlowRate
 
 if TYPE_CHECKING:
-    from ...aseko_data import AsekoDevice
+    from ...models import AsekoDevice
     from ..frames import V7Frame
     from ..presence import NotPresent
 

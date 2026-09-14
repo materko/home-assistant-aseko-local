@@ -18,7 +18,6 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from ..aseko_data import AsekoDeviceType, AsekoProfileFlag
 from ..const import (
     UNIT_TYPE_HOME,
     UNIT_TYPE_NET,
@@ -26,10 +25,11 @@ from ..const import (
     UNIT_TYPE_PROFI,
     UNIT_TYPE_SALT,
 )
+from ..models import AsekoDeviceType, AsekoProfileFlag
 from .frames import Protocol
 
 if TYPE_CHECKING:
-    from ..aseko_data import AsekoDevice
+    from ..models import AsekoDevice
     from .feature import Feature
 
 _LOGGER = logging.getLogger(__name__)

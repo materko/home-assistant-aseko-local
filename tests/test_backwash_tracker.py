@@ -11,13 +11,13 @@ from datetime import datetime, time, timedelta, timezone
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
-from custom_components.aseko_local.aseko_data import (
+from custom_components.aseko_local.models import (
     AsekoBackwashSource,
     AsekoBackwashTrigger,
     AsekoDeviceType,
     AsekoProfileFlag,
 )
-from custom_components.aseko_local.backwash_tracker import (
+from custom_components.aseko_local.trackers.backwash import (
     MAX_FRAME_GAP,
     SCHEDULED_MATCH_TOLERANCE,
     BackwashTracker,

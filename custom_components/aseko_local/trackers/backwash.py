@@ -63,14 +63,14 @@ from typing import TYPE_CHECKING
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 
-from .aseko_data import (
+from ..models import (
     AsekoBackwashSource,
     AsekoBackwashTrigger,
     AsekoProfileFlag,
 )
 
 if TYPE_CHECKING:
-    from .aseko_data import AsekoDevice
+    from ..models import AsekoDevice
 
 _LOGGER = logging.getLogger(__name__)
 

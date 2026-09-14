@@ -10,8 +10,8 @@ from datetime import UTC, datetime, timedelta
 
 from PIL import Image
 
-from custom_components.aseko_local.frame_log import KIND_V8, FrameLog
-from custom_components.aseko_local.photo_log import (
+from custom_components.aseko_local.recording.frame_log import KIND_V8, FrameLog
+from custom_components.aseko_local.recording.photos import (
     MAX_SIDE,
     PhotoStore,
     build_export_zip,

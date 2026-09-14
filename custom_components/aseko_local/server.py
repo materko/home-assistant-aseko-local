@@ -6,7 +6,6 @@ from collections.abc import Callable
 from enum import Enum, auto
 from typing import Any, ClassVar, Optional
 
-from .aseko_data import AsekoDevice
 from .const import (
     DEFAULT_BINDING_ADDRESS,
     DEFAULT_BINDING_PORT,
@@ -15,6 +14,7 @@ from .const import (
     UNSPECIFIED_VALUE,
 )
 from .decoding import Protocol, decode
+from .models import AsekoDevice
 
 _LOGGER = logging.getLogger(__name__)
 

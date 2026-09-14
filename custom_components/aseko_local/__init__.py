@@ -21,8 +21,6 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.loader import async_get_integration
 from homeassistant.util import dt as dt_util
 
-from .aseko_data import AsekoDevice
-from .aseko_server import AsekoDeviceServer
 from .const import (
     CONF_FORWARDER_ENABLED,
     CONF_FORWARDER_HOST,
@@ -30,10 +28,12 @@ from .const import (
     DEFAULT_FORWARDER_PORT_V8,
     DOMAIN,
 )
-from .consumption_tracker import PUMP_KEYS
 from .coordinator import AsekoLocalDataUpdateCoordinator
-from .mark_card import async_setup_mark_card
-from .mirror_forwarder import AsekoCloudMirror
+from .forwarder import AsekoCloudMirror
+from .models import AsekoDevice
+from .recording.views import async_setup_mark_card
+from .server import AsekoDeviceServer
+from .trackers.consumption import PUMP_KEYS
 
 _LOGGER = logging.getLogger(__name__)
 

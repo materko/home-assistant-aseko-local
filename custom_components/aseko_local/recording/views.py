@@ -29,8 +29,8 @@ from homeassistant.exceptions import Unauthorized
 from homeassistant.helpers.http import KEY_HASS
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN
-from .photo_log import PhotoStore, build_export_zip
+from ..const import DOMAIN
+from .photos import PhotoStore, build_export_zip
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -205,7 +205,7 @@ class AsekoExportView(HomeAssistantView):
     async def get(self, request: web.Request) -> web.Response:
         # Imported here: diagnostics imports the platforms, which import this
         # package's __init__, which sets this module up.
-        from .diagnostics import async_get_config_entry_diagnostics  # noqa: PLC0415
+        from ..diagnostics import async_get_config_entry_diagnostics  # noqa: PLC0415
 
         hass = _require_admin(request)
         only_new = request.query.get("new") == "1"

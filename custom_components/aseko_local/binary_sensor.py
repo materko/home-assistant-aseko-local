@@ -14,9 +14,9 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import AsekoLocalConfigEntry
-from .aseko_data import AsekoDevice
 from .coordinator import AsekoLocalDataUpdateCoordinator
 from .entity import AsekoLocalEntity
+from .models import AsekoDevice
 
 _LOGGER = logging.getLogger(__name__)
 

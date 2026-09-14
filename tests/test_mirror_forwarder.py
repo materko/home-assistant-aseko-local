@@ -2,7 +2,7 @@ import asyncio
 
 import pytest
 
-from custom_components.aseko_local.mirror_forwarder import AsekoCloudMirror
+from custom_components.aseko_local.forwarder import AsekoCloudMirror
 
 
 class DummyWriter:

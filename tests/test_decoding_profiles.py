@@ -14,12 +14,6 @@ from dataclasses import fields
 
 import pytest
 
-from custom_components.aseko_local.aseko_data import (
-    AsekoDevice,
-    AsekoDeviceType,
-    AsekoFiltrationSchedule,
-    AsekoProfileFlag,
-)
 from custom_components.aseko_local.const import UNIT_TYPE_PROFI, WATER_FLOW_TO_PROBES
 from custom_components.aseko_local.decoding import decode, engine
 from custom_components.aseko_local.decoding.feature import Feature
@@ -50,6 +44,12 @@ from custom_components.aseko_local.decoding.profiles import (
     profile_for,
     v7,
     v8,
+)
+from custom_components.aseko_local.models import (
+    AsekoDevice,
+    AsekoDeviceType,
+    AsekoFiltrationSchedule,
+    AsekoProfileFlag,
 )
 
 from .test_aseko_decoder import _make_base_bytes

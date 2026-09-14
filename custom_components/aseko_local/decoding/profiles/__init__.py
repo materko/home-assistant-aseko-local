@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from ...aseko_data import AsekoDeviceType
+from ...models import AsekoDeviceType
 from ..frames import Protocol, V8Frame
 from ..profile import Profile, unit_type_from_byte
 from . import v7, v8

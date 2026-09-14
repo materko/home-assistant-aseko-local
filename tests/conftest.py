@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, PropertyMock, patch
 import pytest
 from homeassistant.config_entries import ConfigEntry
 
-from custom_components.aseko_local.aseko_server import ServerConnectionError
 from custom_components.aseko_local.const import DOMAIN
+from custom_components.aseko_local.server import ServerConnectionError
 
 
 @pytest.fixture(autouse=True)

@@ -11,14 +11,14 @@ from custom_components.aseko_local import (
     async_setup_entry,
     async_unload_entry,
 )
-from custom_components.aseko_local.aseko_data import AsekoDevice
-from custom_components.aseko_local.aseko_server import (
-    AsekoDeviceServer,
-)
 from custom_components.aseko_local.const import (
     DOMAIN,
 )
-from custom_components.aseko_local.mirror_forwarder import AsekoCloudMirror
+from custom_components.aseko_local.forwarder import AsekoCloudMirror
+from custom_components.aseko_local.models import AsekoDevice
+from custom_components.aseko_local.server import (
+    AsekoDeviceServer,
+)
 
 from .const import MOCK_CONFIG
 
@@ -38,7 +38,7 @@ async def test_setup_unload_entry(hass, bypass_get_data, api_server_running) -> 
 
     # Set up the entry and assert that the values set during setup are where we expect
     # them to be. Because we have patched the AsekoLocalDataUpdateCoordinator.async_get_data
-    # call, no code from custom_components/aseko_local/aseko_server.py actually runs.
+    # call, no code from custom_components/aseko_local/server.py actually runs.
     assert await async_setup_entry(hass, config_entry)
 
     class DummyWriter:
@@ -213,7 +213,7 @@ async def test_device_recognition(monkeypatch) -> None:
 
 def _make_device(serial: int) -> AsekoDevice:
     """Return a minimal AsekoDevice with the given serial number."""
-    from custom_components.aseko_local.aseko_data import AsekoDeviceType
+    from custom_components.aseko_local.models import AsekoDeviceType
 
     device = AsekoDevice()
     device.serial_number = serial

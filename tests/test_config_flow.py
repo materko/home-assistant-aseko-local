@@ -7,13 +7,13 @@ from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 
-from custom_components.aseko_local.aseko_server import ServerConnectionError
 from custom_components.aseko_local.const import (
     CONF_FORWARDER_ENABLED,
     CONF_FORWARDER_HOST,
     DEFAULT_FORWARDER_HOST,
     DOMAIN,
 )
+from custom_components.aseko_local.server import ServerConnectionError
 
 
 async def test_form(hass: HomeAssistant, mock_setup_entry: AsyncMock) -> None:
@@ -26,7 +26,7 @@ async def test_form(hass: HomeAssistant, mock_setup_entry: AsyncMock) -> None:
     assert result.get("errors") == {}
 
     with patch(
-        "custom_components.aseko_local.aseko_server.AsekoDeviceServer.start",
+        "custom_components.aseko_local.server.AsekoDeviceServer.start",
     ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"],
@@ -54,7 +54,7 @@ async def test_form_cannot_connect(
     )
 
     with patch(
-        "custom_components.aseko_local.aseko_server.AsekoDeviceServer.start",
+        "custom_components.aseko_local.server.AsekoDeviceServer.start",
         side_effect=ServerConnectionError,
     ):
         result = await hass.config_entries.flow.async_configure(
@@ -72,7 +72,7 @@ async def test_form_cannot_connect(
     # we can show the config flow is able to recover from an error.
 
     with patch(
-        "custom_components.aseko_local.aseko_server.AsekoDeviceServer.start",
+        "custom_components.aseko_local.server.AsekoDeviceServer.start",
         return_value=None,
     ):
         result = await hass.config_entries.flow.async_configure(
@@ -112,9 +112,7 @@ async def test_options_flow(
         CONF_FORWARDER_HOST: DEFAULT_FORWARDER_HOST,
     }
 
-    with patch(
-        "custom_components.aseko_local.aseko_server.AsekoDeviceServer.remove_all"
-    ):
+    with patch("custom_components.aseko_local.server.AsekoDeviceServer.remove_all"):
         result2 = await hass.config_entries.options.async_configure(
             result["flow_id"],
             options,

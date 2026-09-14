@@ -94,7 +94,7 @@ class AsekoBackwashTrigger(Enum):
         schedule is disabled/unconfigured, so a human started it.
 
     The device does not transmit *why* the valve opened, so this is derived
-    from the observed start time.  See ``backwash_tracker.py``.
+    from the observed start time.  See ``trackers/backwash.py``.
     """
 
     SCHEDULED = "scheduled"
@@ -305,7 +305,7 @@ class AsekoDevice:
     # derive these from before that: the schedule alone cannot tell us whether
     # a cycle actually ran, so guessing from it would show a confident
     # timestamp for something that may never have happened.
-    # See custom_components/aseko_local/backwash_tracker.py.
+    # See custom_components/aseko_local/trackers/backwash.py.
     #
     # These differ in how much they can be trusted:
     #

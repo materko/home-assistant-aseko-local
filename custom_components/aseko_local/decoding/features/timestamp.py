@@ -12,7 +12,7 @@ from ..feature import Feature
 from ..frames import decode_timestamp
 
 if TYPE_CHECKING:
-    from ...aseko_data import AsekoDevice
+    from ...models import AsekoDevice
     from ..frames import V7Frame, V8Frame
 
 

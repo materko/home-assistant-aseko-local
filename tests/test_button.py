@@ -5,13 +5,13 @@ from unittest.mock import MagicMock
 import pytest
 from homeassistant.config_entries import ConfigEntry
 
-from custom_components.aseko_local.aseko_data import AsekoDeviceType
 from custom_components.aseko_local.button import (
     AsekoResetButtonEntity,
     async_setup_entry,
 )
 from custom_components.aseko_local.const import UNIT_TYPE_PROFI, WATER_FLOW_TO_PROBES
 from custom_components.aseko_local.decoding import decode
+from custom_components.aseko_local.models import AsekoDeviceType
 
 # ── helpers ────────────────────────────────────────────────────────────────────
 

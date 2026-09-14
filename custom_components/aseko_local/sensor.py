@@ -26,14 +26,14 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.typing import StateType
 
 from . import AsekoLocalConfigEntry
-from .aseko_data import (
+from .coordinator import AsekoLocalDataUpdateCoordinator
+from .entity import AsekoLocalEntity
+from .models import (
     AsekoDevice,
     AsekoElectrolyzerDirection,
     AsekoHeatingCondition,
     AsekoVariableSpeedPumpType,
 )
-from .coordinator import AsekoLocalDataUpdateCoordinator
-from .entity import AsekoLocalEntity
 
 _LOGGER = logging.getLogger(__name__)
 

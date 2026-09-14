@@ -25,7 +25,8 @@ from typing import Any
 # Load frame_log.py by path: importing the package would pull in Home Assistant.
 _spec = importlib.util.spec_from_file_location(
     "frame_log",
-    Path(__file__).resolve().parents[1] / "custom_components/aseko_local/frame_log.py",
+    Path(__file__).resolve().parents[1]
+    / "custom_components/aseko_local/recording/frame_log.py",
 )
 _frame_log = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_frame_log)

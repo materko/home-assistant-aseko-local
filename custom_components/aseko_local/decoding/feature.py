@@ -33,7 +33,7 @@ from .frames import Protocol
 NOT_LOCATED = frozenset(f"decode_{p.value}_not_located" for p in Protocol)
 
 if TYPE_CHECKING:
-    from ..aseko_data import AsekoDevice
+    from ..models import AsekoDevice
     from .frames import V7Frame, V8Frame
 
 

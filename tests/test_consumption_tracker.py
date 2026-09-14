@@ -4,8 +4,8 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from custom_components.aseko_local.aseko_data import AsekoDevice
-from custom_components.aseko_local.consumption_tracker import (
+from custom_components.aseko_local.models import AsekoDevice
+from custom_components.aseko_local.trackers.consumption import (
     MAX_PUMP_INTERVAL,
     AsekoConsumptionTracker,
 )

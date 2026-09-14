@@ -17,12 +17,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ...aseko_data import AsekoFiltrationSchedule
 from ...const import UNSPECIFIED_VALUE
+from ...models import AsekoFiltrationSchedule
 from ..feature import Feature
 
 if TYPE_CHECKING:
-    from ...aseko_data import AsekoDevice
+    from ...models import AsekoDevice
     from ..frames import V7Frame
 
 

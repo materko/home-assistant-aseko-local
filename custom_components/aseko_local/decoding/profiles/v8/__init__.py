@@ -12,7 +12,7 @@ have something to integrate.
 
 from __future__ import annotations
 
-from ....aseko_data import AsekoDeviceType
+from ....models import AsekoDeviceType
 from ...profile import Profile
 from .common import MODEL_BY_HEADER_TYPE
 from .net import NET

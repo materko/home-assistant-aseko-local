@@ -21,7 +21,7 @@ from ..feature import Feature
 from ..frames import word_or_absent
 
 if TYPE_CHECKING:
-    from ...aseko_data import AsekoDevice
+    from ...models import AsekoDevice
     from ..frames import V7Frame
     from ..presence import NotPresent
 

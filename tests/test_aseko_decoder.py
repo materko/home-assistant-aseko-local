@@ -4,13 +4,6 @@ from datetime import datetime, time
 
 import pytest
 
-from custom_components.aseko_local.aseko_data import (
-    AsekoDevice,
-    AsekoDeviceType,
-    AsekoElectrolyzerDirection,
-    AsekoFiltrationSchedule,
-    AsekoProbeType,
-)
 from custom_components.aseko_local.const import (
     UNIT_TYPE_PROFI,
     WATER_FLOW_TO_PROBES,
@@ -26,6 +19,13 @@ from custom_components.aseko_local.decoding.frames import (
     parse_v7,
 )
 from custom_components.aseko_local.decoding.profiles import profile_for
+from custom_components.aseko_local.models import (
+    AsekoDevice,
+    AsekoDeviceType,
+    AsekoElectrolyzerDirection,
+    AsekoFiltrationSchedule,
+    AsekoProbeType,
+)
 
 
 def _configuration(

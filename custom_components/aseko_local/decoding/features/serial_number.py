@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from ..feature import Feature
 
 if TYPE_CHECKING:
-    from ...aseko_data import AsekoDevice
+    from ...models import AsekoDevice
     from ..frames import V7Frame, V8Frame
 
 

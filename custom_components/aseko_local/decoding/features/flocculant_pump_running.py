@@ -15,7 +15,7 @@ from ..presence import NOT_PRESENT
 from .flocculant_flow_rate import FlocculantFlowRate
 
 if TYPE_CHECKING:
-    from ...aseko_data import AsekoDevice
+    from ...models import AsekoDevice
     from ..frames import V7Frame
     from ..presence import NotPresent
 

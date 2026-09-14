@@ -20,7 +20,7 @@ from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.core import HomeAssistant
 
 from . import AsekoLocalConfigEntry
-from .consumption_tracker import PUMP_KEYS
+from .trackers.consumption import PUMP_KEYS
 
 # Fields that may contain personally identifying information
 _REDACT = {"host", "unique_id"}

@@ -9,7 +9,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from custom_components.aseko_local.frame_log import (
+from custom_components.aseko_local.recording.frame_log import (
     KIND_MARK,
     KIND_V7,
     KIND_V8,

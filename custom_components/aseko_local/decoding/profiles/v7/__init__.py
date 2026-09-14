@@ -22,7 +22,7 @@ The support matrix in the docs is generated from these dictionaries.
 
 from __future__ import annotations
 
-from ....aseko_data import AsekoDeviceType
+from ....models import AsekoDeviceType
 from ...profile import Profile
 from .home import HOME
 from .net import NET

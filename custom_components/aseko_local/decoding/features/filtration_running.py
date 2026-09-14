@@ -13,7 +13,7 @@ from ..feature import Feature
 from .service_menu_open import ServiceMenuOpen
 
 if TYPE_CHECKING:
-    from ...aseko_data import AsekoDevice
+    from ...models import AsekoDevice
     from ..frames import V7Frame, V8Frame
 
 

@@ -9,9 +9,9 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import AsekoLocalConfigEntry
-from .aseko_data import AsekoDevice
 from .coordinator import AsekoLocalDataUpdateCoordinator
 from .entity import AsekoLocalEntity
+from .models import AsekoDevice
 from .sensor import PUMP_RUNNING_ATTR, device_has_pump
 
 

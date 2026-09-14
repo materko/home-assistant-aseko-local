@@ -4,7 +4,6 @@ import pytest
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers import entity_registry as er
 
-from custom_components.aseko_local.aseko_data import AsekoDeviceType
 from custom_components.aseko_local.binary_sensor import (
     BINARY_SENSORS,
     AsekoLocalBinarySensorEntity,
@@ -19,6 +18,7 @@ from custom_components.aseko_local.const import (
     WATER_FLOW_TO_PROBES,
 )
 from custom_components.aseko_local.decoding import decode
+from custom_components.aseko_local.models import AsekoDeviceType
 from custom_components.aseko_local.sensor import (
     RETIRED_UNIQUE_ID_SUFFIXES as RETIRED_SENSOR_IDS,
 )

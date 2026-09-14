@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ....aseko_data import AsekoDeviceType, AsekoProfileFlag
+from ....models import AsekoDeviceType, AsekoProfileFlag
 from ...features import (
     AirTemperature,
     AlarmMaxDisinfectionDose,

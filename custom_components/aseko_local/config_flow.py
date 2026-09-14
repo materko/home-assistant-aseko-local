@@ -11,7 +11,6 @@ from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 
-from .aseko_server import AsekoDeviceServer, ServerConnectionError
 from .const import (
     CONF_FORWARDER_ENABLED,
     CONF_FORWARDER_HOST,
@@ -20,6 +19,7 @@ from .const import (
     DEFAULT_FORWARDER_HOST,
     DOMAIN,
 )
+from .server import AsekoDeviceServer, ServerConnectionError
 
 _LOGGER = logging.getLogger(__name__)
 

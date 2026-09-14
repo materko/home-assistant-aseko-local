@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ...aseko_data import AsekoProbeType
 from ...const import (
     PROBE_CLF_MISSING,
     PROBE_DOSE_MISSING,
@@ -18,10 +17,11 @@ from ...const import (
     UNIT_TYPE_HOME_CLF,
     UNIT_TYPE_HOME_REDOX,
 )
+from ...models import AsekoProbeType
 from ..feature import Feature
 
 if TYPE_CHECKING:
-    from ...aseko_data import AsekoDevice
+    from ...models import AsekoDevice
     from ..frames import V7Frame, V8Frame
 
 

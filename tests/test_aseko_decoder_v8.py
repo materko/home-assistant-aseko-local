@@ -2,12 +2,12 @@
 
 import pytest
 
-from custom_components.aseko_local.aseko_data import (
+from custom_components.aseko_local.decoding import decode
+from custom_components.aseko_local.decoding.frames import parse_v8
+from custom_components.aseko_local.models import (
     AsekoDeviceType,
     AsekoProbeType,
 )
-from custom_components.aseko_local.decoding import decode
-from custom_components.aseko_local.decoding.frames import parse_v8
 
 # ---------------------------------------------------------------------------
 # Real reference frame from fekberg (Sep 16, 2025, 22:27 CEST).

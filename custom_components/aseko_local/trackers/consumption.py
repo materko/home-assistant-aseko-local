@@ -6,8 +6,8 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
-from .aseko_data import AsekoDevice
-from .const import READ_TIMEOUT
+from ..const import READ_TIMEOUT
+from ..models import AsekoDevice
 
 _LOGGER = logging.getLogger(__name__)
 

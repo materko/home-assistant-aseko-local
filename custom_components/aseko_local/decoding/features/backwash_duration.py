@@ -16,7 +16,7 @@ from ..feature import Feature
 from ..presence import NOT_PRESENT
 
 if TYPE_CHECKING:
-    from ...aseko_data import AsekoDevice
+    from ...models import AsekoDevice
     from ..frames import V7Frame
     from ..presence import NotPresent
 

@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ...aseko_data import AsekoProbeType
+from ...models import AsekoProbeType
 from ..feature import Feature
 from ..presence import NOT_PRESENT
 from .configuration import Configuration
 
 if TYPE_CHECKING:
-    from ...aseko_data import AsekoDevice
+    from ...models import AsekoDevice
     from ..frames import V7Frame, V8Frame
     from ..presence import NotPresent
 

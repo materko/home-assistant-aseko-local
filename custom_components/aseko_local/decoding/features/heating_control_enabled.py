@@ -14,7 +14,7 @@ from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
 
 if TYPE_CHECKING:
-    from ...aseko_data import AsekoDevice
+    from ...models import AsekoDevice
     from ..frames import V7Frame
 
 

@@ -7,7 +7,7 @@ algicide canister and an electrode, but no chlorine canister.
 
 from __future__ import annotations
 
-from ....aseko_data import AsekoDeviceType
+from ....models import AsekoDeviceType
 from ...features import (
     ChlorineFlowRate,
     ChlorinePumpRunning,
