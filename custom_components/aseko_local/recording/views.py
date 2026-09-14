@@ -236,7 +236,7 @@ class AsekoStatusView(HomeAssistantView):
         hass = _require_admin(request)
         now = dt_util.utcnow()
         store = photo_store(hass)
-        photos = await hass.async_add_executor_job(store.files)
+        photos = await hass.async_add_executor_job(store.count)
         return self.json(
             {
                 "entries": [
@@ -255,7 +255,7 @@ class AsekoStatusView(HomeAssistantView):
                     }
                     for entry in _loaded_entries(hass)
                 ],
-                "photos": len(photos),
+                "photos": photos,
             }
         )
 

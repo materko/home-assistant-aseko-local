@@ -507,3 +507,42 @@ async def test_unreadable_v8_value_is_reported_and_the_frame_still_delivered() -
     assert len(received) == 1
     assert received[0].ph is None
     assert warnings == [(123456789, "v8 value unreadable: ains[0] is not a number")]
+
+
+@pytest.mark.asyncio
+async def test_a_short_v8_frame_does_not_swallow_the_next_one() -> None:
+    """Audit N1: a v8 frame ending inside the first 120 bytes stops at its newline."""
+    received: list[AsekoDevice] = []
+
+    async def on_data(device: AsekoDevice) -> None:
+        received.append(device)
+
+    server = AsekoDeviceServer(host="127.0.0.1", port=12357, on_data=on_data)
+    short = b"{v1 111 804 0 27 ins: 200 ains: 700 outs: 0 areqs: 70}\n"
+    assert len(short) < 120
+    reader = asyncio.StreamReader()
+    reader.feed_data(short + _V8_REAL_FRAME + short)
+    reader.feed_eof()
+    await server._handle_client(reader, DummyWriter("127.0.0.1", 12357))
+
+    assert [(d.serial_number, d.ph) for d in received] == [
+        (111, 7.0),
+        (123456789, 7.08),
+        (111, 7.0),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_two_long_v8_frames_in_one_read_stay_apart() -> None:
+    received: list[AsekoDevice] = []
+
+    async def on_data(device: AsekoDevice) -> None:
+        received.append(device)
+
+    server = AsekoDeviceServer(host="127.0.0.1", port=12358, on_data=on_data)
+    reader = asyncio.StreamReader()
+    reader.feed_data(_V8_REAL_FRAME + _V8_REAL_FRAME)
+    reader.feed_eof()
+    await server._handle_client(reader, DummyWriter("127.0.0.1", 12358))
+
+    assert [d.serial_number for d in received] == [123456789, 123456789]

@@ -122,6 +122,11 @@ class PhotoStore:
                 path.unlink(missing_ok=True)
         return len(files)
 
+    def count(self) -> int:
+        """How many photos are stored, read under the lock."""
+        with self.lock:
+            return len(self.files())
+
     def size(self) -> int:
         return sum(p.stat().st_size for p in self.files())
 

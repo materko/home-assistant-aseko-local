@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
@@ -49,9 +50,15 @@ class AsekoConsumptionTracker:
     _last_flowrate: dict[str, int | None] = field(
         default_factory=lambda: {k: None for k in PUMP_KEYS}
     )
-    # True once the counters came from the coordinator's store: the sensors
-    # then must not overwrite them with their rounded litres
-    restored: bool = False
+    # Pumps whose counters came from the coordinator's store: their sensors
+    # must not overwrite them with rounded litres.  A pump the store had no
+    # valid entry for is still seeded from its sensor.
+    restored_keys: set[str] = field(default_factory=set)
+
+    @property
+    def restored(self) -> bool:
+        """True once any counter came from the coordinator's store."""
+        return bool(self.restored_keys)
 
     # ------------------------------------------------------------------ #
     # Public API                                                           #
@@ -168,11 +175,15 @@ class AsekoConsumptionTracker:
             if key not in self._counters or not isinstance(counters, dict):
                 continue
             try:
-                self._counters[key].total = float(counters.get("total", 0.0))
-                self._counters[key].canister = float(counters.get("canister", 0.0))
+                total = float(counters.get("total", 0.0))
+                canister = float(counters.get("canister", 0.0))
             except (TypeError, ValueError):
                 continue
-        self.restored = True
+            if not all(math.isfinite(v) and v >= 0 for v in (total, canister)):
+                continue
+            self._counters[key].total = total
+            self._counters[key].canister = canister
+            self.restored_keys.add(key)
 
     def seed(self, pump_key: str, total_ml: float, canister_ml: float) -> None:
         """Restore persisted values after HA restart.

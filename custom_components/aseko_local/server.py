@@ -26,6 +26,14 @@ class FrameType(Enum):
     V8 = auto()  # Text-based v8 frame starting with '{'
 
 
+V8_SIGNATURE = b"{v1 "
+
+
+def _holds_whole_v8_frame(data: bytes) -> bool:
+    """True when ``data`` already starts with a complete v8 frame."""
+    return data.lstrip(b"\r\n\t\x00").startswith(V8_SIGNATURE) and b"\n" in data
+
+
 class AsekoDeviceServer:
     """Async TCP server for receiving and parsing Aseko unit data."""
 
@@ -219,13 +227,29 @@ class AsekoDeviceServer:
         _LOGGER.debug("Connection from %s", addr)
         self._clients.add(writer)
 
+        # Bytes read past the end of the previous frame: a short v8 frame
+        # ends inside the first MESSAGE_SIZE bytes, and what follows it is
+        # the start of the next message, not part of this one.
+        carry = b""
         try:
             while True:
+                buffered, carry = carry, b""
                 try:
-                    # Read the first MESSAGE_SIZE bytes to detect frame type
-                    initial = await asyncio.wait_for(
-                        reader.readexactly(MESSAGE_SIZE), timeout=READ_TIMEOUT
-                    )
+                    if _holds_whole_v8_frame(buffered):
+                        initial = buffered
+                    else:
+                        # Read up to MESSAGE_SIZE bytes to detect the frame type
+                        need = MESSAGE_SIZE - len(buffered)
+                        initial = buffered
+                        if need > 0:
+                            initial += await asyncio.wait_for(
+                                reader.readexactly(need), timeout=READ_TIMEOUT
+                            )
+                        elif V8_SIGNATURE not in initial:
+                            initial, carry = (
+                                initial[:MESSAGE_SIZE],
+                                initial[MESSAGE_SIZE:],
+                            )
 
                     _LOGGER.debug(
                         "Initial bytes from %s (%d bytes):\n%s",
@@ -243,6 +267,11 @@ class AsekoDeviceServer:
                     break
 
                 except asyncio.IncompleteReadError as exc:
+                    exc.partial = buffered + exc.partial
+                    if _holds_whole_v8_frame(exc.partial):
+                        # a short v8 frame right before the unit hung up
+                        carry = exc.partial
+                        continue
                     if len(exc.partial) == 0:
                         _LOGGER.debug(
                             "Client %s closed the connection",
@@ -263,7 +292,11 @@ class AsekoDeviceServer:
 
                 # Detect frame type, assemble and rewind if necessary
                 try:
-                    frame, offset, frame_type = await self._sync_frame(reader, initial)
+                    rest: list[bytes] = []
+                    frame, offset, frame_type = await self._sync_frame(
+                        reader, initial, rest
+                    )
+                    carry = b"".join(rest)
                 except Exception as exc:
                     _LOGGER.error(
                         "Frame sync error from %s → closing connection",
@@ -373,7 +406,10 @@ class AsekoDeviceServer:
             _LOGGER.debug("v8 forward callback removed")
 
     async def _sync_frame(
-        self, reader: asyncio.StreamReader, initial: bytes
+        self,
+        reader: asyncio.StreamReader,
+        initial: bytes,
+        rest: list[bytes] | None = None,
     ) -> tuple[bytes, int, FrameType]:
         """Detect frame type, assemble the complete frame, and rewind if necessary.
 
@@ -386,6 +422,9 @@ class AsekoDeviceServer:
         For binary (v7) frames, the rewind check is applied to the initial
         MESSAGE_SIZE bytes and the corrected frame is returned together with
         the rewind offset (0 if no rewind was needed).
+
+        A v8 frame that already ends inside ``initial`` stops at its newline;
+        the bytes after it are appended to ``rest`` for the next frame.
 
         Returns:
             tuple[bytes, int, FrameType]: (clean_frame, rewind_offset, frame_type)
@@ -404,6 +443,11 @@ class AsekoDeviceServer:
                         "v8 frame shifted by %d bytes — discarding prefix", brace_pos
                     )
             v8_data = initial[brace_pos:]
+            newline = v8_data.find(b"\n")
+            if newline >= 0:
+                if rest is not None:
+                    rest.append(v8_data[newline + 1 :])
+                return v8_data[: newline + 1], brace_pos, FrameType.V8
             try:
                 rest = await asyncio.wait_for(
                     reader.readuntil(b"\n"), timeout=READ_TIMEOUT

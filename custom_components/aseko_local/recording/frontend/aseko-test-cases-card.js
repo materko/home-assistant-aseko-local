@@ -55,6 +55,7 @@ const STRINGS = {
     "mark_failed": "Case not saved: {e}",
     "zipping": "Building the zip\u2026",
     "zipped": "Zip downloaded ({kb} kB).",
+    "zipped_unconfirmed": "Zip downloaded ({kb} kB), but Home Assistant did not confirm it: the cases stay not downloaded and Download new offers them again.",
     "download_failed": "Download failed: {e}",
     "clear_confirm": "Clear the list of cases? Frames and photos stay in Home Assistant.",
     "cleared": "List cleared.",
@@ -105,6 +106,7 @@ const STRINGS = {
     "mark_failed": "Pokus neulo\u017een\u00fd: {e}",
     "zipping": "Vytv\u00e1ram zip\u2026",
     "zipped": "Zip stiahnut\u00fd ({kb} kB).",
+    "zipped_unconfirmed": "Zip stiahnut\u00fd ({kb} kB), ale Home Assistant to nepotvrdil: pokusy ost\u00e1vaj\u00fa nestiahnut\u00e9 a Stiahnu\u0165 nov\u00e9 ich pon\u00fakne znova.",
     "download_failed": "S\u0165ahovanie zlyhalo: {e}",
     "clear_confirm": "Vymaza\u0165 zoznam pokusov? R\u00e1mce a fotky ostan\u00fa v Home Assistante.",
     "cleared": "Zoznam vymazan\u00fd.",
@@ -155,6 +157,7 @@ const STRINGS = {
     "mark_failed": "Pokus neulo\u017een: {e}",
     "zipping": "Vytv\u00e1\u0159\u00edm zip\u2026",
     "zipped": "Zip sta\u017een ({kb} kB).",
+    "zipped_unconfirmed": "Zip sta\u017een ({kb} kB), ale Home Assistant to nepotvrdil: pokusy z\u016fst\u00e1vaj\u00ed nesta\u017een\u00e9 a St\u00e1hnout nov\u00e9 je nab\u00eddne znovu.",
     "download_failed": "Stahov\u00e1n\u00ed selhalo: {e}",
     "clear_confirm": "Vymazat seznam pokus\u016f? R\u00e1mce a fotky z\u016fstanou v Home Assistantu.",
     "cleared": "Seznam vymaz\u00e1n.",
@@ -205,6 +208,7 @@ const STRINGS = {
     "mark_failed": "Fall nicht gespeichert: {e}",
     "zipping": "Zip wird erstellt\u2026",
     "zipped": "Zip heruntergeladen ({kb} kB).",
+    "zipped_unconfirmed": "Zip heruntergeladen ({kb} kB), aber Home Assistant hat es nicht best\u00e4tigt: die F\u00e4lle bleiben nicht heruntergeladen und Neue herunterladen bietet sie erneut an.",
     "download_failed": "Download fehlgeschlagen: {e}",
     "clear_confirm": "Liste der F\u00e4lle leeren? Frames und Fotos bleiben in Home Assistant.",
     "cleared": "Liste geleert.",
@@ -255,6 +259,7 @@ const STRINGS = {
     "mark_failed": "Cas non enregistr\u00e9 : {e}",
     "zipping": "Cr\u00e9ation du zip\u2026",
     "zipped": "Zip t\u00e9l\u00e9charg\u00e9 ({kb} ko).",
+    "zipped_unconfirmed": "Zip t\u00e9l\u00e9charg\u00e9 ({kb} ko), mais Home Assistant ne l'a pas confirm\u00e9 : les cas restent non t\u00e9l\u00e9charg\u00e9s et T\u00e9l\u00e9charger les nouveaux les propose \u00e0 nouveau.",
     "download_failed": "\u00c9chec du t\u00e9l\u00e9chargement : {e}",
     "clear_confirm": "Vider la liste des cas ? Les trames et photos restent dans Home Assistant.",
     "cleared": "Liste vid\u00e9e.",
@@ -885,11 +890,20 @@ class AsekoTestCasesCard extends HTMLElement {
       setTimeout(() => URL.revokeObjectURL(link.href), 60000);
       if (through) {
         // Only now, with the zip received, are its cases downloaded.
-        await this._hass.fetchWithAuth(EXPORTED_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ through: JSON.parse(through) }),
-        });
+        const confirmed = await this._hass
+          .fetchWithAuth(EXPORTED_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ through: JSON.parse(through) }),
+          })
+          .then((r) => r.ok)
+          .catch(() => false);
+        if (!confirmed) {
+          // the zip is saved, but the cases stay "new": say so
+          this._setStatus(this._t("zipped_unconfirmed", { kb: Math.round(blob.size / 1024) }), "error");
+          this._poll();
+          return;
+        }
       }
       this._setStatus(this._t("zipped", { kb: Math.round(blob.size / 1024) }), "done");
       this._poll();

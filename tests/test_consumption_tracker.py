@@ -353,3 +353,21 @@ def test_a_broken_store_entry_is_skipped():
     )
     assert restored.get("cl", "total") == 0.0
     assert restored.get("ph_minus", "total") == 12.5
+
+
+@pytest.mark.parametrize(
+    "counters",
+    [
+        {"total": "nan", "canister": 1.0},
+        {"total": float("inf"), "canister": 1.0},
+        {"total": -5.0, "canister": 1.0},
+        {"total": "x", "canister": 1.0},
+    ],
+)
+def test_an_invalid_stored_counter_leaves_that_pump_to_its_sensor(counters):
+    """A broken entry is not restored, so the sensor may still seed that pump."""
+    tracker = AsekoConsumptionTracker()
+    tracker.load_store({"cl": counters, "ph_minus": {"total": 10.0, "canister": 2.0}})
+    assert tracker.restored_keys == {"ph_minus"}
+    assert tracker.get("cl", "total") == 0.0
+    assert tracker.get("ph_minus", "total") == 10.0
