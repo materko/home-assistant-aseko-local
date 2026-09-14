@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ....aseko_data import AsekoDeviceType
-from ...decoders import (
+from ...features import (
     AlarmMaxDisinfectionDose,
     AlarmNoFlowToProbes,
     AlarmPhDosingIneffective,
@@ -53,7 +53,7 @@ from ...decoders import (
     WaterTemperature,
     WaterTemperatureTarget,
 )
-from ...frame import Protocol
+from ...frames import Protocol
 from ...profile import Profile
 from .common import (
     ALARMS,

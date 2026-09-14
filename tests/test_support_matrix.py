@@ -16,7 +16,7 @@ def test_support_matrix_is_up_to_date() -> None:
 
 def test_every_profile_and_field_is_in_the_matrix() -> None:
     text = render()
-    from custom_components.aseko_local.decoding.decoders import ALL_FEATURES
+    from custom_components.aseko_local.decoding.features import ALL_FEATURES
     from custom_components.aseko_local.decoding.profiles import ALL_PROFILES
 
     for profile in ALL_PROFILES:

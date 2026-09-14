@@ -141,8 +141,8 @@ def generate_bytearray(data: bytes) -> None:
 
 
 if __name__ == "__main__":
-    import sys
     import os
+    import sys
 
     # Example usage:
     # python3 hex_dump.py <function> <hexstring> [byte_index]

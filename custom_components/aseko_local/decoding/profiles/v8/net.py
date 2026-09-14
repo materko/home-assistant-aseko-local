@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ....aseko_data import AsekoDeviceType
-from ...decoders import (
+from ...features import (
     ChlorineFlowRate,
     ChlorinePumpRunning,
     Configuration,
@@ -22,7 +22,7 @@ from ...decoders import (
     WaterFlowToProbes,
     WaterTemperature,
 )
-from ...frame import Protocol
+from ...frames import Protocol
 from ...profile import Profile
 from .common import FEATURES
 

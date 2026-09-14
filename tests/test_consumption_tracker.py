@@ -6,10 +6,9 @@ import pytest
 
 from custom_components.aseko_local.aseko_data import AsekoDevice
 from custom_components.aseko_local.consumption_tracker import (
-    AsekoConsumptionTracker,
     MAX_PUMP_INTERVAL,
+    AsekoConsumptionTracker,
 )
-
 
 # ── helpers ────────────────────────────────────────────────────────────────────
 

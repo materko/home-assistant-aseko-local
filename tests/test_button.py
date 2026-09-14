@@ -1,18 +1,17 @@
 """Tests for the Aseko Local button platform (canister-reset buttons)."""
 
-import pytest
 from unittest.mock import MagicMock
 
+import pytest
 from homeassistant.config_entries import ConfigEntry
 
-from custom_components.aseko_local.button import (
-    async_setup_entry,
-    AsekoResetButtonEntity,
-)
-from custom_components.aseko_local.aseko_decoder import AsekoDecoder
 from custom_components.aseko_local.aseko_data import AsekoDeviceType
+from custom_components.aseko_local.button import (
+    AsekoResetButtonEntity,
+    async_setup_entry,
+)
 from custom_components.aseko_local.const import UNIT_TYPE_PROFI, WATER_FLOW_TO_PROBES
-
+from custom_components.aseko_local.decoding import decode
 
 # ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -101,7 +100,7 @@ def _mock_add_entities(added):
 @pytest.mark.asyncio
 async def test_net_reset_buttons(hass) -> None:
     """NET: cl + ph_minus buttons are created (no algicide/floc/ph_plus)."""
-    device = AsekoDecoder.decode(_make_net_bytes())
+    device = decode(_make_net_bytes())
     assert device.device_type == AsekoDeviceType.NET
 
     entry = _dummy_entry(device)
@@ -115,7 +114,7 @@ async def test_net_reset_buttons(hass) -> None:
 @pytest.mark.asyncio
 async def test_salt_reset_buttons(hass) -> None:
     """SALT: only ph_minus button (algicide skipped – algaecide_flow_rate byte unknown)."""
-    device = AsekoDecoder.decode(_make_salt_bytes())
+    device = decode(_make_salt_bytes())
     assert device.device_type == AsekoDeviceType.SALT
 
     entry = _dummy_entry(device)
@@ -129,7 +128,7 @@ async def test_salt_reset_buttons(hass) -> None:
 @pytest.mark.asyncio
 async def test_profi_reset_buttons(hass) -> None:
     """PROFI: cl + ph_minus + floc buttons (floc present because flocculant_flow_rate != 0xFF)."""
-    device = AsekoDecoder.decode(_make_profi_bytes())
+    device = decode(_make_profi_bytes())
     assert device.device_type == AsekoDeviceType.PROFI
 
     entry = _dummy_entry(device)
@@ -146,7 +145,7 @@ async def test_profi_reset_buttons(hass) -> None:
 @pytest.mark.asyncio
 async def test_press_resets_canister_counter(hass) -> None:
     """Pressing a reset button calls coordinator.reset_consumption with counter=canister."""
-    device = AsekoDecoder.decode(_make_net_bytes())
+    device = decode(_make_net_bytes())
     entry = _dummy_entry(device)
     added = []
     await async_setup_entry(hass, entry, _mock_add_entities(added))

@@ -7,7 +7,7 @@ be bit 0x40 of byte[37] -- the Waterlevel setting.  One profile covers both.
 from __future__ import annotations
 
 from ....aseko_data import AsekoDeviceType
-from ...decoders import (
+from ...features import (
     AirTemperature,
     AlarmMaxDisinfectionDose,
     AlarmNoFlowToProbes,
@@ -66,7 +66,7 @@ from ...decoders import (
     WaterTemperature,
     WaterTemperatureTarget,
 )
-from ...frame import Protocol
+from ...frames import Protocol
 from ...profile import Profile
 from .common import (
     ALARMS,

@@ -1,31 +1,34 @@
-import pytest
 from unittest.mock import MagicMock
 
+import pytest
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers import entity_registry as er
 
+from custom_components.aseko_local.aseko_data import AsekoDeviceType
 from custom_components.aseko_local.binary_sensor import (
-    async_remove_retired_entities,
-    async_setup_entry as binary_async_setup_entry,
     BINARY_SENSORS,
     AsekoLocalBinarySensorEntity,
+    async_remove_retired_entities,
 )
-from custom_components.aseko_local.sensor import (
-    RETIRED_UNIQUE_ID_SUFFIXES as RETIRED_SENSOR_IDS,
-    async_migrate_unique_ids,
-    async_setup_entry,
-    AsekoLocalSensorEntity,
-    AsekoConsumptionSensorEntity,
-    SENSORS,
+from custom_components.aseko_local.binary_sensor import (
+    async_setup_entry as binary_async_setup_entry,
 )
-from custom_components.aseko_local.aseko_decoder import AsekoDecoder
-
 from custom_components.aseko_local.const import (
     DOMAIN,
     UNIT_TYPE_PROFI,
     WATER_FLOW_TO_PROBES,
 )
-from custom_components.aseko_local.aseko_data import AsekoDeviceType
+from custom_components.aseko_local.decoding import decode
+from custom_components.aseko_local.sensor import (
+    RETIRED_UNIQUE_ID_SUFFIXES as RETIRED_SENSOR_IDS,
+)
+from custom_components.aseko_local.sensor import (
+    SENSORS,
+    AsekoConsumptionSensorEntity,
+    AsekoLocalSensorEntity,
+    async_migrate_unique_ids,
+    async_setup_entry,
+)
 
 
 # Helper function to create a base bytearray for a device
@@ -230,7 +233,7 @@ async def test_async_setup_salt_redox(hass) -> None:
 
     # Use the decoder to create a valid device
     raw_bytes = _make_salt_redox_bytes()
-    device = AsekoDecoder.decode(raw_bytes)
+    device = decode(raw_bytes)
 
     class DummyCoordinator:
         def get_devices(self):
@@ -369,7 +372,7 @@ async def test_async_setup_salt_clf(hass) -> None:
 
     # Use the decoder to create a valid device
     raw_bytes = _make_salt_clf_bytes()
-    device = AsekoDecoder.decode(raw_bytes)
+    device = decode(raw_bytes)
 
     class DummyCoordinator:
         def get_devices(self):
@@ -492,7 +495,7 @@ async def test_async_setup_net_clf(hass) -> None:
 
     # Use the decoder to create a valid device
     raw_bytes = _make_net_clf_bytes()
-    device = AsekoDecoder.decode(raw_bytes)
+    device = decode(raw_bytes)
 
     class DummyCoordinator:
         def get_devices(self):
@@ -636,7 +639,7 @@ async def test_async_setup_profi_clf_redox(hass) -> None:
 
     # Use the decoder to create a valid device
     raw_bytes = _make_profi_clf_redox_bytes()
-    device = AsekoDecoder.decode(raw_bytes)
+    device = decode(raw_bytes)
 
     class DummyCoordinator:
         def get_devices(self):
@@ -947,7 +950,7 @@ def _decode_salt(byte37: int):
     """Decode a SALT frame carrying the given byte[37]."""
     data = _make_salt_redox_bytes()
     data[37] = byte37
-    return AsekoDecoder.decode(bytes(data))
+    return decode(bytes(data))
 
 
 @pytest.mark.parametrize(
@@ -992,7 +995,7 @@ def test_schedule_and_service_menu_absent_without_filtration() -> None:
     """NET has no filtration output, so neither entity is created for it."""
     schedule = next(d for d in SENSORS if d.key == "filtration_schedule")
     menu = next(d for d in BINARY_SENSORS if d.key == "service_menu")
-    device = AsekoDecoder.decode(bytes(_make_net_clf_bytes()))
+    device = decode(bytes(_make_net_clf_bytes()))
 
     assert device.device_type == AsekoDeviceType.NET
     # A None value is what keeps an entity from being built for a device.

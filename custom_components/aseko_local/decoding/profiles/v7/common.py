@@ -6,7 +6,7 @@ knows.  Nothing model-specific belongs here.
 
 from __future__ import annotations
 
-from ...decoders import (
+from ...features import (
     AlarmMaxDisinfectionDose,
     AlarmNoFlowToProbes,
     AlarmPhDosingIneffective,

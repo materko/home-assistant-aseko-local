@@ -11,9 +11,9 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from .decoders import ALL_FEATURES
 from .feature import NOT_LOCATED, Feature
-from .frame import Protocol
+from .features import ALL_FEATURES
+from .frames import Protocol
 from .profile import Profile
 from .profiles import ALL_PROFILES, FALLBACK_PROFILES
 
@@ -31,8 +31,8 @@ _CONFIRMED_PREFIXES = ("confirmed", "derived")
 def _status(profile: Profile, feature: type[Feature]) -> str:
     if feature not in profile.features:
         return ABSENT
-    variant = profile.overrides.get(feature)
-    if variant in NOT_LOCATED:
+    reading = profile.overrides.get(feature)
+    if reading in NOT_LOCATED:
         return NOT_LOCATED_MARK
     evidence = profile.evidence.get(feature, "")
     word = evidence.split(":", 1)[0].strip().lower()
@@ -42,7 +42,7 @@ def _status(profile: Profile, feature: type[Feature]) -> str:
         mark = OBSERVED
     else:
         mark = UNSURE
-    return f"{mark} `{variant}`" if variant else mark
+    return f"{mark} `{reading}`" if reading else mark
 
 
 def _profiles_for(protocol: Protocol) -> list[Profile]:

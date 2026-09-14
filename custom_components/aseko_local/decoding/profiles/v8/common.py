@@ -8,7 +8,7 @@ leave out what their model does not have.
 from __future__ import annotations
 
 from ....aseko_data import AsekoDeviceType
-from ...decoders import (
+from ...features import (
     ChlorineFlowRate,
     ChlorinePumpRunning,
     Configuration,

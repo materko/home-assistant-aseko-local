@@ -179,7 +179,7 @@ def cmd_generate_test(frame_text: str) -> None:
     print()
     print()
     print("def test_decoded_frame():")
-    print("    device = AsekoV8Decoder.decode(FRAME)")
+    print("    device = decode(FRAME)")
     print()
     print(f"    assert device.serial_number == {serial}")
     print("    assert device.device_type == AsekoDeviceType.NET")

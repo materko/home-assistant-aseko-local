@@ -1,21 +1,40 @@
 """Test the Aseko Decoder."""
 
-from datetime import time, datetime
+from datetime import datetime, time
 
 import pytest
 
 from custom_components.aseko_local.aseko_data import (
+    AsekoDevice,
     AsekoDeviceType,
     AsekoElectrolyzerDirection,
     AsekoFiltrationSchedule,
     AsekoProbeType,
 )
-from custom_components.aseko_local.aseko_decoder import AsekoDecoder
 from custom_components.aseko_local.const import (
     UNIT_TYPE_PROFI,
     WATER_FLOW_TO_PROBES,
     YEAR_OFFSET,
 )
+from custom_components.aseko_local.decoding import decode
+from custom_components.aseko_local.decoding.features import Configuration
+from custom_components.aseko_local.decoding.frames import (
+    Protocol,
+    decode_time,
+    decode_timestamp,
+    normalize_value,
+    parse_v7,
+)
+from custom_components.aseko_local.decoding.profiles import profile_for
+
+
+def _configuration(
+    data: bytes, device_type: AsekoDeviceType | None = None
+) -> set[AsekoProbeType]:
+    """Read the installed probes the way ``device_type``'s profile does."""
+    profile = profile_for(Protocol.V7, device_type)
+    read = getattr(Configuration(), profile.reading_for(Configuration))
+    return read(parse_v7(data), AsekoDevice(device_type=device_type))
 
 
 def _make_base_bytes(size: int = 120) -> bytearray:
@@ -72,7 +91,7 @@ def test_decode_redox() -> None:
     data[18:20] = (550).to_bytes(2, "big")  # Redox
     data[53] = 65  # required Redox
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.redox_target == 650
     assert device.redox == 550
 
@@ -85,7 +104,7 @@ def test_decode_clf() -> None:
     data[16:18] = (50).to_bytes(2, "big")  # CL free
     data[53] = 9  # required CL free
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.free_chlorine_target == 0.9
     assert device.free_chlorine == 0.5
 
@@ -96,7 +115,7 @@ def test_flowrates() -> None:
     data = _make_base_bytes()
     data[37] = 0x00  # flocculant mode → byte[101] routes to flocculant_flow_rate
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.chlorine_flow_rate is None
     assert device.ph_plus_flow_rate is None
     assert device.ph_minus_flow_rate == 60
@@ -114,7 +133,7 @@ def test_decode_home() -> None:
     )
     data[52] = 72  # ph_target
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.device_type == AsekoDeviceType.HOME
     assert device.serial_number == 1234
     assert device.ph == 7.2
@@ -174,7 +193,7 @@ def test_decode_filtration_period2_disabled() -> None:
     data = _make_base_bytes()
     data[37] = 0x93  # bit 0x20 clear -> period 2 disabled in the controller
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
 
     # Period 1 is still parsed.
     assert device.filtration_period_1_start == time(8, 0)
@@ -192,7 +211,7 @@ def test_decode_filtration_period2_enabled() -> None:
     data = _make_base_bytes()
     data[37] = 0xB3  # bit 0x20 set -> period 2 enabled
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
 
     assert device.filtration_period_2_start == time(14, 0)
     assert device.filtration_period_2_end == time(16, 0)
@@ -211,7 +230,7 @@ def test_decode_filtration_period2_bytes_unspecified() -> None:
     data[60:64] = bytes([0xFF, 0xFF, 0xFF, 0xFF])  # no period 2 schedule at all
     data[37] = 0xB7  # SALT algicide routing — bit 0x20 set, but no schedule
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.filtration_period_2_start is None
     assert device.filtration_period_2_end is None
 
@@ -228,7 +247,7 @@ def test_decode_filtration_period2_none_for_net() -> None:
     # measurement-only device reports random data in slots it doesn't implement).
     data[56:64] = bytes([8, 0, 10, 0, 14, 0, 16, 0])
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.device_type == AsekoDeviceType.NET
     assert device.filtration_period_1_start is None
     assert device.filtration_period_1_end is None
@@ -306,7 +325,7 @@ def test_decode_filtration_period2_real_dtpugh_frames() -> None:
             frame = bytes.fromhex(_first_frame(json.load(f)))
         assert frame[37] == expected_b37, f"{filename}: byte 37 mismatch"
 
-        device = AsekoDecoder.decode(frame)
+        device = decode(frame)
         # Period 1 is always there.
         assert device.filtration_period_1_start is not None, (
             f"{filename}: filtration_period_1_start unexpectedly None"
@@ -344,7 +363,7 @@ def test_decode_electrolyzer_data() -> None:
     data[14:16] = (700).to_bytes(2, "big")  # ph
     data[52] = 70
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.device_type == AsekoDeviceType.SALT
     assert device.salinity == 3.2
     assert device.chlorine_production == 80
@@ -361,7 +380,7 @@ def test_decode_electrolyzer_data_left_direction() -> None:
     data[21] = 80
     data[29] = 0x10  # electrolysis running, polarity bit clear = left
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.electrode_polarity == AsekoElectrolyzerDirection.LEFT
 
 
@@ -374,7 +393,7 @@ def test_decode_electrolyzer_data_waiting_direction() -> None:
     data[21] = 80
     data[29] = 0  # neither running nor left
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.electrode_polarity == AsekoElectrolyzerDirection.WAITING
 
 
@@ -389,7 +408,7 @@ def test_decode_profi() -> None:
     data[52] = 80
     data[53] = 20
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.device_type == AsekoDeviceType.PROFI
     assert device.configuration == {
         AsekoProbeType.PH,
@@ -418,7 +437,7 @@ def test_decode_net() -> None:
     data[10] = 0xFF  # minute
     data[11] = 0xFF  # second
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.device_type == AsekoDeviceType.NET
     # NET (Aqua NET) has no filtration output → no schedule is reported (PR #122),
     # even though the frame carries values in the schedule bytes.
@@ -456,7 +475,7 @@ def test_decode_corrupted_timestamp() -> None:
         "0691ffff0d0205ffffffffff0007003cffff003cffff010181ff012c0102581e28ffffffff0048cd"
     )
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.device_type == AsekoDeviceType.SALT
     assert device.timestamp is not None
     assert device.timestamp.year != 2005
@@ -471,7 +490,7 @@ def test_decode_net_120_bytes() -> None:
         "0690ffff0902ffffffffffff0026003cffff003cffff010183ff012c0502581e28ffffffff0047a2"
     )
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.device_type == AsekoDeviceType.NET
     assert device.timestamp is not None
 
@@ -486,7 +505,7 @@ def test_decode_unknown_unit_type() -> None:
     )
 
     # Must not raise – decoder returns a device with device_type=None
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.device_type is None
 
 
@@ -520,7 +539,7 @@ def test_decode_net_no_backwash_with_garbage_bytes() -> None:
     data[105] = 100  # would-be water_level_high_alarm
     data[94:96] = bytes([0xFF, 0xFF])  # would-be max_refill_time → must be None
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.device_type == AsekoDeviceType.NET
     # None of these may leak through on a NET device, no matter what the frame carries.
     assert device.backwash_interval is None
@@ -547,18 +566,18 @@ def test_decode_max_ph_doses() -> None:
     """
     data = _make_base_bytes()  # SALT
     data[115] = 17
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.max_ph_doses == 17
     assert "max_ph_doses" in device.features
 
     data[115] = 0xFF  # never set
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.max_ph_doses is None
     assert "max_ph_doses" not in device.features
 
     data[4] = 0x09  # NET has no such setting, so no NET profile reads it
     data[115] = 20
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.max_ph_doses is None
     assert "max_ph_doses" not in device.features
 
@@ -573,7 +592,7 @@ def test_max_filling_time_unspecified_sentinel() -> None:
     data = _make_base_bytes()  # default SALT — has max_refill_time
     data[4] = 0x09  # but flip to NET
     data[76:78] = bytes([0xFF, 0xFF])  # UNSPECIFIED sentinel
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.device_type == AsekoDeviceType.NET
     assert device.max_refill_time is None
 
@@ -589,7 +608,7 @@ def test_max_filling_time_real_value_home() -> None:
     data[4] = 0x02  # UNIT_TYPE_HOME_CLF — any HOME subtype works
     data[6:12] = bytes([24, 6, 15, 12, 34, 56])
     data[76:78] = (3600).to_bytes(2, "big")
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.device_type == AsekoDeviceType.HOME
     assert device.max_refill_time == 3600
 
@@ -603,7 +622,7 @@ def test_decode_issue_17() -> None:
         "0690ffff0d02190519160832003c003c3a1066ff003c1e3c6e9603840a0bb80f0900b505fff401eb"
     )
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.device_type == AsekoDeviceType.SALT
 
 
@@ -616,7 +635,7 @@ def test_decode_issue_20() -> None:
         "0691ffff0a02ffffffffffff0007003cffff003cffff010181ff012c0102581e28ffffffff0048cd"
     )
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.device_type == AsekoDeviceType.NET
     assert device.timestamp is not None
     assert device.free_chlorine is None
@@ -633,7 +652,7 @@ def test_decode_issue_22() -> None:
         "0690ffff0902ffffffffffff0026003cffff003cffff010183ff012c0102581e28ffffffff0047a6"
     )
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.device_type == AsekoDeviceType.NET
     assert device.timestamp is not None
     assert device.free_chlorine == 0.59
@@ -650,7 +669,7 @@ def test_decode_issue_28() -> None:
         "068fffff0e0219061d1134280012003c330434ff003c2d2f323402580a0bb80f0f0134ffff990197"
     )
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.device_type == AsekoDeviceType.SALT
     assert device.timestamp is not None
     assert device.free_chlorine is None
@@ -672,7 +691,7 @@ def test_decode_issue_61() -> None:
         "0690cafe03 02190a1210 3232002d00 3c003c003c 000a1e3c6e 9600f00802 580f0f0f1e 14ffbf0297"
     )
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     print(device)
     assert device.device_type == AsekoDeviceType.HOME
     assert device.configuration == {AsekoProbeType.PH, AsekoProbeType.REDOX}
@@ -692,28 +711,28 @@ def test_decode_net_pump_states() -> None:
 
     # Bit 0x08 is not mapped for NET – filtration_running stays None
     data[29] = 0x08
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.filtration_running is None
     assert device.chlorine_pump_running is False
     assert device.ph_minus_pump_running is False
 
     # CL pump only (0x02; bit 0x08 has no meaning on NET)
     data[29] = 0x0A  # 0x08 | 0x02
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.filtration_running is None
     assert device.chlorine_pump_running is True
     assert device.ph_minus_pump_running is False
 
     # PH-minus pump only (0x01; bit 0x08 has no meaning on NET)
     data[29] = 0x09  # 0x08 | 0x01
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.filtration_running is None
     assert device.chlorine_pump_running is False
     assert device.ph_minus_pump_running is True
 
     # No pump running
     data[29] = 0x00
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.filtration_running is None
     assert device.chlorine_pump_running is False
     assert device.ph_minus_pump_running is False
@@ -733,7 +752,7 @@ def test_decode_salt_pump_states() -> None:
 
     # Electrolyzer running, right polarity (no filtration bit)
     data[29] = 0x50
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.filtration_running is False
     assert device.electrolysis_running is True
     assert device.electrode_polarity == AsekoElectrolyzerDirection.RIGHT
@@ -741,14 +760,14 @@ def test_decode_salt_pump_states() -> None:
 
     # Electrolyzer running, left polarity
     data[29] = 0x18  # 0x10 | 0x08 (running + filtration, polarity bit clear)
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.filtration_running is True
     assert device.electrolysis_running is True
     assert device.electrode_polarity == AsekoElectrolyzerDirection.LEFT
 
     # Electrolyzer off
     data[29] = 0x08  # filtration only
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.electrolysis_running is False
     assert device.electrode_polarity == AsekoElectrolyzerDirection.WAITING
 
@@ -769,7 +788,7 @@ def test_decode_salt_algicide_pump_running() -> None:
 
     # Algicide pump running: byte[29] bit 5 (0x20) set
     data[29] = 0x28  # 0x08 | 0x20 — confirmed by 19 live frames 2026-04-04
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.algaecide_pump_running is True
     assert (
         device.flocculant_pump_running is None
@@ -777,7 +796,7 @@ def test_decode_salt_algicide_pump_running() -> None:
 
     # Algicide pump not running
     data[29] = 0x08  # baseline; confirmed 2026-04-04
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.algaecide_pump_running is False
     assert device.flocculant_pump_running is None
 
@@ -798,7 +817,7 @@ def test_decode_salt_flocculant_pump_running() -> None:
 
     # Flocculant pump running: byte[29] bit 5 (0x20) set
     data[29] = 0x28  # 0x08 | 0x20 — confirmed by live frame 2026-04-03
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.flocculant_pump_running is True
     assert (
         device.algaecide_pump_running is None
@@ -806,7 +825,7 @@ def test_decode_salt_flocculant_pump_running() -> None:
 
     # Flocculant pump not running
     data[29] = 0x08  # baseline; confirmed 2026-04-03 (immediate stop, no linger)
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.flocculant_pump_running is False
 
 
@@ -816,15 +835,15 @@ def test_decode_salt_flocculant_pump_running() -> None:
 def test_normalize_value_edge_cases() -> None:
     """Test normalization of edge cases."""
 
-    assert AsekoDecoder._normalize_value(None, int) is None
-    assert AsekoDecoder._normalize_value(255, int) is None
-    assert AsekoDecoder._normalize_value("", str) is None
-    assert AsekoDecoder._normalize_value("255", str) is None
-    assert AsekoDecoder._normalize_value(42, int) == 42
-    assert AsekoDecoder._normalize_value("42", str) == "42"
+    assert normalize_value(None, int) is None
+    assert normalize_value(255, int) is None
+    assert normalize_value("", str) is None
+    assert normalize_value("255", str) is None
+    assert normalize_value(42, int) == 42
+    assert normalize_value("42", str) == "42"
 
     with pytest.raises(ValueError):
-        AsekoDecoder._normalize_value(0xFF, float)
+        normalize_value(0xFF, float)
 
 
 def test_timestamp_unspecified() -> None:
@@ -832,7 +851,7 @@ def test_timestamp_unspecified() -> None:
 
     data = bytearray(120)
     data[6:12] = b"\xff\xff\xff\xff\xff\xff"
-    ts = AsekoDecoder._timestamp(data)
+    ts = decode_timestamp(data)
     assert isinstance(ts, datetime)
     now = datetime.now(ts.tzinfo)
     assert abs((ts - now).total_seconds()) < 5
@@ -842,7 +861,7 @@ def test_timestamp_invalid() -> None:
     """Test timestamp decoding with invalid values."""
     data = bytearray(120)
     data[6:12] = b"\xf0\xf0\xf0\xf0\xf0\xf0"
-    ts = AsekoDecoder._timestamp(data)
+    ts = decode_timestamp(data)
     assert isinstance(ts, datetime)
     now = datetime.now(ts.tzinfo)
     assert abs((ts - now).total_seconds()) < 5
@@ -854,7 +873,7 @@ def test_time_unspecified() -> None:
     data = bytearray(120)
     data[0] = 255
     data[1] = 255
-    t = AsekoDecoder._time(data)
+    t = decode_time(data)
     assert t is None
 
 
@@ -864,7 +883,7 @@ def test_time_invalid() -> None:
     data = bytearray(120)
     data[0] = 200
     data[1] = 200
-    t = AsekoDecoder._time(data)
+    t = decode_time(data)
     assert t is None
 
 
@@ -872,14 +891,14 @@ def test_available_probes_combinations() -> None:
     from custom_components.aseko_local.const import (
         PROBE_CLF_MISSING,
         PROBE_DOSE_MISSING,
-        PROBE_REDOX_MISSING,
         PROBE_OXY_MISSING,
+        PROBE_REDOX_MISSING,
     )
 
     # All probes present
     data = bytearray(120)
     data[4] = 0x00
-    probes = AsekoDecoder._configuration(data)
+    probes = _configuration(data)
     assert probes == {
         AsekoProbeType.PH,
         AsekoProbeType.CLF,
@@ -891,22 +910,22 @@ def test_available_probes_combinations() -> None:
 
     # Just CLF is missing
     data[4] = PROBE_CLF_MISSING
-    probes = AsekoDecoder._configuration(data, AsekoDeviceType.PROFI)
+    probes = _configuration(data, AsekoDeviceType.PROFI)
     assert AsekoProbeType.CLF not in probes
 
     # Just REDOX is missing
     data[4] = PROBE_REDOX_MISSING
-    probes = AsekoDecoder._configuration(data, AsekoDeviceType.PROFI)
+    probes = _configuration(data, AsekoDeviceType.PROFI)
     assert AsekoProbeType.REDOX not in probes
 
     # Just OXY is missing
     data[4] = PROBE_OXY_MISSING
-    probes = AsekoDecoder._configuration(data, AsekoDeviceType.PROFI)
+    probes = _configuration(data, AsekoDeviceType.PROFI)
     assert AsekoProbeType.OXY not in probes
 
     # Just DOSE is missing
     data[4] = PROBE_DOSE_MISSING
-    probes = AsekoDecoder._configuration(data, AsekoDeviceType.PROFI)
+    probes = _configuration(data, AsekoDeviceType.PROFI)
     assert AsekoProbeType.DOSE not in probes
 
 
@@ -917,27 +936,27 @@ def test_available_probes_combinations() -> None:
 #
 #    # Test: Chlor pump running
 #    data[29] = 0x48
-#    device = AsekoDecoder.decode(bytes(data))
+#    device = decode(bytes(data))
 #    assert device.active_pump == AsekoPumpType.CHLOR
 #
 #    # Test: PH+ pump running --> data Byte is unknwon
 #    # data[29] = -1
-#    # device = AsekoDecoder.decode(bytes(data))
+#    # device = decode(bytes(data))
 #    # assert device.active_pump == AsekoPumpType.PH_PLUS
 #
 #    # Test: PH- pump running
 #    data[29] = 0x88
-#    device = AsekoDecoder.decode(bytes(data))
+#    device = decode(bytes(data))
 #    assert device.active_pump == AsekoPumpType.PH_MINUS
 #
 #    # Test: Floc pump running
 #    data[29] = 0x28
-#    device = AsekoDecoder.decode(bytes(data))
+#    device = decode(bytes(data))
 #    assert device.active_pump == AsekoPumpType.FLOC
 #
 #    # Test: No pump running
 #    data[29] = 0x00
-#    device = AsekoDecoder.decode(bytes(data))
+#    device = decode(bytes(data))
 #    assert device.active_pump == 0
 
 
@@ -976,7 +995,7 @@ def test_decode_oxy_normal_frame() -> None:
 
     Test frame for ASIN AQUA Oxygen (anonymized serial).
     """
-    device = AsekoDecoder.decode(_oxy_bytes(_OXY_NORMAL_HEX))
+    device = decode(_oxy_bytes(_OXY_NORMAL_HEX))
 
     # Device type and probes
     assert device.device_type == AsekoDeviceType.OXY
@@ -1027,7 +1046,7 @@ def test_decode_oxy_floc_pump_running() -> None:
     Real frame captured 2026-04-11 23:51:25 UTC+2. Only change vs normal frame:
     byte[29] 0x08 → 0x28 (bit 0x20 set = flocculant pump confirmed).
     """
-    device = AsekoDecoder.decode(_oxy_bytes(_OXY_FLOC_HEX))
+    device = decode(_oxy_bytes(_OXY_FLOC_HEX))
 
     assert device.device_type == AsekoDeviceType.OXY
     assert device.filtration_running is True
@@ -1046,7 +1065,7 @@ def test_decode_oxy_ph_minus_pump_running() -> None:
     Real frame captured 2026-04-12 15:27:38 UTC+2. Only change vs normal frame:
     byte[29] 0x08 → 0x88 (bit 0x80 set = pH− pump confirmed).
     """
-    device = AsekoDecoder.decode(_oxy_bytes(_OXY_PH_MINUS_HEX))
+    device = decode(_oxy_bytes(_OXY_PH_MINUS_HEX))
 
     assert device.device_type == AsekoDeviceType.OXY
     assert device.filtration_running is True
@@ -1072,7 +1091,7 @@ def test_decode_issue_99_home() -> None:
         "06 90 ff ff 02 02 1a 04 19 0e 13 0a 00 3c 00 3c 00 3c 00 3c 00 0a 0d 21 37 64 00 f0 14 02 58 0f 0f 0f 1e 14 ff bc 02 77"
     )
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     print(device)
     assert device.device_type == AsekoDeviceType.HOME
     assert device.configuration == {AsekoProbeType.PH, AsekoProbeType.CLF}
@@ -1103,7 +1122,7 @@ def test_decode_home_clf_real_frame() -> None:
         "06906bbf02021a041c081b07003c003c003c003c000a0d21376400f01402580f0f0f1e14ffbc0271"
     )
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.device_type == AsekoDeviceType.HOME
     assert device.configuration == {AsekoProbeType.PH, AsekoProbeType.CLF}
     # Probe readings
@@ -1166,7 +1185,7 @@ def test_decode_issue_99_salt() -> None:
         "06 8f ff ff 0d 02 1a 04 19 0e 2d 28 00 41 00 3c 19 4c db ff 00 3c 1e 2d 4b 96 00 f0 0a 0b b8 0f 0f 01 7b ff ff 9a 01 bc"
     )
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.device_type == AsekoDeviceType.SALT
     assert device.configuration == {AsekoProbeType.PH, AsekoProbeType.CLF}
     assert device.free_chlorine is not None
@@ -1197,7 +1216,7 @@ def test_decode_home_independent_flowrates() -> None:
     data[103] = 11  # algaecide_flow_rate — was never read on HOME before
     data[37] = 0x53  # HOME filtration mode flag (irrelevant for flowrates)
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.device_type == AsekoDeviceType.HOME
     assert device.chlorine_flow_rate == 60
     # byte[95] is overwritten to 60 by the max_refill_time setter in _make_base_bytes.
@@ -1207,7 +1226,7 @@ def test_decode_home_independent_flowrates() -> None:
     # Byte 37 bit 7 has no meaning on HOME (no shared pump port).
     # Confirms we do not depend on byte[37] for HOME flowrates.
     data[37] = 0xB3  # SALT-style "algicide routing" value — must be IGNORED on HOME
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.flocculant_flow_rate == 10
     assert device.algaecide_flow_rate == 11
 
@@ -1220,7 +1239,7 @@ def test_decode_home_flowrates_unspecified() -> None:
     data[101] = 0xFF  # flocculant pump not installed
     data[103] = 0xFF  # algicide pump not installed
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.device_type == AsekoDeviceType.HOME
     assert device.chlorine_flow_rate is None
     assert device.flocculant_flow_rate is None
@@ -1245,7 +1264,7 @@ def test_decode_home_algicide_pump_running() -> None:
 
     # Algicide running: bit 5 (0x20) set, bit 3 (0x08) filtration on
     data[29] = 0x28
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.algaecide_pump_running is True
     # On HOME, floc and algicide share bit 0x20 in byte[29] (the existing
     # HOME masks in ACTUATOR_MASKS mark both algicide=0x20 and flocculant=0x20
@@ -1258,7 +1277,7 @@ def test_decode_home_algicide_pump_running() -> None:
 
     # Algicide stopped
     data[29] = 0x08
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.algaecide_pump_running is False
 
 
@@ -1276,7 +1295,7 @@ def test_decode_home_floc_pump_running_independent() -> None:
     data[37] = 0x53
 
     data[29] = 0x28
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.flocculant_pump_running is True
     assert device.algaecide_pump_running is None
 
@@ -1296,7 +1315,7 @@ def test_home_water_level_decoding() -> None:
     data = _make_home_bytes()
     data[27] = 0x0E  # 14 cm — confirmed by issue #110 frame
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.device_type == AsekoDeviceType.HOME
     assert device.water_level == 14
 
@@ -1306,7 +1325,7 @@ def test_home_water_level_unspecified() -> None:
     data = _make_home_bytes()
     data[27] = 0xFF
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.water_level is None
 
 
@@ -1319,7 +1338,7 @@ def test_water_level_sensor_disconnected() -> None:
     data = _make_home_bytes()
     data[27] = 0xFE
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.water_level is None
     assert "water_level" not in device.features
 
@@ -1338,7 +1357,7 @@ def test_unspecified_16_bit_values_are_not_decoded_as_numbers() -> None:
     data[92:94] = bytes([0xFF] * 2)  # pool volume
     data[106:108] = bytes([0xFF] * 2)  # delay after dose
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     for field in ("ph", "redox", "water_temperature"):
         assert getattr(device, field) is None, field
         assert field in device.features, field
@@ -1350,7 +1369,7 @@ def test_unspecified_16_bit_values_are_not_decoded_as_numbers() -> None:
     clf[4] = 0x0D  # SALT CLF
     clf[16:18] = bytes([0xFF] * 2)
     clf[20:22] = bytes([0xFF] * 2)
-    device = AsekoDecoder.decode(bytes(clf))
+    device = decode(bytes(clf))
     assert device.free_chlorine is None
     assert device.free_chlorine_mv is None
     assert {"free_chlorine", "free_chlorine_mv"} <= device.features
@@ -1362,12 +1381,12 @@ def test_home_water_filling_active() -> None:
 
     # bit 0x02 set: filling active
     data[29] = 0x4A  # confirmed transition in DomSchCoding #100 (0x48 → 0x4a)
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.refilling is True
 
     # bit 0x02 clear: filling inactive
     data[29] = 0x48
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.refilling is False
 
 
@@ -1386,7 +1405,7 @@ def test_home_water_level_thresholds() -> None:
     data[104] = 0x0D
     data[105] = 0x0F
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.water_level_low_alarm == 9
     assert device.water_level_refill_start == 11
     assert device.water_level_refill_stop == 13
@@ -1401,7 +1420,7 @@ def test_home_water_level_threshold_unspecified() -> None:
     data[104] = 0xFF
     data[105] = 0xFF
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.water_level_low_alarm is None
     assert device.water_level_refill_start is None
     assert device.water_level_refill_stop is None
@@ -1419,7 +1438,7 @@ def test_water_level_not_decoded_for_net() -> None:
     data[104] = 0x0D
     data[105] = 0x0F
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.water_level is None
     assert device.water_level_low_alarm is None
     assert device.water_level_refill_start is None
@@ -1440,7 +1459,7 @@ def test_water_level_decoded_for_oxy_and_salt() -> None:
         data[104] = 0x0D  # filling OFF 13 cm
         data[105] = 0x0F  # high alarm 15 cm
 
-        device = AsekoDecoder.decode(bytes(data))
+        device = decode(bytes(data))
         assert device.water_level == 14, f"byte[4]={device_byte:#x}"
         assert device.refilling is True, f"byte[4]={device_byte:#x}"
         assert device.water_level_low_alarm == 9, f"byte[4]={device_byte:#x}"
@@ -1459,13 +1478,13 @@ def test_filtration_schedule_nonstop_decoded_for_all_device_types() -> None:
     data = _make_base_bytes()
     data[4] = 0x09  # NET
     data[37] = 0xFF
-    assert AsekoDecoder.decode(bytes(data)).filtration_schedule is None
+    assert decode(bytes(data)).filtration_schedule is None
 
     for device_byte in (0x0E, 0x05, 0x10, 0x03):  # SALT, OXY, PROFI, HOME
         data = _make_base_bytes()
         data[4] = device_byte
         data[37] = 0x01  # firmware B: nonstop 24h
-        device = AsekoDecoder.decode(bytes(data))
+        device = decode(bytes(data))
         assert device.filtration_schedule == AsekoFiltrationSchedule.NONSTOP_24H, (
             f"byte[4]={device_byte:#x}"
         )
@@ -1484,7 +1503,7 @@ def test_alarms_decoded_for_all_device_types() -> None:
         data[4] = device_byte
         data[13] = 0x04  # no-flow alarm only
 
-        device = AsekoDecoder.decode(bytes(data))
+        device = decode(bytes(data))
         assert device.alarm_no_flow_to_probes is True, f"byte[4]={device_byte:#x}"
         assert device.alarm_ph_dosing_ineffective is False, f"byte[4]={device_byte:#x}"
         assert device.alarm_max_disinfection_dose is False, f"byte[4]={device_byte:#x}"
@@ -1498,7 +1517,7 @@ def test_filtration_schedule_new_encoding_24h() -> None:
     """Firmware B byte[37] = 0x01 → NONSTOP_24H (serial 110169464)."""
     data = _make_home_bytes()
     data[37] = 0x01  # new encoding: nonstop 24h
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.filtration_schedule == AsekoFiltrationSchedule.NONSTOP_24H
 
 
@@ -1506,7 +1525,7 @@ def test_filtration_schedule_new_encoding_p1() -> None:
     """Firmware B byte[37] = 0x11 → TIMER_PERIOD_1 (P1 only, P2 disabled)."""
     data = _make_home_bytes()
     data[37] = 0x11  # new encoding: P1 only
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.filtration_schedule == AsekoFiltrationSchedule.TIMER_PERIOD_1
 
 
@@ -1514,7 +1533,7 @@ def test_filtration_schedule_new_encoding_p1_and_p2() -> None:
     """Firmware B byte[37] = 0x31 → TIMER_PERIOD_1_AND_2 (both periods)."""
     data = _make_home_bytes()
     data[37] = 0x31  # new encoding: P1 & P2
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.filtration_schedule == AsekoFiltrationSchedule.TIMER_PERIOD_1_AND_2
 
 
@@ -1526,7 +1545,7 @@ def test_service_menu_new_encoding_p1_and_p2() -> None:
     """
     data = _make_home_bytes()
     data[37] = 0x35  # new encoding: P1 & P2 + manual override (bit 2 set)
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.service_menu_open is True
 
 
@@ -1539,7 +1558,7 @@ def test_service_menu_new_encoding_p1_only() -> None:
     """
     data = _make_home_bytes()
     data[37] = 0x15  # P1 + manual override
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.service_menu_open is True
 
 
@@ -1547,7 +1566,7 @@ def test_filtration_schedule_old_encoding_24h() -> None:
     """Firmware A byte[37] = 0x43 → NONSTOP_24H (serial 110128063)."""
     data = _make_home_bytes()
     data[37] = 0x43
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.filtration_schedule == AsekoFiltrationSchedule.NONSTOP_24H
 
 
@@ -1555,7 +1574,7 @@ def test_filtration_schedule_old_encoding_timer() -> None:
     """byte[37] = 0x53 is period 1 with the Waterlevel setting (0x40) on."""
     data = _make_home_bytes()
     data[37] = 0x53
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.filtration_schedule == AsekoFiltrationSchedule.TIMER_PERIOD_1
     assert device.water_level_sensor_enabled is True
 
@@ -1568,7 +1587,7 @@ def test_filtration_schedule_with_the_menu_open_is_read_from_the_bits() -> None:
     ):
         data = _make_home_bytes()
         data[37] = byte37
-        device = AsekoDecoder.decode(bytes(data))
+        device = decode(bytes(data))
         assert device.filtration_schedule is schedule
         assert device.service_menu_open is True
 
@@ -1577,7 +1596,7 @@ def test_filtration_schedule_unspecified() -> None:
     """byte[37] = 0xFF → None (defensive, also covers NET-like values on HOME)."""
     data = _make_home_bytes()
     data[37] = 0xFF
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.filtration_schedule is None
 
 
@@ -1591,7 +1610,7 @@ def test_filtration_schedule_none_for_net() -> None:
     data = _make_base_bytes()
     data[4] = 0x09  # NET CLF
     data[37] = 0xFF  # NET byte 37 is always unspecified
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.device_type == AsekoDeviceType.NET
     assert device.filtration_schedule is None
 
@@ -1606,7 +1625,7 @@ def test_filtration_schedule_byte37_flags_for_salt_oxy_profi() -> None:
         data = _make_base_bytes()
         data[4] = device_byte
         data[37] = 0x31  # firmware B: P1 & P2
-        device = AsekoDecoder.decode(bytes(data))
+        device = decode(bytes(data))
         assert (
             device.filtration_schedule == AsekoFiltrationSchedule.TIMER_PERIOD_1_AND_2
         ), f"byte[4]={device_byte:#x}"
@@ -1623,7 +1642,7 @@ def test_filtration_schedule_salt_p1_only_when_period2_disabled() -> None:
     data[60:64] = bytes([0xFF, 0xFF, 0xFF, 0xFF])  # no period 2 schedule
     data[37] = 0x93  # bit 0x20 clear, period 2 disabled
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.filtration_schedule == AsekoFiltrationSchedule.TIMER_PERIOD_1
 
 
@@ -1639,7 +1658,7 @@ def test_filtration_schedule_salt_byte37_nonstop() -> None:
     data[60:64] = bytes([0xFF, 0xFF, 0xFF, 0xFF])  # no period 2
     data[37] = 0x01  # firmware B: nonstop 24h
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.filtration_schedule == AsekoFiltrationSchedule.NONSTOP_24H
 
 
@@ -1662,7 +1681,7 @@ def test_filtration_pump_running_off_when_manual_override() -> None:
         )
         data[37] = override_value  # OFF (manual override)
 
-        device = AsekoDecoder.decode(bytes(data))
+        device = decode(bytes(data))
         assert device.service_menu_open is True, f"byte[37]={override_value:#x}"
         assert device.filtration_running is False, f"byte[37]={override_value:#x}"
 
@@ -1674,7 +1693,7 @@ def test_filtration_pump_running_on_when_not_override() -> None:
     data[29] = 0x08
     data[37] = 0x11  # P1 only — pump should be on per the schedule
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.filtration_schedule == AsekoFiltrationSchedule.TIMER_PERIOD_1
     assert device.filtration_running is True
 
@@ -1692,7 +1711,7 @@ def test_filtration_pump_running_not_overridden_on_salt() -> None:
     data[29] = 0x08
     data[37] = 0x35  # firmware B: P1 & P2 + manual override → MANUAL
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.service_menu_open is True
     assert device.filtration_running is True  # unchanged: byte[29] bit 3 wins
 
@@ -1704,7 +1723,7 @@ def test_filtration_pump_running_off_when_pump_actually_off() -> None:
     data[29] = 0x00
     data[37] = 0x35
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.filtration_running is False
 
 
@@ -1718,7 +1737,7 @@ def test_home_alarm_bitmask_byte13() -> None:
 
     # All four bits set
     data[13] = 0x0F
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.alarm_ph_dosing_ineffective is True  # bit 0x02
     assert device.alarm_max_disinfection_dose is True  # bit 0x01
     assert device.alarm_no_flow_to_probes is True  # bit 0x04
@@ -1726,7 +1745,7 @@ def test_home_alarm_bitmask_byte13() -> None:
 
     # No alarm
     data[13] = 0x00
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.alarm_ph_dosing_ineffective is False
     assert device.alarm_max_disinfection_dose is False
     assert device.alarm_no_flow_to_probes is False
@@ -1734,7 +1753,7 @@ def test_home_alarm_bitmask_byte13() -> None:
 
     # Only no-flow bit (0x04) — as seen in NET frame (serial 06918724)
     data[13] = 0x04
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.alarm_no_flow_to_probes is True
     assert device.alarm_ph_dosing_ineffective is False
     assert device.alarm_max_disinfection_dose is False
@@ -1752,7 +1771,7 @@ def test_home_alarm_byte13_bit01_is_disinfection() -> None:
     data = _make_home_bytes()
     data[13] = 0x01
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.alarm_max_disinfection_dose is True
     assert device.alarm_ph_dosing_ineffective is False
     assert device.alarm_no_flow_to_probes is False
@@ -1768,7 +1787,7 @@ def test_home_alarm_byte13_bit02_is_ph() -> None:
     data = _make_home_bytes()
     data[13] = 0x02
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.alarm_ph_dosing_ineffective is True
     assert device.alarm_max_disinfection_dose is False
     assert device.alarm_no_flow_to_probes is False
@@ -1785,26 +1804,26 @@ def test_home_alarm_byte12_dosing_warnings() -> None:
 
     # Disinfection only
     data[12] = 0x20
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.alarm_max_disinfection_dose is True
     assert device.alarm_ph_dosing_ineffective is False
 
     # pH only
     data[12] = 0x40
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.alarm_ph_dosing_ineffective is True
     assert device.alarm_max_disinfection_dose is False
 
     # Both
     data[12] = 0x60
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.alarm_ph_dosing_ineffective is True
     assert device.alarm_max_disinfection_dose is True
 
     # None
     data[12] = 0x00
     data[13] = 0x00
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.alarm_ph_dosing_ineffective is False
     assert device.alarm_max_disinfection_dose is False
 
@@ -1842,7 +1861,7 @@ def test_decode_alarm_real_dtpugh_frames() -> None:
     }
 
     for name, (hex_dump, (exp_ph, exp_orp)) in frames.items():
-        device = AsekoDecoder.decode(bytes.fromhex(hex_dump))
+        device = decode(bytes.fromhex(hex_dump))
         assert device.device_type == AsekoDeviceType.HOME, f"config{name}"
         assert device.alarm_ph_dosing_ineffective is exp_ph, (
             f"config{name}: alarm_ph_dosing_ineffective expected {exp_ph}"
@@ -1862,7 +1881,7 @@ def test_home_byte12_not_an_alarm_byte() -> None:
     data[12] = 0x04  # would have set alarm_rapid_ph_change in old design
     data[13] = 0x00  # all alarms off
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.alarm_rapid_ph_change is False
     assert device.alarm_ph_dosing_ineffective is False
     assert device.alarm_max_disinfection_dose is False
@@ -1882,7 +1901,7 @@ def test_home_max_filling_time() -> None:
     data = _make_home_bytes()
     data[76:78] = (3600).to_bytes(2, "big")
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.max_refill_time == 3600  # returned as transmitted
 
 
@@ -1898,12 +1917,12 @@ def test_backwash_active_decoded_for_home() -> None:
 
     # Backwash relay on (bit 0x01 set, plus filtration bit 0x08 for realism)
     data[29] = 0x09
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.backwash_running is True
 
     # Backwash relay off
     data[29] = 0x08  # filtration only
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.backwash_running is False
 
 
@@ -1913,11 +1932,11 @@ def test_backwash_active_decoded_for_salt() -> None:
     data[4] = 0x0E  # SALT
 
     data[29] = 0x09  # bit 0 set
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.backwash_running is True
 
     data[29] = 0x08
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.backwash_running is False
 
 
@@ -1927,11 +1946,11 @@ def test_backwash_active_decoded_for_oxy() -> None:
     data[4] = 0x05  # OXY
 
     data[29] = 0x09
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.backwash_running is True
 
     data[29] = 0x08
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.backwash_running is False
 
 
@@ -1944,7 +1963,7 @@ def test_backwash_active_none_for_net() -> None:
     data[4] = 0x09  # NET
 
     data[29] = 0x09  # bit 0 set
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.backwash_running is None
 
 
@@ -1954,19 +1973,19 @@ def test_backwash_active_independent_of_water_filling() -> None:
 
     # Both backwash and water filling on
     data[29] = 0x0B  # 0x08 | 0x02 | 0x01
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.backwash_running is True
     assert device.refilling is True
 
     # Only backwash on (water filling off)
     data[29] = 0x09  # 0x08 | 0x01
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.backwash_running is True
     assert device.refilling is False
 
     # Only water filling on (backwash off)
     data[29] = 0x0A  # 0x08 | 0x02
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.backwash_running is False
     assert device.refilling is True
 
@@ -1980,12 +1999,12 @@ def test_heating_active_decoded_for_home() -> None:
 
     # Heating demand on (bit 0x04 set, plus filtration bit 0x08 for realism)
     data[29] = 0x0C
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.heating_running is True
 
     # Heating demand off
     data[29] = 0x08  # filtration only
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.heating_running is False
 
 
@@ -1995,11 +2014,11 @@ def test_heating_active_decoded_for_salt() -> None:
     data[4] = 0x0E  # SALT
 
     data[29] = 0x0C
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.heating_running is True
 
     data[29] = 0x08
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.heating_running is False
 
 
@@ -2009,11 +2028,11 @@ def test_heating_active_decoded_for_oxy() -> None:
     data[4] = 0x05  # OXY
 
     data[29] = 0x0C
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.heating_running is True
 
     data[29] = 0x08
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.heating_running is False
 
 
@@ -2026,7 +2045,7 @@ def test_heating_active_none_for_net() -> None:
     data[4] = 0x09  # NET
 
     data[29] = 0x0C  # bit 2 set
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.heating_running is None
 
 
@@ -2036,21 +2055,21 @@ def test_heating_active_independent_of_backwash_and_filling() -> None:
 
     # All three relays on
     data[29] = 0x0F  # 0x08 | 0x04 | 0x02 | 0x01
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.heating_running is True
     assert device.refilling is True
     assert device.backwash_running is True
 
     # Only heating on
     data[29] = 0x0C  # 0x08 | 0x04
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.heating_running is True
     assert device.refilling is False
     assert device.backwash_running is False
 
     # Only backwash on
     data[29] = 0x09  # 0x08 | 0x01
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.heating_running is False
     assert device.backwash_running is True
 
@@ -2076,7 +2095,7 @@ def test_home_issue_110_frame() -> None:
     )
     assert len(data) == 120, f"Frame length = {len(data)}, expected 120"
 
-    device = AsekoDecoder.decode(data)
+    device = decode(data)
 
     assert device.device_type == AsekoDeviceType.HOME
     assert device.water_level == 14  # byte[27] = 0x0e confirmed
@@ -2127,7 +2146,7 @@ _SALT_AIR_TEMP_2026_08_17_HEX = (
 def test_decode_air_temperature_salt_real_frames() -> None:
     """Air temperature (bytes 23-24) on the two confirmed SALT frames."""
 
-    device = AsekoDecoder.decode(bytes.fromhex(_SALT_AIR_TEMP_2026_08_11_HEX))
+    device = decode(bytes.fromhex(_SALT_AIR_TEMP_2026_08_11_HEX))
     assert device.device_type == AsekoDeviceType.SALT
     assert device.serial_number == 110_194_590
     assert device.timestamp is not None
@@ -2135,7 +2154,7 @@ def test_decode_air_temperature_salt_real_frames() -> None:
     assert device.air_temperature == pytest.approx(36.0)
     assert device.water_temperature == pytest.approx(29.6)
 
-    device = AsekoDecoder.decode(bytes.fromhex(_SALT_AIR_TEMP_2026_08_17_HEX))
+    device = decode(bytes.fromhex(_SALT_AIR_TEMP_2026_08_17_HEX))
     assert device.device_type == AsekoDeviceType.SALT
     assert device.timestamp is not None
     assert device.timestamp.replace(tzinfo=None) == datetime(2026, 8, 17, 18, 50, 0)
@@ -2167,7 +2186,7 @@ def test_air_temperature_plausibility_window(raw: int, expected: float | None) -
     data[4] = 0x0D  # SALT with CLF probe
     data[23:25] = raw.to_bytes(2, "big")
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
 
     if expected is None:
         assert device.air_temperature is None
@@ -2195,11 +2214,11 @@ def test_air_temperature_on_models_with_an_air_input(unit_type: int) -> None:
     data = _make_base_bytes()
     data[4] = unit_type
     data[23:25] = (0x0168).to_bytes(2, "big")  # 36.0 °C
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.air_temperature == 36.0
 
     data[23:25] = (0xFE70).to_bytes(2, "big")  # no air probe
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.air_temperature is None
     assert "air_temperature" not in device.features
 
@@ -2211,7 +2230,7 @@ def test_air_temperature_not_read_without_an_air_input(unit_type: int) -> None:
     data = _make_base_bytes()
     data[4] = unit_type
     data[23:25] = (0x0168).to_bytes(2, "big")  # 36.0 °C if it were decoded
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.air_temperature is None
 
 
@@ -2265,7 +2284,7 @@ def test_filtration_schedule_salt_uses_the_firmware_b_bits(
     assert data[56] != 0xFF  # period 1 configured
     assert data[60] != 0xFF  # period 2 configured
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
 
     assert device.device_type == AsekoDeviceType.SALT
     assert device.service_menu_open is expected_menu
@@ -2284,7 +2303,7 @@ def test_filtration_schedule_salt_unknown_bits_stay_unknown() -> None:
     data[37] = 0xE3
     assert data[56] != 0xFF  # a schedule is present to fall back on
 
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
 
     assert device.device_type == AsekoDeviceType.SALT
     assert device.filtration_schedule is None
@@ -2307,7 +2326,7 @@ def test_filtration_schedule_survives_the_service_menu() -> None:
     menus = []
     for byte37 in (0xC3, 0xC7, 0xC3):
         data[37] = byte37
-        device = AsekoDecoder.decode(bytes(data))
+        device = decode(bytes(data))
         schedules.append(device.filtration_schedule)
         menus.append(device.service_menu_open)
 

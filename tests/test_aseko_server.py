@@ -1,11 +1,12 @@
 import asyncio
+
 import pytest
 
+from custom_components.aseko_local.aseko_data import AsekoDevice
 from custom_components.aseko_local.aseko_server import (
     AsekoDeviceServer,
     FrameType,
 )
-from custom_components.aseko_local.aseko_data import AsekoDevice
 
 
 # Hilfsfunktion: Hex-String zu Bytes

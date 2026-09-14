@@ -5,12 +5,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ..aseko_data import AsekoDevice
-from .frame import parse_frame
 from .presence import NOT_PRESENT
-from .profiles import detect_profile
 
 if TYPE_CHECKING:
-    from .frame import V7Frame, V8Frame
+    from .frames import V7Frame, V8Frame
     from .profile import Profile
 
 
@@ -42,9 +40,3 @@ def decode(
         setattr(device, feature.field, value)
     device.features = frozenset(present)
     return device
-
-
-def decode_raw(raw: bytes) -> AsekoDevice:
-    """Parse, detect and decode in one go.  Raises ValueError on a bad v8 frame."""
-    frame = parse_frame(raw)
-    return decode(frame, detect_profile(frame))

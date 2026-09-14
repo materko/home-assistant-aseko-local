@@ -6,8 +6,8 @@ import asyncio
 import logging
 from unittest.mock import MagicMock
 
-from custom_components.aseko_local.aseko_decoder import AsekoDecoder
 from custom_components.aseko_local.coordinator import AsekoLocalDataUpdateCoordinator
+from custom_components.aseko_local.decoding import decode
 from custom_components.aseko_local.decoding.profiles import v7
 from custom_components.aseko_local.diagnostics import (
     async_get_config_entry_diagnostics,
@@ -37,7 +37,7 @@ def _coordinator() -> AsekoLocalDataUpdateCoordinator:
 
 
 def test_unknown_type_reads_everything_generic() -> None:
-    device = AsekoDecoder.decode(_unknown_frame())
+    device = decode(_unknown_frame())
     assert device.device_type is None
     # the generic readings did their job on the base frame
     assert device.ph == 0.0  # bytes 14-15 are zero in the base frame
@@ -62,8 +62,8 @@ def test_unrecognised_unit_is_kept_aside_not_stored() -> None:
     coordinator.async_add_new_device_listener(discovered.append)
     coordinator.async_add_new_features_listener(lambda d, f: grown.append(f))
 
-    coordinator.devices_update_callback(AsekoDecoder.decode(_unknown_frame()))
-    coordinator.devices_update_callback(AsekoDecoder.decode(_unknown_frame()))
+    coordinator.devices_update_callback(decode(_unknown_frame()))
+    coordinator.devices_update_callback(decode(_unknown_frame()))
 
     assert coordinator.get_devices() == []
     assert discovered == [] and grown == []
@@ -75,7 +75,7 @@ def test_diagnostics_report_the_unrecognised_unit_with_its_frame() -> None:
     coordinator = _coordinator()
     raw = _unknown_frame()
     coordinator.store_raw_frame(raw)
-    coordinator.devices_update_callback(AsekoDecoder.decode(raw))
+    coordinator.devices_update_callback(decode(raw))
 
     entry = MagicMock()
     entry.data = {"host": "0.0.0.0", "port": 47524}
@@ -99,7 +99,7 @@ def test_diagnostics_still_report_a_known_unit_the_same_way() -> None:
     coordinator = _coordinator()
     raw = bytes(_make_base_bytes())  # SALT
     coordinator.store_raw_frame(raw)
-    coordinator.devices_update_callback(AsekoDecoder.decode(raw))
+    coordinator.devices_update_callback(decode(raw))
 
     entry = MagicMock()
     entry.data = {"host": "0.0.0.0", "port": 47524}

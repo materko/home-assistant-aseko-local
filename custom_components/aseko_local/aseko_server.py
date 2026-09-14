@@ -4,11 +4,9 @@ import asyncio
 import logging
 from collections.abc import Callable
 from enum import Enum, auto
-from typing import ClassVar, Optional, Any
+from typing import Any, ClassVar, Optional
 
 from .aseko_data import AsekoDevice
-from .aseko_decoder import AsekoDecoder
-from .aseko_decoder_v8 import AsekoV8Decoder
 from .const import (
     DEFAULT_BINDING_ADDRESS,
     DEFAULT_BINDING_PORT,
@@ -16,6 +14,7 @@ from .const import (
     READ_TIMEOUT,
     UNSPECIFIED_VALUE,
 )
+from .decoding import Protocol, decode
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -231,7 +230,7 @@ class AsekoDeviceServer:
                 if frame_type == FrameType.V8:
                     await self._call_forward_v8_cb(frame)
                     try:
-                        device = AsekoV8Decoder.decode(frame)
+                        device = decode(frame, Protocol.V8)
                         await self._call_v8_raw_sink(frame)
                     except ValueError as exc:
                         _LOGGER.error(
@@ -263,7 +262,7 @@ class AsekoDeviceServer:
                     # still decoded and the connection stays open.
                     await self._report_implausible(frame, addr)
 
-                    device = AsekoDecoder.decode(frame)
+                    device = decode(frame, Protocol.V7)
 
                 except ValueError as e:
                     _LOGGER.error(

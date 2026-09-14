@@ -22,7 +22,6 @@ from pathlib import Path
 from typing import Any
 
 from aiohttp import web
-
 from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import HomeAssistantView, StaticPathConfig
 from homeassistant.core import HomeAssistant

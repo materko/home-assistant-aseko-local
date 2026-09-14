@@ -17,7 +17,7 @@ NET carries unrelated data in bytes 23-24.
 
 from __future__ import annotations
 
-from ...decoders import (
+from ...features import (
     AlarmMaxDisinfectionDose,
     AlarmNoFlowToProbes,
     AlarmPhDosingIneffective,
@@ -72,7 +72,7 @@ from ...decoders import (
     WaterTemperature,
     WaterTemperatureTarget,
 )
-from ...frame import Protocol
+from ...frames import Protocol
 from ...profile import Profile
 from .common import (
     ALARMS,

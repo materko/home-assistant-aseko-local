@@ -1,25 +1,26 @@
 """Test Aseko Local setup process."""
 
+import asyncio
+from typing import Any
+
 import pytest
 from homeassistant.config_entries import ConfigEntryState
 from pytest_homeassistant_custom_component.common import MockConfigEntry
-from typing import Any
 
 from custom_components.aseko_local import (
     async_setup_entry,
     async_unload_entry,
 )
 from custom_components.aseko_local.aseko_data import AsekoDevice
-from custom_components.aseko_local.const import (
-    DOMAIN,
-)
-
-from .const import MOCK_CONFIG
-import asyncio
-from custom_components.aseko_local.mirror_forwarder import AsekoCloudMirror
 from custom_components.aseko_local.aseko_server import (
     AsekoDeviceServer,
 )
+from custom_components.aseko_local.const import (
+    DOMAIN,
+)
+from custom_components.aseko_local.mirror_forwarder import AsekoCloudMirror
+
+from .const import MOCK_CONFIG
 
 
 # We can pass fixtures as defined in conftest.py to tell pytest to use the fixture
@@ -223,11 +224,12 @@ def _make_device(serial: int) -> AsekoDevice:
 @pytest.mark.asyncio
 async def test_coordinator_new_device_listener_called_for_new_device(hass) -> None:
     """Listener is called exactly once when a brand-new device arrives."""
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    from custom_components.aseko_local.const import DOMAIN
     from custom_components.aseko_local.coordinator import (
         AsekoLocalDataUpdateCoordinator,
     )
-    from pytest_homeassistant_custom_component.common import MockConfigEntry
-    from custom_components.aseko_local.const import DOMAIN
     from tests.const import MOCK_CONFIG
 
     entry = MockConfigEntry(domain=DOMAIN, data=MOCK_CONFIG, entry_id="test_listener")
@@ -254,11 +256,12 @@ async def test_coordinator_new_device_listener_called_for_new_device(hass) -> No
 @pytest.mark.asyncio
 async def test_coordinator_new_device_listener_unsub(hass) -> None:
     """Unsubscribing the listener stops it from receiving future discoveries."""
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    from custom_components.aseko_local.const import DOMAIN
     from custom_components.aseko_local.coordinator import (
         AsekoLocalDataUpdateCoordinator,
     )
-    from pytest_homeassistant_custom_component.common import MockConfigEntry
-    from custom_components.aseko_local.const import DOMAIN
     from tests.const import MOCK_CONFIG
 
     entry = MockConfigEntry(domain=DOMAIN, data=MOCK_CONFIG, entry_id="test_unsub")
@@ -277,11 +280,12 @@ async def test_coordinator_new_device_listener_unsub(hass) -> None:
 @pytest.mark.asyncio
 async def test_coordinator_multiple_listeners(hass) -> None:
     """All registered listeners receive the new-device notification."""
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    from custom_components.aseko_local.const import DOMAIN
     from custom_components.aseko_local.coordinator import (
         AsekoLocalDataUpdateCoordinator,
     )
-    from pytest_homeassistant_custom_component.common import MockConfigEntry
-    from custom_components.aseko_local.const import DOMAIN
     from tests.const import MOCK_CONFIG
 
     entry = MockConfigEntry(domain=DOMAIN, data=MOCK_CONFIG, entry_id="test_multi_cb")

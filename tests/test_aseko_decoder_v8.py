@@ -6,8 +6,8 @@ from custom_components.aseko_local.aseko_data import (
     AsekoDeviceType,
     AsekoProbeType,
 )
-from custom_components.aseko_local.aseko_decoder_v8 import AsekoV8Decoder
-
+from custom_components.aseko_local.decoding import decode
+from custom_components.aseko_local.decoding.frames import parse_v8
 
 # ---------------------------------------------------------------------------
 # Real reference frame from fekberg (Sep 16, 2025, 22:27 CEST).
@@ -122,27 +122,27 @@ REFERENCE_FRAME_812 = (
 
 @pytest.fixture
 def device_sep():
-    return AsekoV8Decoder.decode(REFERENCE_FRAME)
+    return decode(REFERENCE_FRAME)
 
 
 @pytest.fixture
 def device_805():
-    return AsekoV8Decoder.decode(REFERENCE_FRAME_805)
+    return decode(REFERENCE_FRAME_805)
 
 
 @pytest.fixture
 def device_812():
-    return AsekoV8Decoder.decode(REFERENCE_FRAME_812)
+    return decode(REFERENCE_FRAME_812)
 
 
 @pytest.fixture
 def device_105():
-    return AsekoV8Decoder.decode(REFERENCE_FRAME_105)
+    return decode(REFERENCE_FRAME_105)
 
 
 @pytest.fixture
 def device_apr():
-    return AsekoV8Decoder.decode(REFERENCE_FRAME_APR)
+    return decode(REFERENCE_FRAME_APR)
 
 
 # ---------------------------------------------------------------------------
@@ -237,7 +237,7 @@ def test_ph_minus_pump_running_when_dosing():
         b"flags: 2 0 0 0 0 0 0 0 "
         b"crc16: C3C8}\n"
     )
-    device = AsekoV8Decoder.decode(dosing_frame)
+    device = decode(dosing_frame)
     assert device.ph_minus_pump_running is True
     # Other pump states must be unaffected
     assert device.filtration_running is True
@@ -310,7 +310,7 @@ def test_absent_probe_returns_none():
         b"areqs: 74 74 4 5 0 36 36 0 0 0 6 0 36 0 45 0 255 2 2 10 0 15 0 0 0 0 "
         b"crc16: 0000}\n"
     )
-    device = AsekoV8Decoder.decode(frame)
+    device = decode(frame)
     assert device.ph is None
     assert device.redox is None
     assert device.water_temperature is None
@@ -325,12 +325,12 @@ def test_absent_probe_returns_none():
 
 def test_missing_braces_raises():
     with pytest.raises(ValueError, match="braces"):
-        AsekoV8Decoder.decode(b"v1 999999999 804 0 27 ins: 0\n")
+        parse_v8(b"v1 999999999 804 0 27 ins: 0\n")
 
 
 def test_bad_header_raises():
     with pytest.raises(ValueError, match="header"):
-        AsekoV8Decoder.decode(b"{not a valid v8 header}\n")
+        parse_v8(b"{not a valid v8 header}\n")
 
 
 def test_unknown_header_type_is_tolerated(caplog):
@@ -342,9 +342,9 @@ def test_unknown_header_type_is_tolerated(caplog):
     import logging
 
     with caplog.at_level(
-        logging.WARNING, logger="custom_components.aseko_local.aseko_decoder_v8"
+        logging.WARNING, logger="custom_components.aseko_local.decoding.profiles"
     ):
-        device = AsekoV8Decoder.decode(
+        device = decode(
             b"{v1 123456789 999 0 27 "
             b"ins: 314 -500 -500 -500 0 0 0 0 1 -500 -500 -500 0 24 6 29 22 27 0 "
             b"ains: 708 708 774 7790 0 0 779 779 0 0 0 0 0 0 0 0 "
@@ -379,7 +379,7 @@ def test_cl_pump_running_true_when_outs9_set():
         b"areqs: 74 74 4 5 0 36 36 0 0 0 6 0 36 0 45 0 255 2 2 10 0 15 0 0 0 0 "
         b"crc16: 0000}\n"
     )
-    device = AsekoV8Decoder.decode(frame)
+    device = decode(frame)
     assert device.chlorine_pump_running is True
     assert device.ph_minus_pump_running is False
 
@@ -394,7 +394,7 @@ def test_ph_minus_pump_running_true_when_outs8_set():
         b"areqs: 74 74 4 5 0 36 36 0 0 0 6 0 36 0 45 0 255 2 2 10 0 15 0 0 0 0 "
         b"crc16: 0000}\n"
     )
-    device = AsekoV8Decoder.decode(frame)
+    device = decode(frame)
     assert device.ph_minus_pump_running is True
     assert device.chlorine_pump_running is False
 
@@ -409,6 +409,6 @@ def test_both_pumps_independent():
         b"areqs: 74 74 4 5 0 36 36 0 0 0 6 0 36 0 45 0 255 2 2 10 0 15 0 0 0 0 "
         b"crc16: 0000}\n"
     )
-    device = AsekoV8Decoder.decode(frame)
+    device = decode(frame)
     assert device.ph_minus_pump_running is True
     assert device.chlorine_pump_running is True

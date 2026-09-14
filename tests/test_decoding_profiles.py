@@ -20,31 +20,29 @@ from custom_components.aseko_local.aseko_data import (
     AsekoFiltrationSchedule,
     AsekoProfileFlag,
 )
-from custom_components.aseko_local.aseko_decoder import AsekoDecoder
-from custom_components.aseko_local.aseko_decoder_v8 import AsekoV8Decoder
 from custom_components.aseko_local.const import UNIT_TYPE_PROFI, WATER_FLOW_TO_PROBES
-from custom_components.aseko_local.decoding import engine
-from custom_components.aseko_local.decoding.decoders import (
+from custom_components.aseko_local.decoding import decode, engine
+from custom_components.aseko_local.decoding.feature import Feature
+from custom_components.aseko_local.decoding.features import (
     ALL_FEATURES,
+    AlgaecideFlowRate,
     AlgaecidePumpRunning,
     Configuration,
+    FiltrationPeriod2Start,
     FiltrationRunning,
     FiltrationSchedule,
-    AlgaecideFlowRate,
     HeatingControlEnabled,
     Ph,
     ServiceMenuOpen,
-    FiltrationPeriod2Start,
 )
-from custom_components.aseko_local.decoding.feature import Feature
-from custom_components.aseko_local.decoding import frame as frame_module
-from custom_components.aseko_local.decoding.frame import (
+from custom_components.aseko_local.decoding.frames import (
     Protocol,
     parse_frame,
     parse_v7,
     parse_v8,
     v7_bad_checksum_segments,
 )
+from custom_components.aseko_local.decoding.frames import v7 as frame_module
 from custom_components.aseko_local.decoding.profile import Profile
 from custom_components.aseko_local.decoding.profiles import (
     ALL_PROFILES,
@@ -97,10 +95,10 @@ def test_every_frame_derived_field_has_a_feature() -> None:
     assert DEVICE_FIELDS - owned == not_from_the_frame
 
 
-def test_default_and_named_variants() -> None:
-    assert FiltrationSchedule.default_variant(Protocol.V7) == "decode_v7"
-    assert FiltrationSchedule.default_variant(Protocol.V8) is None
-    assert FiltrationSchedule.variants(Protocol.V7) == ("decode_v7",)
+def test_default_and_named_readings() -> None:
+    assert FiltrationSchedule.default_reading(Protocol.V7) == "decode_v7"
+    assert FiltrationSchedule.default_reading(Protocol.V8) is None
+    assert FiltrationSchedule.readings(Protocol.V7) == ("decode_v7",)
     assert FiltrationSchedule.protocols() == (Protocol.V7,)
     assert Ph.protocols() == (Protocol.V7, Protocol.V8)
 
@@ -137,15 +135,15 @@ def test_profile_plan_respects_dependencies(profile: Profile) -> None:
 def test_profile_readings_match_its_protocol(profile: Profile) -> None:
     for feature, read in profile.plan:
         assert read.__name__.startswith(f"decode_{profile.protocol.value}")
-        assert type(feature).has_variant(read.__name__)
+        assert type(feature).has_reading(read.__name__)
     assert profile.feature_names <= DEVICE_FIELDS
 
 
 def test_overrides_pick_the_named_reading() -> None:
-    assert v7.HOME.variant_for(FiltrationSchedule) == "decode_v7"
-    assert v7.HOME.variant_for(FiltrationRunning) == "decode_v7_menu_override"
-    assert v7.SALT.variant_for(FiltrationRunning) == "decode_v7"
-    assert v7.OXY.variant_for(AlgaecidePumpRunning) == "decode_v7_oxy"
+    assert v7.HOME.reading_for(FiltrationSchedule) == "decode_v7"
+    assert v7.HOME.reading_for(FiltrationRunning) == "decode_v7_menu_override"
+    assert v7.SALT.reading_for(FiltrationRunning) == "decode_v7"
+    assert v7.OXY.reading_for(AlgaecidePumpRunning) == "decode_v7_oxy"
 
 
 def test_a_feature_absent_from_a_profile_is_a_model_without_it() -> None:
@@ -305,7 +303,7 @@ def test_every_home_frame_uses_the_one_home_profile(byte37: int) -> None:
 def test_home_byte37_is_one_bit_field(
     byte37: int, level_meter: bool, flow_detection: bool, menu: bool, schedule
 ) -> None:
-    device = AsekoDecoder.decode(_home_bytes(byte37))
+    device = decode(_home_bytes(byte37))
     assert device.water_level_sensor_enabled is level_meter
     assert device.flow_detection_enabled is flow_detection
     assert device.service_menu_open is menu
@@ -316,32 +314,34 @@ def test_home_byte37_is_one_bit_field(
 
 
 def test_decoded_device_says_how_it_was_read() -> None:
-    device = AsekoDecoder.decode(_home_bytes(0x43))
+    device = decode(_home_bytes(0x43))
     assert device.device_type is AsekoDeviceType.HOME
     assert device.features <= v7.HOME.feature_names
     assert "filtration_schedule" in device.features
     assert device.flags == frozenset()
 
-    salt = AsekoDecoder.decode(bytes(_make_base_bytes()))
+    salt = decode(bytes(_make_base_bytes()))
     assert AsekoProfileFlag.MENU_BIT_IS_PRESENCE_ONLY in salt.flags
 
-    net_v8 = AsekoV8Decoder.decode(REFERENCE_FRAME)
+    net_v8 = decode(REFERENCE_FRAME)
     assert net_v8.features <= v8.NET.feature_names
     assert "ph" in net_v8.features
     assert "filtration_period_1_start" not in net_v8.features
 
 
-def test_facades_are_the_engine() -> None:
+def test_decode_detects_the_protocol_or_takes_it() -> None:
     raw = bytes(_make_base_bytes())
-    assert AsekoDecoder.decode(raw) == engine.decode_raw(raw)
-    assert AsekoV8Decoder.decode(REFERENCE_FRAME) == engine.decode_raw(REFERENCE_FRAME)
+    assert decode(raw) == decode(raw, Protocol.V7)
+    assert decode(REFERENCE_FRAME) == decode(REFERENCE_FRAME, Protocol.V8)
+    frame = parse_v7(raw)
+    assert decode(raw) == engine.decode(frame, detect_profile(frame))
 
 
 def test_a_field_outside_the_profile_stays_none_whatever_the_frame_says() -> None:
     """NET has no filtration output; the bytes are read by nobody."""
     data = _make_base_bytes()
     data[4] = 0x09  # NET
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert "filtration_period_1_start" not in device.features
     assert device.filtration_period_1_start is None
     assert device.filtration_running is None
@@ -352,12 +352,12 @@ def test_home_menu_override_forces_the_pump_off() -> None:
     data[4] = 0x02
     data[29] = 0x08  # relay bit says running
     data[37] = 0x15  # period 1, settings menu open
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.service_menu_open is True
     assert device.filtration_running is False
 
     data[37] = 0x11  # menu closed
-    assert AsekoDecoder.decode(bytes(data)).filtration_running is True
+    assert decode(bytes(data)).filtration_running is True
 
 
 def test_entity_layer_reads_pump_presence_off_the_device() -> None:
@@ -367,13 +367,13 @@ def test_entity_layer_reads_pump_presence_off_the_device() -> None:
     data[4] = 0x09  # NET
     data[28] = WATER_FLOW_TO_PROBES
     data[29] = 0x00
-    net = AsekoDecoder.decode(bytes(data))
+    net = decode(bytes(data))
     assert device_has_pump(net, "cl")
     assert device_has_pump(net, "ph_minus")
     assert not device_has_pump(net, "algicide")  # not a NET feature
     assert not device_has_pump(net, "ph_plus")  # nobody's feature
 
-    salt = AsekoDecoder.decode(bytes(_make_base_bytes()))  # byte[37] = 0xFF
+    salt = decode(bytes(_make_base_bytes()))  # byte[37] = 0xFF
     assert "algaecide_pump_running" in v7.SALT.feature_names  # the model has it
     assert "algaecide_pump_running" not in salt.features  # this unit's port is unrouted
     assert not device_has_pump(salt, "algicide")
@@ -384,7 +384,7 @@ def test_entity_layer_reads_pump_presence_off_the_device() -> None:
 
 def test_a_probe_the_unit_lacks_is_not_present() -> None:
     """SALT with a REDOX probe: the model reads free chlorine, this unit has none."""
-    salt = AsekoDecoder.decode(bytes(_make_base_bytes()))  # byte[4] = 0x0E, REDOX
+    salt = decode(bytes(_make_base_bytes()))  # byte[4] = 0x0E, REDOX
     assert "free_chlorine" in v7.SALT.feature_names
     assert "free_chlorine" not in salt.features
     assert salt.free_chlorine is None
@@ -397,7 +397,7 @@ def test_a_setting_unset_on_the_unit_is_not_present() -> None:
     data = _make_base_bytes()
     data[68] = 0xFF  # backwash interval never configured
     data[76:78] = b"\xff\xff"  # max filling time not implemented
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert "backwash_interval" not in device.features
     assert "max_refill_time" not in device.features
     assert "backwash_running" in device.features  # the valve itself is there
@@ -405,13 +405,13 @@ def test_a_setting_unset_on_the_unit_is_not_present() -> None:
 
 def test_a_value_unknown_in_this_frame_stays_present() -> None:
     """byte[37] unset: the unit has a schedule, this frame just does not say which."""
-    salt = AsekoDecoder.decode(bytes(_make_base_bytes()))  # byte[37] = 0xFF
+    salt = decode(bytes(_make_base_bytes()))  # byte[37] = 0xFF
     assert "filtration_schedule" in salt.features
     assert salt.filtration_schedule is None
     assert "service_menu_open" in salt.features
     assert salt.service_menu_open is None
 
-    home = AsekoDecoder.decode(_home_bytes(0xFF))
+    home = decode(_home_bytes(0xFF))
     assert "heating_control_enabled" in home.features
     assert home.heating_control_enabled is None
     assert "service_menu_open" in home.features
@@ -422,14 +422,14 @@ def test_shared_port_routing_decides_which_chemical_is_present() -> None:
     data = _make_base_bytes()
     data[101] = 40
     data[37] = 0x43  # SALT, bit 0x80 clear: shared port routed to flocculant
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert "flocculant_flow_rate" in device.features
     assert "flocculant_pump_running" in device.features
     assert "algaecide_flow_rate" not in device.features
     assert "algaecide_pump_running" not in device.features
 
     data[37] = 0xC3  # bit 0x80 set: routed to algicide
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert "algaecide_flow_rate" in device.features
     assert "flocculant_flow_rate" not in device.features
 
@@ -437,7 +437,7 @@ def test_shared_port_routing_decides_which_chemical_is_present() -> None:
 def test_v8_sentinel_means_not_present() -> None:
     """v8 cannot tell an absent probe from an unreadable one; both are -500."""
     frame = REFERENCE_FRAME.replace(b"ains: 708 708", b"ains: -500 708")
-    device = AsekoV8Decoder.decode(frame)
+    device = decode(frame)
     assert "ph" not in device.features
     assert device.ph is None
     assert "redox" in device.features
@@ -469,11 +469,11 @@ def test_v7_bad_checksum_is_logged_once_and_decoding_continues(
     assert v7_bad_checksum_segments(bytes(bad)) == [2]
 
     with caplog.at_level(logging.DEBUG, logger=frame_module.__name__):
-        expected = AsekoDecoder.decode(bytes(good))
+        expected = decode(bytes(good))
         assert not [r for r in caplog.records if "checksum" in r.getMessage()]
 
-        first = AsekoDecoder.decode(bytes(bad))
-        second = AsekoDecoder.decode(bytes(bad))
+        first = decode(bytes(bad))
+        second = decode(bytes(bad))
 
     # Same values as the intact frame: the checksum changes nothing.
     assert first == expected
@@ -510,7 +510,7 @@ def test_profiles_leave_out_what_the_model_does_not_have() -> None:
 
 
 def test_v8_salt_frame_gets_no_chlorine_counter_inputs() -> None:
-    device = AsekoV8Decoder.decode(REFERENCE_FRAME_105)
+    device = decode(REFERENCE_FRAME_105)
     assert device.device_type == AsekoDeviceType.SALT
     assert "chlorine_pump_running" not in device.features
     assert "chlorine_flow_rate" not in device.features
@@ -523,12 +523,12 @@ def test_not_located_reading_keeps_the_value_unknown_but_present() -> None:
     Every feature accepts ``decode_v7_not_located``; it reads None, so the
     device lists the field (the entity exists) and the value stays unknown.
     """
-    assert v7.OXY.variant_for(HeatingControlEnabled) == "decode_v7_not_located"
-    assert "decode_v7_not_located" not in HeatingControlEnabled.variants()
+    assert v7.OXY.reading_for(HeatingControlEnabled) == "decode_v7_not_located"
+    assert "decode_v7_not_located" not in HeatingControlEnabled.readings()
 
     data = _make_base_bytes()
     data[4] = 0x05  # OXY
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     for field in ("heating_control_enabled", "freeze_protection_enabled"):
         assert field in device.features, field
         assert getattr(device, field) is None, field
@@ -541,7 +541,7 @@ def test_salt_settings_found_with_marked_test_cases() -> None:
     data[22] = 0x3A  # backwash schedule, below, outside temperature, VS pump on
     data[78] = 0x85  # heating allowed, Pentair / Dab
     data[29] = 0x50  # electrolysis running, right polarity
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.flow_detection_enabled is True
     assert device.water_level_sensor_enabled is True
     assert device.heating_control_enabled is True
@@ -556,7 +556,7 @@ def test_salt_settings_found_with_marked_test_cases() -> None:
     data[22] = 0x05  # time window, winter mode
     data[78] = 0x49  # winter, Hayward
     data[29] = 0x10  # running, left
-    device = AsekoDecoder.decode(bytes(data))
+    device = decode(bytes(data))
     assert device.heating_condition.value == "time_window"
     assert device.freeze_protection_enabled is True
     assert device.backwash_schedule_enabled is False

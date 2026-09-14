@@ -16,11 +16,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from custom_components.aseko_local.aseko_decoder import AsekoDecoder
 from custom_components.aseko_local.binary_sensor import _build_binary_sensor_entities
 from custom_components.aseko_local.button import _build_button_entities
 from custom_components.aseko_local.coordinator import AsekoLocalDataUpdateCoordinator
 from custom_components.aseko_local.datetime import _build_entities as _build_datetime
+from custom_components.aseko_local.decoding import decode
 from custom_components.aseko_local.sensor import _build_sensor_entities
 
 from .test_aseko_decoder import _make_base_bytes
@@ -66,7 +66,7 @@ def test_first_frame_goes_through_the_new_device_listener_only() -> None:
         lambda device, features: new_features.append((device, features))
     )
 
-    coordinator.devices_update_callback(AsekoDecoder.decode(_salt_frame(0xFF)))
+    coordinator.devices_update_callback(decode(_salt_frame(0xFF)))
 
     assert [d.serial_number for d in new_devices] == [SERIAL]
     assert new_features == []
@@ -81,10 +81,10 @@ def test_a_later_frame_that_adds_features_calls_the_new_features_listener() -> N
         lambda device, features: new_features.append((device, features))
     )
 
-    coordinator.devices_update_callback(AsekoDecoder.decode(_salt_frame(0xFF)))
+    coordinator.devices_update_callback(decode(_salt_frame(0xFF)))
     stored = coordinator.get_device(SERIAL)
     coordinator.devices_update_callback(
-        AsekoDecoder.decode(_salt_frame(0xC3, flowrate_third_pump=40))
+        decode(_salt_frame(0xC3, flowrate_third_pump=40))
     )
 
     assert len(new_features) == 1
@@ -101,14 +101,14 @@ def test_presence_is_sticky_and_nothing_is_reported_twice() -> None:
         lambda device, features: new_features.append(features)
     )
 
-    coordinator.devices_update_callback(AsekoDecoder.decode(_salt_frame(0xFF)))
+    coordinator.devices_update_callback(decode(_salt_frame(0xFF)))
     coordinator.devices_update_callback(
-        AsekoDecoder.decode(_salt_frame(0xC3, flowrate_third_pump=40))
+        decode(_salt_frame(0xC3, flowrate_third_pump=40))
     )
     # the port goes unreadable again, then comes back
-    coordinator.devices_update_callback(AsekoDecoder.decode(_salt_frame(0xFF)))
+    coordinator.devices_update_callback(decode(_salt_frame(0xFF)))
     coordinator.devices_update_callback(
-        AsekoDecoder.decode(_salt_frame(0xC3, flowrate_third_pump=40))
+        decode(_salt_frame(0xC3, flowrate_third_pump=40))
     )
 
     assert new_features == [ALGICIDE_FIELDS]
@@ -121,10 +121,10 @@ def test_an_unchanged_frame_calls_nobody() -> None:
     coordinator.async_add_new_device_listener(calls.append)
     coordinator.async_add_new_features_listener(lambda d, f: calls.append(f))
 
-    frame = AsekoDecoder.decode(_salt_frame(0xC3, flowrate_third_pump=40))
+    frame = decode(_salt_frame(0xC3, flowrate_third_pump=40))
     coordinator.devices_update_callback(frame)
     coordinator.devices_update_callback(
-        AsekoDecoder.decode(_salt_frame(0xC3, flowrate_third_pump=40))
+        decode(_salt_frame(0xC3, flowrate_third_pump=40))
     )
 
     assert len(calls) == 1  # the discovery only
@@ -135,10 +135,10 @@ def test_new_features_listener_can_unsubscribe() -> None:
     calls: list = []
     unsub = coordinator.async_add_new_features_listener(lambda d, f: calls.append(f))
 
-    coordinator.devices_update_callback(AsekoDecoder.decode(_salt_frame(0xFF)))
+    coordinator.devices_update_callback(decode(_salt_frame(0xFF)))
     unsub()
     coordinator.devices_update_callback(
-        AsekoDecoder.decode(_salt_frame(0xC3, flowrate_third_pump=40))
+        decode(_salt_frame(0xC3, flowrate_third_pump=40))
     )
 
     assert calls == []
@@ -155,7 +155,7 @@ class _PlatformCoordinator:
 @pytest.fixture
 def grown_device():
     """A SALT that has just started showing its algicide port."""
-    device = AsekoDecoder.decode(_salt_frame(0xC3, flowrate_third_pump=40))
+    device = decode(_salt_frame(0xC3, flowrate_third_pump=40))
     assert ALGICIDE_FIELDS <= device.features
     return device
 
@@ -245,11 +245,11 @@ def test_the_whole_chain_adds_exactly_the_algicide_entities() -> None:
         added.extend(_build_datetime([device], platform, features))
 
     coordinator.async_add_new_features_listener(on_new_features)
-    coordinator.devices_update_callback(AsekoDecoder.decode(_salt_frame(0xFF)))
+    coordinator.devices_update_callback(decode(_salt_frame(0xFF)))
     assert added == []
 
     coordinator.devices_update_callback(
-        AsekoDecoder.decode(_salt_frame(0xC3, flowrate_third_pump=40))
+        decode(_salt_frame(0xC3, flowrate_third_pump=40))
     )
     assert {e.entity_description.key for e in added} == {
         "flowrate_algicide",

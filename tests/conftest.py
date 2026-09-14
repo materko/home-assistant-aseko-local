@@ -4,9 +4,9 @@ from collections.abc import Generator
 from unittest.mock import AsyncMock, PropertyMock, patch
 
 import pytest
+from homeassistant.config_entries import ConfigEntry
 
 from custom_components.aseko_local.aseko_server import ServerConnectionError
-from homeassistant.config_entries import ConfigEntry
 from custom_components.aseko_local.const import DOMAIN
 
 

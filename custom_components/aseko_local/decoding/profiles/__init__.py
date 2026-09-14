@@ -6,12 +6,12 @@ import logging
 from typing import TYPE_CHECKING
 
 from ...aseko_data import AsekoDeviceType
-from ..frame import Protocol, V8Frame
+from ..frames import Protocol, V8Frame
 from ..profile import Profile, unit_type_from_byte
 from . import v7, v8
 
 if TYPE_CHECKING:
-    from ..frame import V7Frame
+    from ..frames import V7Frame
 
 _LOGGER = logging.getLogger(__name__)
 

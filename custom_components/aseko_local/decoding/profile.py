@@ -26,7 +26,7 @@ from ..const import (
     UNIT_TYPE_PROFI,
     UNIT_TYPE_SALT,
 )
-from .frame import Protocol
+from .frames import Protocol
 
 if TYPE_CHECKING:
     from ..aseko_data import AsekoDevice
@@ -65,18 +65,18 @@ class Profile:
         plan = []
         for feature_cls in _ordered(self.features):
             feature = feature_cls()
-            plan.append((feature, getattr(feature, self.variant_for(feature_cls))))
+            plan.append((feature, getattr(feature, self.reading_for(feature_cls))))
         object.__setattr__(self, "plan", tuple(plan))
         object.__setattr__(
             self, "feature_names", frozenset(f.field for f in self.features)
         )
 
-    def variant_for(self, feature: type[Feature]) -> str:
+    def reading_for(self, feature: type[Feature]) -> str:
         """Name of the reading this profile uses for ``feature``."""
         override = self.overrides.get(feature)
         if override is not None:
             return override
-        default = feature.default_variant(self.protocol)
+        default = feature.default_reading(self.protocol)
         if default is None:
             raise ValueError(
                 f"{self.name}: {feature.__name__} has no {self.protocol.value} reading"
@@ -91,19 +91,19 @@ class Profile:
         if len(set(fields)) != len(fields):
             raise ValueError(f"{self.name}: two features fill the same field")
 
-        for feature, variant in self.overrides.items():
+        for feature, reading in self.overrides.items():
             if feature not in listed:
                 raise ValueError(
                     f"{self.name}: override for unlisted {feature.__name__}"
                 )
-            if not variant.startswith(f"decode_{self.protocol.value}"):
+            if not reading.startswith(f"decode_{self.protocol.value}"):
                 raise ValueError(
-                    f"{self.name}: {feature.__name__}.{variant} is not a "
+                    f"{self.name}: {feature.__name__}.{reading} is not a "
                     f"{self.protocol.value} reading"
                 )
-            if not feature.has_variant(variant):
+            if not feature.has_reading(reading):
                 raise ValueError(
-                    f"{self.name}: {feature.__name__} has no reading {variant!r}"
+                    f"{self.name}: {feature.__name__} has no reading {reading!r}"
                 )
         for feature in self.evidence:
             if feature not in listed:
@@ -111,7 +111,7 @@ class Profile:
                     f"{self.name}: evidence for unlisted {feature.__name__}"
                 )
         for feature in self.features:
-            self.variant_for(feature)  # raises when there is nothing to call
+            self.reading_for(feature)  # raises when there is nothing to call
 
 
 def _ordered(features: tuple[type[Feature], ...]) -> list[type[Feature]]:

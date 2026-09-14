@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
 from collections.abc import Callable
+from dataclasses import dataclass
 
 from homeassistant.components.sensor import (
     RestoreSensor,
