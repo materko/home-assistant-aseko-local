@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from ...const import UNSPECIFIED_VALUE
 from ...models import AsekoProbeType
 from ..feature import Feature
 from ..presence import NOT_PRESENT
@@ -34,8 +35,10 @@ class RedoxTarget(Feature):
         probes = device.configuration
         if AsekoProbeType.CLF in probes or AsekoProbeType.REDOX not in probes:
             return NOT_PRESENT
+        if frame[53] == UNSPECIFIED_VALUE:
+            return None  # the probe is there, the setpoint is not filled in
         return frame[53] * 10
 
     def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> int | None:
-        raw = frame.get("areqs", 1)
+        raw = frame.value("areqs", 1)
         return raw * 10 if raw is not None else None

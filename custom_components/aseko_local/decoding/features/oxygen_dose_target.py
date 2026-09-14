@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
 
 if TYPE_CHECKING:
@@ -20,5 +21,7 @@ class OxygenDoseTarget(Feature):
 
     field = "oxygen_dose_target"
 
-    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int:
+    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | None:
+        if frame[53] == UNSPECIFIED_VALUE:
+            return None  # the OXY dose is not filled in
         return frame[53]

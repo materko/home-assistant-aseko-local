@@ -424,7 +424,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             entry.runtime_data.coordinator.async_stop_stale_check()
             await entry.runtime_data.coordinator.async_save_frame_log()
             if entry.runtime_data.server:
-                await entry.runtime_data.server.stop()
+                # Remove, not just stop: a stopped server left in the registry
+                # would be handed back to the next setup without listening.
+                await AsekoDeviceServer.remove(
+                    entry.runtime_data.server.host, entry.runtime_data.server.port
+                )
             if entry.runtime_data.mirror:
                 await entry.runtime_data.mirror.stop()
             if entry.runtime_data.mirror_v8:

@@ -414,6 +414,10 @@ class AsekoDeviceServer:
             )
             await cls._instances[key].start()
         else:
+            # A server stopped by an unload that did not remove it stays in the
+            # registry; hand it back running, or the next setup gets a dead one.
+            if not cls._instances[key].running:
+                await cls._instances[key].start()
             if raw_sink:
                 cls._instances[key]._raw_sink = raw_sink
             if v8_raw_sink:
@@ -430,6 +434,11 @@ class AsekoDeviceServer:
         if key in cls._instances:
             await cls._instances[key].stop()
             del cls._instances[key]
+
+    @classmethod
+    def get(cls, host: str, port: int) -> "AsekoDeviceServer | None":
+        """Return the server registered for ``host:port``, if any."""
+        return cls._instances.get(f"{host}:{port}")
 
     @classmethod
     async def remove_all(cls) -> None:

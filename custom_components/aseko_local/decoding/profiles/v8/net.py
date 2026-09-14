@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ....models import AsekoDeviceType
+from ....models import AsekoDeviceType, AsekoProfileFlag
 from ...features import (
     ChlorineFlowRate,
     ChlorinePumpRunning,
@@ -31,6 +31,7 @@ NET = Profile(
     protocol=Protocol.V8,
     model=AsekoDeviceType.NET,
     features=FEATURES,
+    flags=frozenset({AsekoProfileFlag.DELAYS_IN_MINUTES}),
     evidence={
         ChlorinePumpRunning: "unconfirmed: outs[9] per the current decoder; net_v8_device_analysis.md lists outs[0] / outs[1] as candidates and no frame shows a pump running",
         Configuration: "derived: a probe is installed when its ains slot is not -500",

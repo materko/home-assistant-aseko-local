@@ -47,6 +47,11 @@ class AsekoProfileFlag(Enum):
     # started a backwash.  Read by ``trackers.backwash``.
     MENU_BIT_IS_PRESENCE_ONLY = "menu_bit_is_presence_only"
 
+    # ``startup_delay`` and ``dosing_delay`` are whole minutes (v8 areqs[17] /
+    # areqs[18], 2 = "2 min" in the app) instead of v7's seconds.  The value is
+    # kept as sent; ``sensor.py`` reads this flag for the unit.
+    DELAYS_IN_MINUTES = "delays_in_minutes"
+
 
 class AsekoProbeType(Enum):
     """Enumeration of Aseko Probes."""

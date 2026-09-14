@@ -34,6 +34,11 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
     """Validate the user input allows us to connect."""
+    existing = AsekoDeviceServer.get(data[CONF_HOST], data[CONF_PORT])
+    if existing is not None and existing.running:
+        # Already listening there (this entry's own server on a reconfigure):
+        # the address works, and a test bind would stop the live server.
+        return {"title": f"Aseko Local - {data[CONF_HOST]}:{data[CONF_PORT]}"}
     try:
         await AsekoDeviceServer.create(host=data[CONF_HOST], port=data[CONF_PORT])
         await AsekoDeviceServer.remove(host=data[CONF_HOST], port=data[CONF_PORT])
@@ -94,8 +99,11 @@ class AsekoLocalConfigFlow(ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("Unexpected exception")
                 errors["base"] = "unknown"
             else:
-                # 🛑 Server hart stoppen, bevor neu geladen wird
-                await AsekoDeviceServer.remove_all()
+                # Stop only this entry's server; the reload's unload removes it
+                # too, and the other entries keep receiving.
+                await AsekoDeviceServer.remove(
+                    config_entry.data[CONF_HOST], config_entry.data[CONF_PORT]
+                )
                 return self.async_update_reload_and_abort(
                     config_entry,
                     title=info["title"],
@@ -146,8 +154,11 @@ class AsekoLocalOptionsFlowHandler(OptionsFlow):
         config_entry = self.hass.config_entries.async_get_entry(self._entry_id)
 
         if user_input is not None:
-            # 🛑 Server hart stoppen, bevor neu geladen wird
-            await AsekoDeviceServer.remove_all()
+            # Stop only this entry's server before its reload; other entries
+            # keep receiving.
+            await AsekoDeviceServer.remove(
+                config_entry.data[CONF_HOST], config_entry.data[CONF_PORT]
+            )
 
             # save the options
             entry = self.async_create_entry(title="", data=user_input)

@@ -1,4 +1,4 @@
-"""Delay between doses (seconds).  v7: bytes 106-107.  v8: areqs[18]."""
+"""Delay between doses.  v7: bytes 106-107, seconds.  v8: areqs[18], minutes."""
 
 from __future__ import annotations
 

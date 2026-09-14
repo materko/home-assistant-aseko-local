@@ -27,3 +27,18 @@ def test_pool_volume_sensor() -> None:
 def test_delay_sensors() -> None:
     assert _value("delay_after_startup") == 120
     assert _value("delay_after_dose") == 30
+
+
+def test_delay_unit_follows_the_protocol() -> None:
+    """R3: v7 delays are seconds, v8 delays minutes — the entity says which."""
+    from custom_components.aseko_local.sensor import _delay_unit
+
+    from .test_decode_v8 import REFERENCE_FRAME
+
+    v7 = decode(bytes(_make_base_bytes()))
+    v8 = decode(REFERENCE_FRAME)
+    for key in ("delay_after_startup", "delay_after_dose"):
+        description = next(d for d in SENSORS if d.key == key)
+        assert description.unit_fn is _delay_unit
+        assert description.unit_fn(v7) == "s"
+        assert description.unit_fn(v8) == "min"

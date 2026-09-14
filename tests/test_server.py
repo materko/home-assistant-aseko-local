@@ -359,3 +359,47 @@ async def test_sync_frame_binary_shifted() -> None:
     assert frame[85] == 0x02
     # Serial number must be consistent across all three sub-frames
     assert frame[0:4] == frame[40:44] == frame[80:84]
+
+
+@pytest.mark.asyncio
+async def test_create_restarts_a_server_stopped_but_still_registered(
+    monkeypatch,
+) -> None:
+    """R1: stop() without remove() must not hand a dead server to the next setup."""
+    starts = []
+
+    async def dummy_start_server(handler, host, port) -> DummyServer:
+        starts.append(port)
+        return DummyServer()
+
+    monkeypatch.setattr(asyncio, "start_server", dummy_start_server)
+    await AsekoDeviceServer.remove(host="127.0.0.1", port=12350)
+
+    first = await AsekoDeviceServer.create(host="127.0.0.1", port=12350)
+    await first.stop()
+    assert not first.running
+
+    again = await AsekoDeviceServer.create(host="127.0.0.1", port=12350)
+    assert again is first
+    assert again.running
+    assert starts == [12350, 12350]
+
+    await AsekoDeviceServer.remove(host="127.0.0.1", port=12350)
+    assert AsekoDeviceServer.get("127.0.0.1", 12350) is None
+
+
+@pytest.mark.asyncio
+async def test_remove_leaves_other_servers_running(monkeypatch) -> None:
+    """R1: stopping one entry's server keeps the others listening."""
+
+    async def dummy_start_server(handler, host, port) -> DummyServer:
+        return DummyServer()
+
+    monkeypatch.setattr(asyncio, "start_server", dummy_start_server)
+    one = await AsekoDeviceServer.create(host="127.0.0.1", port=12351)
+    two = await AsekoDeviceServer.create(host="127.0.0.1", port=12352)
+
+    await AsekoDeviceServer.remove(host="127.0.0.1", port=12351)
+    assert not one.running
+    assert two.running
+    await AsekoDeviceServer.remove(host="127.0.0.1", port=12352)

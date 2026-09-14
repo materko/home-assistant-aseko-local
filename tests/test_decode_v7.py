@@ -2332,3 +2332,25 @@ def test_filtration_schedule_survives_the_service_menu() -> None:
 
     assert schedules == [AsekoFiltrationSchedule.NONSTOP_24H] * 3
     assert menus == [False, True, False]
+
+
+def test_unfilled_setpoints_read_unknown_not_scaled_0xff() -> None:
+    """R2: 0xFF in a setpoint byte is 'not filled in', never 25.5 pH or 2550 mV."""
+    data = _make_base_bytes()
+    data[4] = 0x0E  # SALT, REDOX probe
+    data[52] = 0xFF
+    data[53] = 0xFF
+    device = decode(bytes(data))
+    assert device.ph_target is None
+    assert device.redox_target is None
+    assert "ph_target" in device.features  # the probe is there, the entity stays
+    assert "redox_target" in device.features
+
+    data[4] = 0x0D  # SALT, CLF probe
+    device = decode(bytes(data))
+    assert device.free_chlorine_target is None
+    assert "free_chlorine_target" in device.features
+
+    data[4] = 0x05  # OXY
+    device = decode(bytes(data))
+    assert device.oxygen_dose_target is None

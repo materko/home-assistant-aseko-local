@@ -32,6 +32,7 @@ from .models import (
     AsekoDevice,
     AsekoElectrodePolarity,
     AsekoHeatingCondition,
+    AsekoProfileFlag,
     AsekoVariableSpeedPumpType,
 )
 
@@ -52,6 +53,16 @@ class AsekoSensorEntityDescription(SensorEntityDescription):
     # None value then shows as "unknown" rather than as a missing entity.
     # Leave unset for sensors every device has (connection status, last seen).
     feature: str | None = None
+    # The unit when it depends on the device (v8 sends the delays in minutes).
+    # None: ``native_unit_of_measurement`` as given.
+    unit_fn: Callable[[AsekoDevice], str] | None = None
+
+
+def _delay_unit(device: AsekoDevice) -> str:
+    """Minutes where the profile says so (v8), seconds otherwise (v7)."""
+    if AsekoProfileFlag.DELAYS_IN_MINUTES in device.flags:
+        return UnitOfTime.MINUTES
+    return UnitOfTime.SECONDS
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -642,6 +653,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
         suggested_display_precision=0,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:timer-play-outline",
+        unit_fn=_delay_unit,
         value_fn=lambda device: device.startup_delay,
     ),
     AsekoSensorEntityDescription(
@@ -653,6 +665,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
         suggested_display_precision=0,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:timer-outline",
+        unit_fn=_delay_unit,
         value_fn=lambda device: device.dosing_delay,
     ),
     AsekoSensorEntityDescription(
@@ -1032,6 +1045,13 @@ class AsekoLocalSensorEntity(AsekoLocalEntity, SensorEntity):
     """Representation of an Aseko device sensor entity."""
 
     entity_description: AsekoSensorEntityDescription
+
+    @property
+    def native_unit_of_measurement(self) -> str | None:
+        """The description's unit, or the device's where it depends on the protocol."""
+        if self.entity_description.unit_fn is not None:
+            return self.entity_description.unit_fn(self.device)
+        return super().native_unit_of_measurement
 
     @property
     def native_value(self) -> StateType:

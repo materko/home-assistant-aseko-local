@@ -412,3 +412,14 @@ def test_both_pumps_independent():
     device = decode(frame)
     assert device.ph_minus_pump_running is True
     assert device.chlorine_pump_running is True
+
+
+def test_delays_are_minutes_and_the_profile_says_so():
+    """R3: areqs[17] / areqs[18] = 2 is "2 min" in the app; kept as 2, flagged as minutes."""
+    from custom_components.aseko_local.models import AsekoProfileFlag
+
+    device = decode(REFERENCE_FRAME)
+    assert device.startup_delay == 2
+    assert device.dosing_delay == 2
+    assert AsekoProfileFlag.DELAYS_IN_MINUTES in device.flags
+    assert AsekoProfileFlag.DELAYS_IN_MINUTES in decode(REFERENCE_FRAME_105).flags

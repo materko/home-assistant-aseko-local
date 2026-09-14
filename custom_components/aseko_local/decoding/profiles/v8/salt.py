@@ -7,7 +7,7 @@ algicide canister and an electrode, but no chlorine canister.
 
 from __future__ import annotations
 
-from ....models import AsekoDeviceType
+from ....models import AsekoDeviceType, AsekoProfileFlag
 from ...features import (
     ChlorineFlowRate,
     ChlorinePumpRunning,
@@ -41,6 +41,7 @@ SALT = Profile(
     protocol=Protocol.V8,
     model=AsekoDeviceType.SALT,
     features=_SALT_FEATURES,
+    flags=frozenset({AsekoProfileFlag.DELAYS_IN_MINUTES}),
     evidence={
         Configuration: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",
         DosingDelay: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",

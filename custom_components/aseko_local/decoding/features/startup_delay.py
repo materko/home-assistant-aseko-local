@@ -1,4 +1,4 @@
-"""Dosing delay after startup (seconds).  v7: bytes 74-75.  v8: areqs[17]."""
+"""Dosing delay after startup.  v7: bytes 74-75, seconds.  v8: areqs[17], minutes."""
 
 from __future__ import annotations
 
