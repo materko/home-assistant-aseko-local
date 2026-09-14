@@ -450,7 +450,7 @@ v1.5.0 will confirm remaining byte[29] bits once more frames are available.
 6. ✅ `_fill_flowrate_data()`: OXY path reads `oxygen_flow_rate = byte[99]`, `flocculant_flow_rate = byte[101]`, `algaecide_flow_rate = byte[103]`
 7. ✅ `_fill_consumable_data()`: OXY masks now sufficient — `algaecide_pump_running` and `oxygen_pump_running` set correctly
 
-#### `tests/test_aseko_decoder.py`
+#### `tests/test_decode_v7.py`
 - ✅ OXY normal frame test (byte[29]=0x08)
 - ✅ OXY floc-running frame test (byte[29]=0x28)
 - ✅ OXY pH− pump test (byte[29]=0x88) — confirmed 2026-04-12

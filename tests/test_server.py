@@ -249,7 +249,7 @@ async def test_v8_frame_forwarded_before_decode() -> None:
     assert v8_forwarded["frame"] == V8_FULL_FRAME
 
 
-# Real parseable v8 frame — same as REFERENCE_FRAME in test_aseko_decoder_v8.py
+# Real parseable v8 frame — same as REFERENCE_FRAME in test_decode_v8.py
 _V8_REAL_FRAME = (
     b"{v1 123456789 804 0 27 "
     b"ins: 314 -500 -500 -500 0 0 0 0 1 -500 -500 -500 0 24 6 29 22 27 0 "

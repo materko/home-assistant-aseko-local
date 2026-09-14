@@ -1,7 +1,7 @@
-"""HTTP side of the Aseko mark card: photo upload, live status and zip export.
+"""HTTP side of the Aseko test cases card: photo upload, live status and zip export.
 
-The card (``frontend/aseko-mark-card.js``) is loaded on every dashboard, so
-``type: custom:aseko-mark-card`` works without adding a resource by hand.  It
+The card (``frontend/aseko-test-cases-card.js``) is loaded on every dashboard, so
+``type: custom:aseko-test-cases-card`` works without adding a resource by hand.  It
 talks to three authenticated endpoints, admin only like the diagnostics
 download they extend:
 
@@ -35,26 +35,26 @@ from .photos import PhotoStore, build_export_zip
 _LOGGER = logging.getLogger(__name__)
 
 STATIC_URL = f"/{DOMAIN}_static"
-CARD_FILE = "aseko-mark-card.js"
-DATA_MARK_CARD = f"{DOMAIN}_mark_card"
+CARD_FILE = "aseko-test-cases-card.js"
+DATA_RECORDING = f"{DOMAIN}_recording"
 # Well under Home Assistant's 16 MB request limit; phone photos are 2-8 MB.
 MAX_UPLOAD_BYTES = 15 * 1024 * 1024
 
 
 def photo_store(hass: HomeAssistant) -> PhotoStore:
     """The one photo folder shared by every Aseko Local entry."""
-    return hass.data[DATA_MARK_CARD]["photos"]
+    return hass.data[DATA_RECORDING]["photos"]
 
 
-async def async_setup_mark_card(hass: HomeAssistant, version: str) -> None:
+async def async_setup_recording(hass: HomeAssistant, version: str) -> None:
     """Serve the card, load it on every dashboard and register the endpoints, once."""
-    if DATA_MARK_CARD in hass.data:
+    if DATA_RECORDING in hass.data:
         return
     if hass.http is None or "frontend" not in hass.config.components:
         # A bare test instance without the web stack: nothing to serve to.
-        _LOGGER.debug("HTTP or frontend not loaded; the Aseko mark card is off")
+        _LOGGER.debug("HTTP or frontend not loaded; the Aseko test cases card is off")
         return
-    hass.data[DATA_MARK_CARD] = {
+    hass.data[DATA_RECORDING] = {
         "photos": PhotoStore(Path(hass.config.path(DOMAIN, "photos"))),
     }
     await hass.http.async_register_static_paths(

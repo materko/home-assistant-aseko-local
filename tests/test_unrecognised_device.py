@@ -13,7 +13,7 @@ from custom_components.aseko_local.diagnostics import (
     async_get_config_entry_diagnostics,
 )
 
-from .test_aseko_decoder import _make_base_bytes
+from .test_decode_v7 import _make_base_bytes
 
 logging.disable(logging.CRITICAL)
 

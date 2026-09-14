@@ -59,7 +59,7 @@ async def test_setup_unload_entry(hass, bypass_get_data, api_server_running) -> 
             pass
 
     @pytest.mark.asyncio
-    async def test_mirror_forwarder_enqueue_and_worker(monkeypatch) -> None:
+    async def test_forwarder_enqueue_and_worker(monkeypatch) -> None:
         """Test that AsekoCloudMirror enqueues and sends frames."""
 
         async def dummy_open_connection(host, port) -> tuple[None, DummyWriter]:

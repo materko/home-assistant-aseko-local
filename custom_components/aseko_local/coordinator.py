@@ -502,7 +502,7 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         self._request_frame_log_save(delay=5)
 
     def forget_markers(self) -> None:
-        """Clear the list of cases shown on the mark card, and save."""
+        """Clear the list of cases shown on the test cases card, and save."""
         self.frame_log.forget_markers()
         self._request_frame_log_save(delay=5)
 

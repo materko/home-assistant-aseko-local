@@ -1,8 +1,8 @@
 /*
- * Aseko mark card: mark test cases in the frame log, photograph the unit's
+ * Aseko test cases card: mark test cases in the frame log, photograph the unit's
  * display, and download everything later from any device.
  *
- *   type: custom:aseko-mark-card
+ *   type: custom:aseko-test-cases-card
  *   language: sk   # optional; defaults to the Home Assistant user language
  *
  * Loaded on every dashboard by the Aseko Local integration.  Cases (markers)
@@ -219,7 +219,7 @@ const format = (text, values) => text.replace(/\{(\w+)\}/g, (_, key) => (values 
 const esc = (text) =>
   String(text == null ? "" : text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
-class AsekoMarkCard extends HTMLElement {
+class AsekoTestCasesCard extends HTMLElement {
   setConfig(config) {
     this._config = config || {};
     this._lang = this._lang || "en";
@@ -738,11 +738,11 @@ class AsekoMarkCard extends HTMLElement {
   }
 }
 
-if (!customElements.get("aseko-mark-card")) {
-  customElements.define("aseko-mark-card", AsekoMarkCard);
+if (!customElements.get("aseko-test-cases-card")) {
+  customElements.define("aseko-test-cases-card", AsekoTestCasesCard);
   window.customCards = window.customCards || [];
   window.customCards.push({
-    type: "aseko-mark-card",
+    type: "aseko-test-cases-card",
     name: "Aseko test cases",
     description: "Mark test cases in the Aseko frame log, photograph the unit's display and download them from any device.",
   });

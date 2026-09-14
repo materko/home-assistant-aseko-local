@@ -1,7 +1,7 @@
 """Tests for the profile-driven decoder: features, profiles, detection, engine.
 
-The byte-level behaviour of every reading is covered by test_aseko_decoder.py
-and test_aseko_decoder_v8.py through the public facades.  What is tested here
+The byte-level behaviour of every reading is covered by test_decode_v7.py
+and test_decode_v8.py through decoding.decode().  What is tested here
 is the machinery those facades stand on: that the registry is consistent,
 that a profile cannot be built wrong, that detection picks the right profile
 for the right frame, and that the device says how it was decoded.
@@ -52,8 +52,8 @@ from custom_components.aseko_local.models import (
     AsekoProfileFlag,
 )
 
-from .test_aseko_decoder import _make_base_bytes
-from .test_aseko_decoder_v8 import REFERENCE_FRAME, REFERENCE_FRAME_105
+from .test_decode_v7 import _make_base_bytes
+from .test_decode_v8 import REFERENCE_FRAME, REFERENCE_FRAME_105
 
 DEVICE_FIELDS = {f.name for f in fields(AsekoDevice)}
 

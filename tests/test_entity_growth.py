@@ -23,7 +23,7 @@ from custom_components.aseko_local.datetime import _build_entities as _build_dat
 from custom_components.aseko_local.decoding import decode
 from custom_components.aseko_local.sensor import _build_sensor_entities
 
-from .test_aseko_decoder import _make_base_bytes
+from .test_decode_v7 import _make_base_bytes
 
 logging.disable(logging.CRITICAL)
 

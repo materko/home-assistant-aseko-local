@@ -31,7 +31,7 @@ from .const import (
 from .coordinator import AsekoLocalDataUpdateCoordinator
 from .forwarder import AsekoCloudMirror
 from .models import AsekoDevice
-from .recording.views import async_setup_mark_card
+from .recording.views import async_setup_recording
 from .server import AsekoDeviceServer
 from .trackers.consumption import PUMP_KEYS
 
@@ -196,9 +196,9 @@ async def async_setup_entry(
 
     coordinator.async_start_stale_check()
 
-    # The mark card and its photo / status / export endpoints, once per HA run
+    # The test cases card and its photo / status / export endpoints, once per HA run
     integration = await async_get_integration(hass, DOMAIN)
-    await async_setup_mark_card(hass, str(integration.version))
+    await async_setup_recording(hass, str(integration.version))
 
     # Optional: Cloud Mirror Forwarder to Aseko Cloud
     mirror_instance = None

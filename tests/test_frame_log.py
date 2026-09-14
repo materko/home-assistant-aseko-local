@@ -17,7 +17,7 @@ from custom_components.aseko_local.recording.frame_log import (
     decode_lines,
 )
 
-from .test_aseko_decoder_v8 import REFERENCE_FRAME
+from .test_decode_v8 import REFERENCE_FRAME
 
 T0 = datetime(2026, 9, 1, 12, 0, tzinfo=UTC)
 

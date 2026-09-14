@@ -3,7 +3,7 @@
 from custom_components.aseko_local.decoding import decode
 from custom_components.aseko_local.sensor import SENSORS
 
-from .test_aseko_decoder import _make_base_bytes
+from .test_decode_v7 import _make_base_bytes
 
 
 def _value(key: str):

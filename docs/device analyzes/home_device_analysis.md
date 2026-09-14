@@ -490,7 +490,7 @@ brand selection itself may be stored only in the Aseko cloud/app, not in the
 
 ## Test Coverage
 
-Tests for the HOME decoder live in `tests/test_aseko_decoder.py`:
+Tests for the HOME decoder live in `tests/test_decode_v7.py`:
 
 | Test | Covers |
 |------|--------|

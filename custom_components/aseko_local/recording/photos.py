@@ -1,6 +1,6 @@
 """Photos of the unit's display that go with frame-log markers, and the zip export.
 
-The Aseko mark card uploads a photo straight from the phone's camera.  The
+The Aseko test cases card uploads a photo straight from the phone's camera.  The
 upload writes a marker into the frame log at the moment it arrives and keeps
 the photo here, named after that moment, so photo and frames line up without
 EXIF data, file names or anyone comparing clocks.  Messengers strip all of
