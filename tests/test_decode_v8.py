@@ -496,3 +496,14 @@ def test_changing_bad_tokens_are_one_problem():
         for i in range(50)
     }
     assert problems == {("ains[0] is not a number",)}
+
+
+def test_bad_values_in_unknown_sections_are_one_problem():
+    """Audit: section names a frame invents must not make new kinds of problem."""
+    problems = {
+        decode(
+            REFERENCE_FRAME.replace(b"crc16:", f"other{i}: x crc16:".encode())
+        ).frame_problems
+        for i in range(50)
+    }
+    assert problems == {("unexpected section",)}

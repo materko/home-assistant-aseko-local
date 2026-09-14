@@ -38,6 +38,9 @@ FRAME_LOG_STORAGE_KEY_PREFIX = "aseko_local_frame_log_"
 # How long after a request the frame log is written, and how often frames may
 # request it: a crash loses at most a few minutes of frames.
 FRAME_LOG_SAVE_DELAY = 60
+# distinct warning reasons kept per unit; the rest are counted together
+MAX_WARNING_REASONS = 50
+OTHER_WARNING_REASONS = "other reasons (list full)"
 FRAME_LOG_SAVE_INTERVAL = timedelta(minutes=10)
 
 
@@ -422,9 +425,11 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
     def store_frame_warning(self, serial_number: int, reason: str) -> None:
         """Count one implausible frame from a unit, by reason, for diagnostics."""
         now = dt_util.utcnow().isoformat()
-        entry = self._frame_warnings.setdefault(serial_number, {}).setdefault(
-            reason, {"count": 0, "first_seen": now}
-        )
+        reasons = self._frame_warnings.setdefault(serial_number, {})
+        if reason not in reasons and len(reasons) >= MAX_WARNING_REASONS - 1:
+            # the register stays small whatever a unit sends
+            reason = OTHER_WARNING_REASONS
+        entry = reasons.setdefault(reason, {"count": 0, "first_seen": now})
         entry["count"] += 1
         entry["last_seen"] = now
 

@@ -14,6 +14,10 @@ from .protocol import Protocol
 
 # The sections the features read; a frame without one of them is reported.
 EXPECTED_SECTIONS = ("ins", "ains", "outs", "areqs")
+# Every section a v8 frame is known to carry.  A problem in any other section
+# is reported once per frame without its name, so an odd stream cannot make
+# a new kind of problem with every frame.
+KNOWN_SECTIONS = (*EXPECTED_SECTIONS, "reqs", "fncs", "mods", "flags", "crc16")
 
 # Matches "sectionname: <values>" up to the next section keyword or the end.
 _SECTION_RE = re.compile(r"(\w+):\s*(.*?)(?=\s+\w+:|$)", re.DOTALL)
@@ -85,10 +89,13 @@ def parse_v8(raw: bytes) -> V8Frame:
 
     sections: dict[str, list[int | None]] = {}
     problems: list[str] = []
+    unexpected = False
     for m in _SECTION_RE.finditer(body):
         name = m.group(1)
         if name == "v1":
             continue  # header - already parsed
+        if name not in KNOWN_SECTIONS:
+            unexpected = True
         # crc16 is hex; every other section is decimal
         base = 16 if name == "crc16" else 10
         values: list[int | None] = []
@@ -101,8 +108,11 @@ def parse_v8(raw: bytes) -> V8Frame:
                 values.append(None)
                 # the place only: a changing bad token must not make a new
                 # kind of problem every frame (the raw frame keeps the token)
-                problems.append(f"{name}[{index}] is not a number")
+                if name in KNOWN_SECTIONS:
+                    problems.append(f"{name}[{index}] is not a number")
         sections[name] = values
+    if unexpected:
+        problems.append("unexpected section")
     problems.extend(
         f"section {name!r} is missing"
         for name in EXPECTED_SECTIONS

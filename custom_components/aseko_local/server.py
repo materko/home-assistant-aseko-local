@@ -27,6 +27,27 @@ class FrameType(Enum):
 
 
 V8_SIGNATURE = b"{v1 "
+# (serial, reason) pairs remembered for "warn once"; past this every repeat
+# is logged at debug level, so an odd stream cannot grow the set forever
+MAX_WARNED = 1000
+
+
+async def _read_initial(reader: asyncio.StreamReader, buffered: bytes) -> bytes:
+    """Read until MESSAGE_SIZE bytes are in, or a whole v8 frame is.
+
+    A complete short v8 frame is handled at once, not after the next message
+    or the read timeout.  Raises ``asyncio.IncompleteReadError`` with the
+    newly read bytes when the unit hangs up first.
+    """
+    data = buffered
+    while len(data) < MESSAGE_SIZE and not _holds_whole_v8_frame(data):
+        chunk = await asyncio.wait_for(
+            reader.read(MESSAGE_SIZE - len(data)), timeout=READ_TIMEOUT
+        )
+        if not chunk:
+            raise asyncio.IncompleteReadError(data[len(buffered) :], MESSAGE_SIZE)
+        data += chunk
+    return data
 
 
 def _holds_whole_v8_frame(data: bytes) -> bool:
@@ -131,8 +152,10 @@ class AsekoDeviceServer:
         serial = int.from_bytes(frame[0:4], "big")
         for reason in self._implausible_values(frame):
             key = (serial, reason)
-            log = _LOGGER.debug if key in self._warned else _LOGGER.warning
-            self._warned.add(key)
+            first = key not in self._warned and len(self._warned) < MAX_WARNED
+            log = _LOGGER.warning if first else _LOGGER.debug
+            if first:
+                self._warned.add(key)
             log(
                 "Implausible v7 frame from %s (serial %s): %s; decoding it anyway",
                 addr,
@@ -155,8 +178,10 @@ class AsekoDeviceServer:
         for problem in device.frame_problems:
             reason = f"v8 value unreadable: {problem}"
             key = (serial, reason)
-            log = _LOGGER.debug if key in self._warned else _LOGGER.warning
-            self._warned.add(key)
+            first = key not in self._warned and len(self._warned) < MAX_WARNED
+            log = _LOGGER.warning if first else _LOGGER.debug
+            if first:
+                self._warned.add(key)
             log("v8 frame from %s (serial %s): %s", addr, serial, reason)
             if self._frame_warning_sink:
                 try:
@@ -238,14 +263,10 @@ class AsekoDeviceServer:
                     if _holds_whole_v8_frame(buffered):
                         initial = buffered
                     else:
-                        # Read up to MESSAGE_SIZE bytes to detect the frame type
-                        need = MESSAGE_SIZE - len(buffered)
-                        initial = buffered
-                        if need > 0:
-                            initial += await asyncio.wait_for(
-                                reader.readexactly(need), timeout=READ_TIMEOUT
-                            )
-                        elif V8_SIGNATURE not in initial:
+                        # Read up to MESSAGE_SIZE bytes to detect the frame
+                        # type -- or less, once a whole short v8 frame is in
+                        initial = await _read_initial(reader, buffered)
+                        if len(initial) > MESSAGE_SIZE and V8_SIGNATURE not in initial:
                             initial, carry = (
                                 initial[:MESSAGE_SIZE],
                                 initial[MESSAGE_SIZE:],

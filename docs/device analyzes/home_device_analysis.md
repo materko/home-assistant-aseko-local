@@ -61,7 +61,7 @@ Example values are from the representative frame unless stated otherwise.
 | 30–31 | — | padding | — | `0xFFFF` here; byte 31 see §8 |
 | 32–36 | unknown | — | — | `0x00` |
 | 37 | settings / schedule | bit field, §4 | confirmed | `0x43` |
-| 38 | unknown | — | — | `0x0a`; see §8 |
+| 38 | settings / state flags | bitmask | — | `0x0a`; `0x10` heating linked to filtration → `heating_linked_to_filtration`, assumed as on SALT (confirmed there 2026-09-14); other bits see §8 |
 | 39 | checksum | 0xAA XOR bytes 0–38 | confirmed | `0x85`; the decoder checks it |
 
 ### Segment 2 — bytes 40–79, setpoints and schedule

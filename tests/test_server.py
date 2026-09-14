@@ -546,3 +546,45 @@ async def test_two_long_v8_frames_in_one_read_stay_apart() -> None:
     await server._handle_client(reader, DummyWriter("127.0.0.1", 12358))
 
     assert [d.serial_number for d in received] == [123456789, 123456789]
+
+
+@pytest.mark.asyncio
+async def test_a_whole_short_v8_frame_is_handled_without_waiting_for_more() -> None:
+    """A complete short frame is decoded at once, while the connection stays open."""
+    received: list[AsekoDevice] = []
+
+    async def on_data(device: AsekoDevice) -> None:
+        received.append(device)
+
+    server = AsekoDeviceServer(host="127.0.0.1", port=12359, on_data=on_data)
+    reader = asyncio.StreamReader()
+    reader.feed_data(b"{v1 111 804 0 27 ins: 200 ains: 700 outs: 0 areqs: 70}\n")
+    handler = asyncio.ensure_future(
+        server._handle_client(reader, DummyWriter("127.0.0.1", 12359))
+    )
+    for _ in range(50):
+        if received:
+            break
+        await asyncio.sleep(0)
+
+    assert [(d.serial_number, d.ph) for d in received] == [(111, 7.0)]
+    reader.feed_eof()
+    await asyncio.wait_for(handler, 5)
+
+
+def test_the_warning_register_stays_bounded() -> None:
+    """Whatever a unit sends, the reasons kept per unit are capped."""
+    from custom_components.aseko_local.coordinator import (
+        MAX_WARNING_REASONS,
+        OTHER_WARNING_REASONS,
+    )
+
+    from .test_entity_growth import _coordinator
+
+    coordinator = _coordinator()
+    for i in range(1000):
+        coordinator.store_frame_warning(1, f"reason {i}")
+
+    reasons = coordinator.get_frame_warnings(1)
+    assert len(reasons) == MAX_WARNING_REASONS
+    assert reasons[OTHER_WARNING_REASONS]["count"] == 1000 - (MAX_WARNING_REASONS - 1)
