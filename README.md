@@ -34,7 +34,8 @@ The Aseko unit and your Home Assistant need to run on the same network or traffi
 
 | Device | Status |
 |---|---|
-| ASIN Aqua Home Pro, Salt Pro, Home Pro Oxy, Eox Pro (07.2026) | ❔ unit type not mapped: the unit gets no entities, but its frames reach the diagnostics — please share them (see *Help wanted* below) |
+| ASIN Aqua Pro | ❔ unit type not mapped: the unit gets no entities, but its frames reach the diagnostics — please share them (see *Help wanted* below) |
+| ASIN Aqua Home Pro, Salt Pro, Home Pro Oxy, Eox Pro (07.2026) | ❔ as above |
 | ASIN Aqua Net+ | ❔ as above |
 | ASIN Aqua | ❌ no network connection |
 
