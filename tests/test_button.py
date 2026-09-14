@@ -145,7 +145,7 @@ async def test_profi_reset_buttons(hass) -> None:
 
 @pytest.mark.asyncio
 async def test_press_resets_canister_counter(hass) -> None:
-    """Pressing a reset button calls coordinator.reset_consumption with counter=canister."""
+    """Pressing a reset button resets the canister counter of its own unit only."""
     device = decode(_make_net_bytes())
     entry = _dummy_entry(device)
     added = []
@@ -159,5 +159,5 @@ async def test_press_resets_canister_counter(hass) -> None:
     await cl_button.async_press()
 
     entry.runtime_data.coordinator.reset_consumption.assert_called_once_with(
-        pump_key="cl", counter="canister"
+        pump_key="cl", counter="canister", serial_number=device.serial_number
     )
