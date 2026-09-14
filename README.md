@@ -61,6 +61,8 @@ type: custom:aseko-test-cases-card
 
 Then, standing at the unit with your phone:
 
+> **Android:** open the dashboard in **Chrome** (your Home Assistant address, e.g. `http://192.168.1.10:8123`). The Home Assistant app offers only the gallery when the card asks for a photo, even with the camera permission granted; in Chrome **Photo + mark** opens the camera. A photo picked from the gallery works too.
+
 1. Check the header: **Last frame: N s ago** shows the unit is sending (a v7 unit sends about every 10 seconds).
 2. Change **one** setting on the unit.
 3. Type what you changed, e.g. *Heating control ON*, and tap **Photo + mark** to photograph the display, or **Mark** without a photo. Either way the case is **not** written at the tap: the photo is stored at once, but the marker waits for the next whole frame from the unit (at most 60 seconds), because the unit may not have sent the change yet — with its settings menu open it sends nothing until the menu is closed. The card then says *frame received, go on with the next change*; only then change the next setting. When several units send to the same entry, pick the one you are testing in the **Unit** list.
