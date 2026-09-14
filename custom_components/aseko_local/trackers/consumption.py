@@ -49,6 +49,9 @@ class AsekoConsumptionTracker:
     _last_flowrate: dict[str, int | None] = field(
         default_factory=lambda: {k: None for k in PUMP_KEYS}
     )
+    # True once the counters came from the coordinator's store: the sensors
+    # then must not overwrite them with their rounded litres
+    restored: bool = False
 
     # ------------------------------------------------------------------ #
     # Public API                                                           #
@@ -80,7 +83,8 @@ class AsekoConsumptionTracker:
             if is_on and flowrate_per_min:
                 last = self._last_on[key]
                 if last is not None:
-                    raw_delta = now - last
+                    # a clock set back must not take consumption away
+                    raw_delta = max(now - last, timedelta(0))
                     # Cap delta to prevent phantom consumption after outages
                     effective_delta = min(raw_delta, MAX_PUMP_INTERVAL)
                     ml = (effective_delta.total_seconds() / 60.0) * flowrate_per_min
@@ -101,7 +105,7 @@ class AsekoConsumptionTracker:
                 last = self._last_on[key]
                 saved_flowrate = self._last_flowrate[key]
                 if last is not None and saved_flowrate:
-                    raw_delta = now - last
+                    raw_delta = max(now - last, timedelta(0))
                     effective_delta = min(raw_delta, MAX_PUMP_INTERVAL)
                     ml = (effective_delta.total_seconds() / 60.0) * saved_flowrate
                     self._counters[key].total += ml
@@ -150,6 +154,25 @@ class AsekoConsumptionTracker:
             for c in counters:
                 setattr(self._counters[k], c, 0.0)
                 _LOGGER.debug("Tracker reset: %s.%s → 0", k, c)
+
+    def to_store(self) -> dict[str, dict[str, float]]:
+        """The exact counters in millilitres, for the coordinator's store."""
+        return {
+            key: {"total": c.total, "canister": c.canister}
+            for key, c in self._counters.items()
+        }
+
+    def load_store(self, data: dict[str, dict[str, float]]) -> None:
+        """Restore counters saved by ``to_store``; unknown or broken entries are skipped."""
+        for key, counters in data.items():
+            if key not in self._counters or not isinstance(counters, dict):
+                continue
+            try:
+                self._counters[key].total = float(counters.get("total", 0.0))
+                self._counters[key].canister = float(counters.get("canister", 0.0))
+            except (TypeError, ValueError):
+                continue
+        self.restored = True
 
     def seed(self, pump_key: str, total_ml: float, canister_ml: float) -> None:
         """Restore persisted values after HA restart.

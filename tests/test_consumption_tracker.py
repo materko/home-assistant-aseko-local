@@ -310,3 +310,46 @@ def test_seed_counter_invalid_counter_raises():
     tracker = AsekoConsumptionTracker()
     with pytest.raises(ValueError, match="counter must be"):
         tracker.seed_counter("cl", "whatever", 1.0)
+
+
+# ── clock set back, exact counters in a store ─────────────────────────────────
+
+
+def test_a_clock_set_back_takes_nothing_away():
+    """Minor fix 4: a negative interval between frames credits zero, never less."""
+    tracker = AsekoConsumptionTracker()
+    tracker.update(_device(cl_on=True, cl_rate=60), T0)
+    tracker.update(_device(cl_on=True, cl_rate=60), T0 + timedelta(seconds=10))
+    before = tracker.get("cl", "total")
+    tracker.update(_device(cl_on=True, cl_rate=60), T0 - timedelta(minutes=5))
+    tracker.update(_device(cl_on=False, cl_rate=60), T0 - timedelta(minutes=6))
+    assert tracker.get("cl", "total") == before
+
+
+def test_counters_round_trip_through_the_store_exactly():
+    """Minor fix 4: the store keeps the millilitres the sensor would round to litres."""
+    tracker = AsekoConsumptionTracker()
+    tracker.update(_device(cl_on=True, cl_rate=37), T0)
+    tracker.update(_device(cl_on=True, cl_rate=37), T0 + timedelta(seconds=7))
+    stored = tracker.to_store()
+
+    restored = AsekoConsumptionTracker()
+    assert restored.restored is False
+    restored.load_store(stored)
+    assert restored.restored is True
+    assert restored.get("cl", "total") == tracker.get("cl", "total")
+    assert restored.get("cl", "canister") == tracker.get("cl", "canister")
+
+
+def test_a_broken_store_entry_is_skipped():
+    restored = AsekoConsumptionTracker()
+    restored.load_store(
+        {
+            "cl": {"total": "x"},
+            "nope": {"total": 5},
+            "floc": "bad",
+            "ph_minus": {"total": 12.5},
+        }
+    )
+    assert restored.get("cl", "total") == 0.0
+    assert restored.get("ph_minus", "total") == 12.5

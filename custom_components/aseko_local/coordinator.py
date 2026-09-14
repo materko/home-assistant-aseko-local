@@ -30,6 +30,10 @@ from .trackers.consumption import AsekoConsumptionTracker
 _LOGGER = logging.getLogger(__name__)
 
 FRAME_LOG_STORAGE_VERSION = 1
+CONSUMPTION_STORAGE_VERSION = 1
+CONSUMPTION_STORAGE_KEY_PREFIX = "aseko_local_consumption_"
+# pumps run for seconds at a time: save the exact millilitres at most once a minute
+CONSUMPTION_SAVE_INTERVAL = timedelta(seconds=60)
 FRAME_LOG_STORAGE_KEY_PREFIX = "aseko_local_frame_log_"
 # How long after a request the frame log is written, and how often frames may
 # request it: a crash loses at most a few minutes of frames.
@@ -61,6 +65,9 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         )
         # One tracker per device serial number
         self._trackers: dict[int, AsekoConsumptionTracker] = {}
+        # True once the entry's platforms are set up.  Until then every frame
+        # asks for the set-up again, so one that failed is retried.
+        self.platforms_ready = False
         # One backwash tracker per device serial number
         self._backwash_trackers: dict[int, BackwashTracker] = {}
         # Last raw frame per device serial number (for diagnostics)
@@ -76,6 +83,9 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         # bytes, for the diagnostics download; persisted across restarts
         self.frame_log = FrameLog()
         self._frame_log_store: Store[dict[str, Any]] | None = None
+        # exact consumption counters per serial number, saved across restarts
+        self._consumption_store: Store[dict[str, Any]] | None = None
+        self._consumption_saved_at: datetime | None = None
         self._frame_log_save_requested: datetime | None = None
         # When each unit's last frame arrived, and mark_dump calls waiting for
         # the next one
@@ -157,6 +167,7 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
             if device.serial_number not in self._trackers:
                 self._trackers[device.serial_number] = AsekoConsumptionTracker()
             self._trackers[device.serial_number].update(device, dt_util.now())
+            self._request_consumption_save()
 
             _LOGGER.debug(
                 "✅ Stored device %s → known serials now: %s",
@@ -175,10 +186,11 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         )
         self.async_set_updated_data(new_data)
 
+        if (is_new_device or not self.platforms_ready) and self.cb_new_device:
+            # A set-up that failed is not lost: the next frame tries again.
+            self.hass.loop.create_task(self.cb_new_device(device))
         if is_new_device:
             _LOGGER.debug("🆕 NEW DEVICE DISCOVERED: %s", device.serial_number)
-            if self.cb_new_device is not None:
-                self.hass.loop.create_task(self.cb_new_device(device))
             for listener in list(self._new_device_listeners):
                 try:
                     listener(device)
@@ -563,7 +575,60 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         """Reset consumption counters for all tracked devices and notify listeners."""
         for tracker in self._trackers.values():
             tracker.reset(pump_key=pump_key, counter=counter)
+        self._request_consumption_save(now=True)
         self.async_update_listeners()
+
+    # -- consumption store ---------------------------------------------------
+
+    async def async_load_consumption(self) -> None:
+        """Restore the exact consumption counters saved before the last restart.
+
+        The sensors restore only rounded litres; with this store they are not
+        needed, and a tracker loaded from it ignores them.
+        """
+        self._consumption_store = Store(
+            self.hass,
+            CONSUMPTION_STORAGE_VERSION,
+            f"{CONSUMPTION_STORAGE_KEY_PREFIX}{self.config_entry.entry_id}",
+        )
+        data = await self._consumption_store.async_load()
+        if not isinstance(data, dict):
+            return
+        for serial, counters in data.items():
+            try:
+                serial_number = int(serial)
+            except (TypeError, ValueError):
+                continue
+            if not isinstance(counters, dict):
+                continue
+            tracker = self._trackers.setdefault(
+                serial_number, AsekoConsumptionTracker()
+            )
+            tracker.load_store(counters)
+
+    def _consumption_data(self) -> dict[str, Any]:
+        return {str(serial): t.to_store() for serial, t in self._trackers.items()}
+
+    def _request_consumption_save(self, now: bool = False) -> None:
+        """Save the counters soon; at most once a minute while pumps run."""
+        if self._consumption_store is None:
+            return
+        stamp = dt_util.utcnow()
+        if (
+            not now
+            and self._consumption_saved_at is not None
+            and stamp - self._consumption_saved_at < CONSUMPTION_SAVE_INTERVAL
+        ):
+            return
+        self._consumption_saved_at = stamp
+        self._consumption_store.async_delay_save(
+            self._consumption_data, 1 if now else 30
+        )
+
+    async def async_save_consumption(self) -> None:
+        """Write the counters now (on unload)."""
+        if self._consumption_store is not None:
+            await self._consumption_store.async_save(self._consumption_data())
 
     def get_device(self, serial_number: int) -> AsekoDevice | None:
         _LOGGER.debug("get_device(%s) called", serial_number)

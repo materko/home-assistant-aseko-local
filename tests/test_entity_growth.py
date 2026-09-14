@@ -370,3 +370,35 @@ def test_enabled_unique_ids_are_the_shown_quantities() -> None:
     ids = set(enabled_unique_ids(entities))
     assert f"{SERIAL}ph" in ids
     assert f"{SERIAL}flowrate_algicide" not in ids
+
+
+def test_a_failed_platform_setup_is_asked_again_on_the_next_frame() -> None:
+    """Minor fix 1: until the platforms are up, every frame requests the set-up."""
+    requested: list[int] = []
+
+    async def cb(device):
+        requested.append(device.serial_number)
+
+    coordinator = _coordinator()
+    coordinator.cb_new_device = cb
+
+    def run(coro):
+        try:
+            coro.send(None)
+        except StopIteration:
+            pass
+
+    coordinator.hass.loop.create_task.side_effect = run
+
+    frame = decode(_salt_frame(0xC3, flowrate_third_pump=40))
+    coordinator.devices_update_callback(frame)  # new device
+    coordinator.devices_update_callback(
+        decode(_salt_frame(0xC3, flowrate_third_pump=40))
+    )  # setup failed: again
+    assert requested == [SERIAL, SERIAL]
+
+    coordinator.platforms_ready = True
+    coordinator.devices_update_callback(
+        decode(_salt_frame(0xC3, flowrate_third_pump=40))
+    )
+    assert requested == [SERIAL, SERIAL]  # set up: not asked again

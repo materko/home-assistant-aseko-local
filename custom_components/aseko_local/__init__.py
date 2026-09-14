@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from dataclasses import dataclass
 
 import voluptuous as vol
@@ -75,6 +76,9 @@ CLEAR_LAST_SCHEDULED_BACKWASH_SCHEMA = vol.Schema(
     }
 )
 
+# a platform set-up that keeps failing is logged at most this often (seconds)
+SETUP_ERROR_LOG_INTERVAL = 60
+
 MARK_DUMP_SCHEMA = vol.Schema(
     {
         vol.Optional("note"): vol.All(cv.string, vol.Length(max=200)),
@@ -135,6 +139,8 @@ async def async_setup_entry(
         base_keys = ("serial_number", "device_type")
         return all(getattr(dev, k, None) is not None for k in base_keys)
 
+    setup_error_logged = [float("-inf")]  # monotonic time of the last error logged
+
     async def new_device_callback(device: AsekoDevice) -> None:
         # Protected against early calls before runtime_data is set
         rd = getattr(config_entry, "runtime_data", None)
@@ -155,8 +161,18 @@ async def async_setup_entry(
                 config_entry, PLATFORMS
             )
         except Exception:
-            rd.device_discovered = False  # allow retry on next device callback
-            raise
+            # The coordinator asks again on the next frame; log at most once a
+            # minute so a failure that persists does not flood the log.
+            rd.device_discovered = False
+            now = time.monotonic()
+            if now - setup_error_logged[0] >= SETUP_ERROR_LOG_INTERVAL:
+                setup_error_logged[0] = now
+                _LOGGER.exception(
+                    "Setting up the Aseko Local entities failed; retrying on the "
+                    "next frame"
+                )
+            return
+        rd.coordinator.platforms_ready = True
         # Load persisted backwash timestamps for known devices (e.g. after
         # an HA restart, so the sensor shows the last observed value
         # immediately on first frame).
@@ -177,6 +193,8 @@ async def async_setup_entry(
 
     # The frame log survives restarts; load it before frames start arriving
     await coordinator.async_load_frame_log()
+    # exact consumption counters, before the sensors restore rounded litres
+    await coordinator.async_load_consumption()
 
     # Raw-Sink: caches the last frame per device for diagnostics
     raw_sink = coordinator.store_raw_frame
@@ -425,6 +443,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if getattr(entry, "runtime_data", None):
             entry.runtime_data.coordinator.async_stop_stale_check()
             await entry.runtime_data.coordinator.async_save_frame_log()
+            await entry.runtime_data.coordinator.async_save_consumption()
             if entry.runtime_data.server:
                 # Remove, not just stop: a stopped server left in the registry
                 # would be handed back to the next setup without listening.

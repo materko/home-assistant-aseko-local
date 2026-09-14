@@ -1049,7 +1049,10 @@ class AsekoConsumptionSensorEntity(AsekoLocalEntity, RestoreSensor):
             if self.device.serial_number is None:
                 return
             tracker = self.coordinator.get_tracker(self.device.serial_number)
-            if tracker is not None:
+            # The coordinator's store holds the exact millilitres; the sensor's
+            # rounded litres only seed a tracker that store had nothing for
+            # (the first start after an upgrade).
+            if tracker is not None and not tracker.restored:
                 # Persisted value is in L; tracker works internally in mL
                 tracker.seed_counter(
                     self.entity_description.pump_key,
