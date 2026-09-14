@@ -171,7 +171,7 @@ Mapped bit by bit by toggling one setting at a time on the unit (2026-09-13).
 | `0x10` | filtration period 1 enabled → `filtration_schedule` | confirmed | |
 | `0x20` | filtration period 2 enabled → `filtration_schedule` | confirmed | |
 | `0x40` | Waterlevel (level meter) enabled → `water_level_sensor_enabled` | confirmed | winter mode clears it |
-| `0x80` | third port doses algicide (clear = flocculant) | confirmed | routes `algaecide_*` / `flocculant_*`; Issue #84 exception in [§5](#third-pump-routing) |
+| `0x80` | third port doses algicide (clear = flocculant) | confirmed | routes `algaecide_*` / `flocculant_*`; follows the dosing unit ml/m³/day vs ml/h (2026-09-14); Issue #84 exception in [§5](#third-pump-routing) |
 
 These are settings, not hardware: Waterlevel, heating control or the VS pump can be enabled without the sensor, heater or pump connected; the app then shows nothing for it.
 
@@ -282,6 +282,8 @@ Switching winter mode on (2026-09-13, twice):
 | 2026-09-14 05:00 | `alarm_no_flow_to_probes` (`byte[13]` 0x04) | on for one second after filtration start, off with the flow | unit: *there is no flow to probes* | ✓ raw frames of the frame log |
 | 2026-09-14 20:16–20:17 | `heating_linked_to_filtration` (`byte[38]` 0x10) | set with *heating control parent to filtration* ON, cleared with it OFF | setting on the unit | ✓ one clean on/off pair, heating control on throughout |
 | 2026-09-14 20:19–20:23 | `variable_speed_pump_enabled` / `variable_speed_pump_type` | `byte[22]` 0x08 on/off with each switch; `byte[78]` 0x0C Speck/Uwe 0x00, Dab/Pentair 0x04, Hayward 0x08 | VS pump on/off, brand chosen | ✓ four cycles, one per brand |
+| 2026-09-14 20:59–21:00 | third port routing (`byte[37]` 0x80) | clear with the dosing unit set to ml/h, set again with ml/m³/day | setting on the unit | ✓ the dosing unit is how the unit switches the port between flocculant (ml/h) and algicide (ml/m³/day) |
+| 2026-09-14 20:59:42 | third port running (`byte[29]` 0x20) | one frame, `0x68` | 2 s dose | ✓ |
 | 2026-09-14 20:24–20:25 | `water_level_high_alarm` threshold (`byte[105]`) | 73 → 26 cm with the level at 30 cm for 58 s | no alarm on the unit or in the app | `byte[12]` / `byte[13]` unchanged — see open question 3 |
 | 2026-09-13/14 | `ph_minus_concentration` (`byte[112]`) | moved | 15 → 21 % | ✓ |
 | 2026-09-13/14 | `water_temperature_target` (`byte[55]`) | moved | 25 → 15 °C | ✓ |
