@@ -29,6 +29,8 @@ def decode(
     device = AsekoDevice(
         device_type=profile.model,
         flags=profile.flags,
+        profile=profile.name,
+        frame_problems=getattr(frame, "problems", ()),
     )
     present: set[str] = set()
     for feature, read in profile.plan:

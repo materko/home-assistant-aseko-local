@@ -83,6 +83,8 @@ def test_every_frame_derived_field_has_a_feature() -> None:
     owned = {f.field for f in ALL_FEATURES}
     not_from_the_frame = {
         "device_type",  # set from the profile
+        "profile",  # the name of the profile that read the frame
+        "frame_problems",  # what the v8 parser could not read
         "features",
         "possible_features",  # set from the profile
         "present_features",  # the frame's features, kept apart from the sticky ones

@@ -100,6 +100,7 @@ def test_diagnostics_report_the_unrecognised_unit_with_its_frame() -> None:
     entry_dump = dump["unrecognised_devices"][0]
     assert entry_dump["device"]["serial_number"] == SERIAL
     assert entry_dump["device"]["device_type"] is None
+    assert entry_dump["device"]["profile"] == v7.UNKNOWN.name
     assert entry_dump["device"]["water_temperature"] == 24.5
     assert entry_dump["raw_frame_v7"]["available"] is True
     assert entry_dump["raw_frame_v7"]["hex_dump"] == raw.hex()
@@ -123,6 +124,11 @@ def test_diagnostics_still_report_a_known_unit_the_same_way() -> None:
     (info,) = dump["devices"]
     assert info["device"]["device_type"] == "ASIN AQUA Salt"
     assert info["device"]["features"]
+    # which profile read it, and where it reads differently from the default
+    assert info["device"]["profile"] == "v7 SALT"
+    overrides = info["device"]["reading_overrides"]
+    assert overrides["freeze_protection_enabled"] == "decode_v7_winter_mode"
+    assert info["device"]["frame_problems"] == []
     assert info["raw_frame_v7"]["available"] is True
     assert info["raw_frame_v8"]["available"] is False
     assert info["partial_frame"]["available"] is False

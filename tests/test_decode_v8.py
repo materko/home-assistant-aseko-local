@@ -424,3 +424,34 @@ def test_delays_are_minutes_and_the_profile_says_so():
     assert device.dosing_delay == 2
     assert AsekoProfileFlag.DELAYS_IN_MINUTES in device.flags
     assert AsekoProfileFlag.DELAYS_IN_MINUTES in decode(REFERENCE_FRAME_105).flags
+
+
+# ---------------------------------------------------------------------------
+# Unreadable values and the profile on the device
+# ---------------------------------------------------------------------------
+
+
+def test_crc16_is_read_as_hex():
+    """crc16 is the one hex section; it no longer comes out empty."""
+    assert parse_v8(REFERENCE_FRAME).sections["crc16"] == [0xC3C8]
+    assert parse_v8(REFERENCE_FRAME).problems == ()
+
+
+def test_one_unreadable_value_does_not_blank_its_section():
+    """A corrupt token reads None and is reported; its neighbours stay."""
+    frame = parse_v8(REFERENCE_FRAME.replace(b"ains: 708 ", b"ains: 7x8 "))
+    assert frame.sections["ains"][0] is None
+    assert frame.sections["ains"][1] == 708
+    assert frame.problems == ("ains[0]: '7x8' is not a number",)
+
+    device = decode(REFERENCE_FRAME.replace(b"ains: 708 ", b"ains: 7x8 "))
+    assert device.ph is None
+    assert device.redox == 779
+    assert device.frame_problems == ("ains[0]: '7x8' is not a number",)
+
+
+def test_device_names_the_profile_that_read_it():
+    assert decode(REFERENCE_FRAME).profile == "v8 NET"
+    assert decode(REFERENCE_FRAME_105).profile == "v8 SALT"
+    unknown = decode(REFERENCE_FRAME.replace(b" 804 ", b" 999 "))
+    assert unknown.profile == "v8 unknown header type"

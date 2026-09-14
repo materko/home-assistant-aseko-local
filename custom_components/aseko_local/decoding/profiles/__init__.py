@@ -35,6 +35,14 @@ ALL_PROFILES: tuple[Profile, ...] = (
 FALLBACK_PROFILES: tuple[Profile, ...] = (v7.UNKNOWN, v8.UNKNOWN)
 
 
+_BY_NAME: dict[str, Profile] = {profile.name: profile for profile in ALL_PROFILES}
+
+
+def profile_named(name: str | None) -> Profile | None:
+    """The profile called ``name`` (``AsekoDevice.profile``), or None."""
+    return _BY_NAME.get(name) if name else None
+
+
 def profile_for(protocol: Protocol, model: AsekoDeviceType | None) -> Profile:
     """Return the profile for a known combination."""
     if protocol is Protocol.V8:

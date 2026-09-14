@@ -42,11 +42,14 @@ class V8Frame:
     raw: bytes
     serial_number: int
     header_type: int
-    sections: dict[str, list[int]]
+    sections: dict[str, list[int | None]]
+    #: What the parser could not read, e.g. ``ains[3]: 'x7' is not a number``.
+    #: The value at that position is None; the rest of the section stands.
+    problems: tuple[str, ...] = ()
     protocol: Protocol = field(default=Protocol.V8, init=False)
 
     def get(self, section: str, index: int) -> int | None:
-        """Return ``sections[section][index]``, or None if out of range."""
+        """Return ``sections[section][index]``, or None if out of range or unreadable."""
         values = self.sections.get(section, [])
         return values[index] if index < len(values) else None
 
@@ -73,20 +76,29 @@ def parse_v8(raw: bytes) -> V8Frame:
     serial_number = int(header_match.group(1))
     header_type = int(header_match.group(2))
 
-    sections: dict[str, list[int]] = {}
+    sections: dict[str, list[int | None]] = {}
+    problems: list[str] = []
     for m in _SECTION_RE.finditer(body):
         name = m.group(1)
         if name == "v1":
             continue  # header - already parsed
-        try:
-            sections[name] = [int(v) for v in m.group(2).split()]
-        except ValueError:
-            # crc16 is hex, not decimal - keep the section, ignore the value
-            sections[name] = []
+        # crc16 is hex; every other section is decimal
+        base = 16 if name == "crc16" else 10
+        values: list[int | None] = []
+        for index, token in enumerate(m.group(2).split()):
+            try:
+                values.append(int(token, base))
+            except ValueError:
+                # One unreadable value must not blank the whole section: the
+                # others are still good, and this one reads as unknown.
+                values.append(None)
+                problems.append(f"{name}[{index}]: {token[:20]!r} is not a number")
+        sections[name] = values
 
     return V8Frame(
         raw=bytes(raw),
         serial_number=serial_number,
         header_type=header_type,
         sections=sections,
+        problems=tuple(problems),
     )

@@ -482,3 +482,30 @@ async def test_a_restarted_server_uses_the_new_callbacks(monkeypatch) -> None:
     assert old_calls == []
     assert len(new_calls) == 1
     await AsekoDeviceServer.remove(host="127.0.0.1", port=12355)
+
+
+@pytest.mark.asyncio
+async def test_unreadable_v8_value_is_reported_and_the_frame_still_delivered() -> None:
+    """A corrupt token costs one value, not the frame: counted, logged, decoded."""
+    received: list[AsekoDevice] = []
+    warnings: list[tuple[int, str]] = []
+
+    async def on_data(device: AsekoDevice) -> None:
+        received.append(device)
+
+    server = AsekoDeviceServer(
+        host="127.0.0.1",
+        port=12356,
+        on_data=on_data,
+        frame_warning_sink=lambda serial, reason: warnings.append((serial, reason)),
+    )
+    reader = asyncio.StreamReader()
+    reader.feed_data(_V8_REAL_FRAME.replace(b"ains: 708 ", b"ains: 7x8 "))
+    reader.feed_eof()
+    await server._handle_client(reader, DummyWriter("127.0.0.1", 12356))
+
+    assert len(received) == 1
+    assert received[0].ph is None
+    assert warnings == [
+        (123456789, "v8 value unreadable: ains[0]: '7x8' is not a number")
+    ]

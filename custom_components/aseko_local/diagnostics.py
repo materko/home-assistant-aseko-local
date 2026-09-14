@@ -20,6 +20,7 @@ from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.core import HomeAssistant
 
 from . import AsekoLocalConfigEntry
+from .decoding.profiles import profile_named
 from .trackers.consumption import PUMP_KEYS
 
 # Fields that may contain personally identifying information
@@ -255,12 +256,31 @@ def _str_or_none(value: Any) -> str | None:
     return None if value is None else str(value)
 
 
+def _reading_overrides(profile_name: str | None) -> dict[str, str]:
+    """Feature field -> reading name for what the profile reads its own way."""
+    profile = profile_named(profile_name)
+    if profile is None:
+        return {}
+    return {
+        feature.field: reading
+        for feature, reading in sorted(
+            profile.overrides.items(), key=lambda item: item[0].field
+        )
+    }
+
+
 def _device_state(device: Any) -> dict[str, Any]:
     """The decoded state of one unit, as the dump reports it."""
     serial = device.serial_number
     return {
         "serial_number": serial,
         "device_type": device.device_type.value if device.device_type else None,
+        # the profile that read the last frame, and the fields it reads a
+        # different way than the protocol default (feature field -> reading)
+        "profile": getattr(device, "profile", None),
+        "reading_overrides": _reading_overrides(getattr(device, "profile", None)),
+        # values the parser could not read in the last frame (they read None)
+        "frame_problems": list(getattr(device, "frame_problems", ())),
         # How the frame was read: which fields the chosen profile decodes,
         # and the semantic flags it carries.  A field missing from
         # "features" is one this model does not have, not one that failed

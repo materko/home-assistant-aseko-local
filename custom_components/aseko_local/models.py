@@ -165,6 +165,12 @@ class AsekoDevice:
     # present_features -- what the last frame showed present.  ``features``
     #     is the union of everything seen since Home Assistant started; an
     #     entity whose field is not present right now is unavailable.
+    # profile -- name of the profile that read the last frame ("v7 SALT",
+    #     "v8 unknown header type"); ``decoding.profiles.profile_named``
+    #     returns it.
+    # frame_problems -- what the parser could not read in the last frame.
+    profile: str | None = None
+    frame_problems: tuple[str, ...] = ()
     features: frozenset[str] = field(default_factory=frozenset)
     possible_features: frozenset[str] = field(default_factory=frozenset)
     present_features: frozenset[str] = field(default_factory=frozenset)

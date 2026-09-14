@@ -139,6 +139,25 @@ class AsekoDeviceServer:
                         "Frame warning sink raised an exception", exc_info=True
                     )
 
+    async def _report_frame_problems(self, device: AsekoDevice, addr: Any) -> None:
+        """Log and count values the parser could not read; the frame still counts."""
+        serial = device.serial_number
+        if serial is None:
+            return
+        for problem in device.frame_problems:
+            reason = f"v8 value unreadable: {problem}"
+            key = (serial, reason)
+            log = _LOGGER.debug if key in self._warned else _LOGGER.warning
+            self._warned.add(key)
+            log("v8 frame from %s (serial %s): %s", addr, serial, reason)
+            if self._frame_warning_sink:
+                try:
+                    await self._maybe_await(self._frame_warning_sink(serial, reason))
+                except Exception:
+                    _LOGGER.error(
+                        "Frame warning sink raised an exception", exc_info=True
+                    )
+
     async def _report_rejected_v8(self, frame: bytes, reason: str) -> None:
         """Count a v8 frame the decoder rejected, under its serial if readable."""
         if not self._frame_warning_sink:
@@ -280,6 +299,7 @@ class AsekoDeviceServer:
                             exc_info=True,
                         )
                         break
+                    await self._report_frame_problems(device, addr)
                     _LOGGER.debug("v8 decoded data from %s: %s", addr, device)
                     await self._maybe_call_on_data(device)
                     continue

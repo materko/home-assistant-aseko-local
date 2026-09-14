@@ -164,7 +164,7 @@ SALT = Profile(
         PhMinusFlowRate: "confirmed: byte[95] (Issue #110, #115)",
         HeatingRunning: "assumed: byte[29] 0x04 per JS-DE-Tech relay_byte bit 2; never set in the own SALT dumps, whose unit has heating control OFF",
         HeatingControlEnabled: "confirmed: byte[37] 0x08; confirmed on the own SALT by toggling it on the unit with a frame-log marker after each change, 2026-09-13/14",
-        MaxRefillTime: "confirmed: bytes 76-77 in seconds, 1140 s = 19 min \"Max. time of filling\" on the unit display and in the Aseko Live app, 2026-09-11",
+        MaxRefillTime: 'confirmed: bytes 76-77 in seconds, 1140 s = 19 min "Max. time of filling" on the unit display and in the Aseko Live app, 2026-09-11',
         MaxPhDoses: "confirmed: byte[115] followed a change of the unit's Safety Functions setting from 20 to 17 on the REDOX unit, 2026-09-12 19:47 -- and 17 appears nowhere else in that frame; 40 on the CLF unit",
         Ph: "confirmed: bytes 14-15 / 100 on every model",
         PhMinusConcentration: "confirmed: byte[112] = 14 then 15 % in the own SALT dumps, 37 frames 2026-08-08..28, checked against the unit by the maintainer; matches the app and unit display, 2026-09-11",
