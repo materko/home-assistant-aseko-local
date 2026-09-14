@@ -105,6 +105,8 @@ OXY = Profile(
         *ALARMS,
     ),
     overrides={
+        # byte[103] is the algicide flow rate here, not the refill threshold
+        WaterLevelRefillStart: "decode_v7_not_located",
         Configuration: "decode_v7_ph_and_oxy",
         AlgaecidePumpRunning: "decode_v7_oxy",
         HeatingControlEnabled: "decode_v7_not_located",
@@ -162,7 +164,7 @@ OXY = Profile(
         WaterLevelLowAlarm: "assumed: byte[102] as on SALT; the captured OXY has no level sensor",
         WaterLevelRefillStop: "assumed: byte[104] as on SALT; the captured OXY has no level sensor",
         WaterLevelHighAlarm: "assumed: byte[105] as on SALT; the captured OXY has no level sensor",
-        WaterLevelRefillStart: "unconfirmed: byte[103] is algaecide_flow_rate on OXY (confirmed, 60 ml/min); reading it as a level threshold too cannot be right",
+        WaterLevelRefillStart: "not located: byte[103] carries the algicide flow rate on OXY (confirmed, 60 ml/min), so the refill start threshold is elsewhere on an OXY with a level sensor; the captured OXY has none",
         WaterTemperature: "observed: bytes 25-26 = 9.5 C on the Winnetoux OXY (serial 110157165); not compared with the app",
     },
 )

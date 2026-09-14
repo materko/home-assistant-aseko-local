@@ -6,7 +6,8 @@
     },
     "error": {
       "cannot_connect": "Échec de la connexion",
-      "unknown": "Erreur inattendue"
+      "unknown": "Erreur inattendue",
+      "invalid_port": "Saisissez un numéro de port entre 1 et 65535"
     },
     "step": {
       "user": {
@@ -14,12 +15,18 @@
           "host": "Lier à l'adresse IP",
           "port": "Port"
         },
-        "description": "Veuillez saisir le numéro de port. L'adresse IP peut généralement rester sur 0.0.0.0"
+        "description": "Veuillez saisir le numéro de port. L'adresse IP peut généralement rester sur 0.0.0.0",
+        "data_description": {
+          "port": "47524 pour le firmware 7.x et antérieur, 51050 pour le firmware 8.x — ou saisissez le port réglé sur l'appareil"
+        }
       },
       "reconfigure": {
         "data": {
           "host": "Lier à l'adresse IP",
           "port": "Port"
+        },
+        "data_description": {
+          "port": "47524 pour le firmware 7.x et antérieur, 51050 pour le firmware 8.x — ou saisissez le port réglé sur l'appareil"
         }
       }
     }
@@ -377,6 +384,14 @@
       },
       "oxy_refill_reset": {
         "name": "Remplir OXY Pure"
+      }
+    }
+  },
+  "selector": {
+    "port": {
+      "options": {
+        "47524": "47524 — firmware 7.x et antérieur",
+        "51050": "51050 — firmware 8.x"
       }
     }
   }

@@ -10,6 +10,12 @@ from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFl
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.selector import (
+    SelectOptionDict,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
+)
 
 from .const import (
     CONF_FORWARDER_ENABLED,
@@ -17,6 +23,7 @@ from .const import (
     DEFAULT_BINDING_ADDRESS,
     DEFAULT_BINDING_PORT,
     DEFAULT_FORWARDER_HOST,
+    DEFAULT_FORWARDER_PORT_V8,
     DOMAIN,
 )
 from .server import AsekoDeviceServer, ServerConnectionError
@@ -24,12 +31,38 @@ from .server import AsekoDeviceServer, ServerConnectionError
 _LOGGER = logging.getLogger(__name__)
 
 
+# The two ports Aseko units send to out of the box; any other can be typed.
+PORT_SELECTOR = SelectSelector(
+    SelectSelectorConfig(
+        options=[
+            SelectOptionDict(
+                value=str(DEFAULT_BINDING_PORT), label=str(DEFAULT_BINDING_PORT)
+            ),
+            SelectOptionDict(
+                value=str(DEFAULT_FORWARDER_PORT_V8),
+                label=str(DEFAULT_FORWARDER_PORT_V8),
+            ),
+        ],
+        custom_value=True,
+        mode=SelectSelectorMode.DROPDOWN,
+        translation_key="port",
+    )
+)
+
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_HOST, default=DEFAULT_BINDING_ADDRESS): str,
-        vol.Required(CONF_PORT, default=DEFAULT_BINDING_PORT): int,
+        vol.Required(CONF_PORT, default=str(DEFAULT_BINDING_PORT)): PORT_SELECTOR,
     }
 )
+
+
+def parse_port(value: Any) -> int:
+    """The port a user picked or typed, as a number; ValueError when it is none."""
+    port = int(str(value).strip())
+    if not 1 <= port <= 65535:
+        raise ValueError(f"port {port} out of range")
+    return port
 
 
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
@@ -70,6 +103,14 @@ class AsekoLocalConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             try:
+                user_input = {
+                    **user_input,
+                    CONF_PORT: parse_port(user_input[CONF_PORT]),
+                }
+            except ValueError:
+                errors[CONF_PORT] = "invalid_port"
+        if user_input is not None and not errors:
+            try:
                 info = await validate_input(self.hass, user_input)
             except CannotConnectError:
                 errors["base"] = "cannot_connect"
@@ -99,6 +140,14 @@ class AsekoLocalConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="missing_entry")
 
         if user_input is not None:
+            try:
+                user_input = {
+                    **user_input,
+                    CONF_PORT: parse_port(user_input[CONF_PORT]),
+                }
+            except ValueError:
+                errors[CONF_PORT] = "invalid_port"
+        if user_input is not None and not errors:
             try:
                 info = await validate_input(self.hass, user_input)
             except CannotConnectError:
@@ -130,10 +179,12 @@ class AsekoLocalConfigFlow(ConfigFlow, domain=DOMAIN):
                     ): str,
                     vol.Required(
                         CONF_PORT,
-                        default=user_input[CONF_PORT]
-                        if user_input is not None
-                        else config_entry.data[CONF_PORT],
-                    ): int,
+                        default=str(
+                            user_input[CONF_PORT]
+                            if user_input is not None
+                            else config_entry.data[CONF_PORT]
+                        ),
+                    ): PORT_SELECTOR,
                 }
             ),
             errors=errors,

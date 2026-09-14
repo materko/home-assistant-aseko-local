@@ -1449,7 +1449,11 @@ def test_water_level_decoded_for_oxy_and_salt() -> None:
         assert device.water_level == 14, f"byte[4]={device_byte:#x}"
         assert device.refilling is True, f"byte[4]={device_byte:#x}"
         assert device.water_level_low_alarm == 9, f"byte[4]={device_byte:#x}"
-        assert device.water_level_refill_start == 11, f"byte[4]={device_byte:#x}"
+        # OXY sends its algicide flow rate in byte[103]: refill start not located
+        expected_start = None if device_byte == 0x05 else 11
+        assert device.water_level_refill_start == expected_start, (
+            f"byte[4]={device_byte:#x}"
+        )
         assert device.water_level_refill_stop == 13, f"byte[4]={device_byte:#x}"
         assert device.water_level_high_alarm == 15, f"byte[4]={device_byte:#x}"
 

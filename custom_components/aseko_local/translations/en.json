@@ -6,7 +6,8 @@
     },
     "error": {
       "cannot_connect": "Connection failed",
-      "unknown": "Unexpected error"
+      "unknown": "Unexpected error",
+      "invalid_port": "Enter a port number between 1 and 65535"
     },
     "step": {
       "user": {
@@ -14,12 +15,18 @@
           "host": "Bind to IP address",
           "port": "Port"
         },
-        "description": "Please the port number. The IP address can usually be left to 0.0.0.0"
+        "description": "Please the port number. The IP address can usually be left to 0.0.0.0",
+        "data_description": {
+          "port": "47524 for firmware 7.x and older, 51050 for firmware 8.x — or type the port you set on the unit"
+        }
       },
       "reconfigure": {
         "data": {
           "host": "Bind to IP address",
           "port": "Port"
+        },
+        "data_description": {
+          "port": "47524 for firmware 7.x and older, 51050 for firmware 8.x — or type the port you set on the unit"
         }
       }
     }
@@ -377,6 +384,14 @@
       },
       "oxy_refill_reset": {
         "name": "OXY Pure refill"
+      }
+    }
+  },
+  "selector": {
+    "port": {
+      "options": {
+        "47524": "47524 — firmware 7.x and older",
+        "51050": "51050 — firmware 8.x"
       }
     }
   }

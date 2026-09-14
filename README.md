@@ -153,8 +153,10 @@ You need to re-configure your Aseko unit to send data to your Home Assistant ins
    You can see the default **Remote Srver Address** is **pool.aseko.com** (or something similar) and **Local/Remote Port Number** is **47524** or **51050** - make note of that if you would like to keep sending the data there as well - see [Optional: Send data to Aseko Cloud](#optional-send-data-to-aseko-cloud)
 
    The port shown here tells you which firmware version your device is running:
-   - **Port 47524** → firmware v7 or older (120-byte binary frame) — fully supported
-   - **Port 51050** → firmware v8 (463-byte text frame) — supported
+   - **Port 47524** → firmware v7 or older (120-byte binary frame)
+   - **Port 51050** → firmware v8 (text frame of varying length)
+
+   How well each model is supported is in [Device support](#device-support).
    But you could change it to whatever you want as long as it matches the port you set in the integration settings.
 
 3. Change **Remote Server Addr** to the IP address or DNS record of your **Home Assistant** instance on your local network (or your TCP mirror - see [Optional: Send data to Aseko Cloud](#optional-send-data-to-aseko-cloud))
@@ -163,7 +165,7 @@ You need to re-configure your Aseko unit to send data to your Home Assistant ins
 
 4. Set **Remote Port Number** to the port on which the integration will be listening on your **Home Assistant** instance.
 
-   When adding the **Aseko Local** integration in Home Assistant, set the same port as in your device. The default **47524** works for firmware v7 devices. For firmware v8 devices the default is **51050**.
+   When adding the **Aseko Local** integration in Home Assistant, pick the same port as in your device: **47524** (firmware v7 and older) or **51050** (firmware 8.x) from the list, or type any other port you set on the unit. The integration recognises v7 and v8 frames by their content, whatever the port.
 
    > **Mixed setup (two devices, different firmware):** Both devices must send to the **same** port on Home Assistant — the integration uses a single server. Choose one port, set both devices to use it, and set the same port when configuring the integration.
 
@@ -187,10 +189,12 @@ If you want to keep sending the data to Aseko Cloud, you had to use a TCP proxy 
 
 ## Chemical consumption & canister management
 
-Supported devices report how much chemical each dosing pump has dispensed. The integration exposes two consumption sensors per pump:
+The unit does **not** send how much chemical it dosed. The integration **estimates** it: for every frame in which a pump runs, it adds the time since the previous frame multiplied by that pump's flow rate (ml/min, as set on the unit). The estimate is as good as the pump-running bit and the flow rate for your model — check both in the [support matrix](docs/support_matrix.md); a pump with ❓ or 🔍 there gives a rough or no figure. The millilitres are kept exactly across restarts.
 
-- **Since last reset** (`*_since_reset`) — resets to zero when you refill the canister and trigger a reset.
-- **Total** (`*_total`) — a running lifetime total that never resets automatically.
+Two consumption sensors per pump (the names below are the entity names; pick the entity IDs from your own Home Assistant):
+
+- **… consumed (since refill)** — back to zero when you refill the canister and reset it.
+- **… consumed (total)** — a running total that never resets on its own.
 - **Reset Button** — a dashboard button to reset the *since last reset* counter after refilling a canister.
 - **Pump state** — the integration also decodes pump states (on/off) from the raw data, so you can track when pumps are running in real time and you can analyze the history like how often and how long running.
 - **Other information** like canister fill-up volume and remaining volume can be tracked using standard Home Assistant helpers and templates — see below for details.
@@ -205,7 +209,7 @@ After refilling a chemical canister trigger a reset so the *since last reset* co
 
 **Option 1 – Dashboard button**
 
-Add a **button card** or an **entity card** and choose the button entity ***_refill_reset** (see image above).
+Add a **button card** or an **entity card** and choose the pump's **refill reset** button entity (see image above).
 
 **Option 2 – Developer Tools**
 
@@ -231,7 +235,7 @@ Go to **Settings → Devices & Services → Helpers → Create helper → Number
 | Step | 0.1 |
 | Unit of measurement | L |
 
-When you refill the canister, update this helper to the volume you actually added before triggering the reset.
+When you refill the canister, set this helper to the **whole volume now in the canister** (not only what you added — the reset starts counting from zero), then press the reset.
 
 ![Number helper for canister fill-up](images/aseko_number_canister_fill-up.png)
 
@@ -242,22 +246,23 @@ Go to **Settings → Devices & Services → Helpers → Create helper → Templa
 | Field | Example value |
 |---|---|
 | Name | PH minus remaining fill |
-| State template | `{{ states('input_number.ph_minus_fill_up')\|float(0) - states('sensor.ph_minus_since_reset')\|float(0) }}` |
+| State template | `{{ states('input_number.ph_minus_fill_up') \| float - states('sensor.YOUR_PH_MINUS_CONSUMED_SINCE_REFILL') \| float }}` |
+| Availability template | `{{ has_value('input_number.ph_minus_fill_up') and has_value('sensor.YOUR_PH_MINUS_CONSUMED_SINCE_REFILL') }}` |
 | Unit of measurement | L |
 | Device class | Volume |
 
-Adjust the entity IDs to match your own helper and sensor names.
+Replace the entity IDs with your own helper and sensor. The availability template keeps the sensor unavailable while a value is missing, instead of showing a full canister.
 
 ![Template sensor for remaining canister volume](images/aseko_template_sensor_remaining.png)
 
-**Step 3 - Issue utility meter for periodic usage like daily/weekly/monthly consumption**
-Go to **Settings → Devices & Services → Helpers → Create helper → Utility Meter** and configure it as follows:
+**Step 3 – Utility meter for daily, weekly or monthly usage**
+
+Go to **Settings → Devices & Services → Helpers → Create helper → Utility Meter**:
 - Name: PH minus daily usage
-- Meter type: Daily
-- Source entity: sensor.ph_minus_total (or sensor.ph_minus_since_reset, depending on your preference)
-- reset on: midnight (for daily), or the first day of the month (for monthly), etc.
-- Device class: Energy (or None, depending on your preference)
-- Unit of measurement: L
+- Input sensor: the pump's **… consumed (total)** sensor — the total never resets, so each period is simply its growth
+- Meter reset cycle: Daily (or Weekly, Monthly …)
+
+The meter takes its unit (L) from the input sensor.
 
 **Step 4 – Add everything to a dashboard card**
 
@@ -268,30 +273,31 @@ Devices with a built-in water-level sensor expose the following entities:
 
 | Entity | Unit | Description |
 |---|---|---|
-| `sensor.water_level` | cm | Current water level (real-time) |
-| `binary_sensor.water_filling_active` | — | `True` while the auto-fill valve is open |
-| `sensor.water_level_low_alarm` | cm | Low-level alarm threshold |
-| `sensor.water_level_filling_on` | cm | Threshold that opens the auto-fill valve |
-| `sensor.water_level_filling_off` | cm | Threshold that closes the auto-fill valve |
-| `sensor.water_level_high_alarm` | cm | High-level alarm threshold |
+| Water level | cm | Current water level (real-time) |
+| Refilling | — | on while the auto-fill valve is open |
+| Water level low alarm | cm | Low-level alarm threshold |
+| Refill start level | cm | Threshold that opens the auto-fill valve |
+| Refill stop level | cm | Threshold that closes the auto-fill valve |
+| Water level high alarm | cm | High-level alarm threshold |
 
-The raw sensor value reports the **distance from the sensor to the water surface** in centimetres. This matches what the Aseko Live app shows, so no further adjustment is needed for a standard installation.
+The level sensor sits at the bottom and measures the **distance from the sensor up to the water surface** in centimetres — the water height above the sensor, so the value rises while the pool fills. It is what the unit and the Aseko Live app show, so no adjustment is needed for a standard installation. Confirmed on an ASIN Aqua Salt; the thresholds use the same scale.
 
 ### Optional: Correct the reading with an offset helper
 
 If your sensor is mounted at a different height than the Aseko factory default (e.g. relocated, installed in a skimmer with an unusual standoff), the displayed centimetres will be off by a constant. You can apply a fixed offset using a Home Assistant template helper.
 
-1. **Settings → Devices & Services → Helpers → Create helper → Number** named *Water level offset* with unit `cm`, min `0`, max `+250`, step `1`. Default value `0`.
+1. **Settings → Devices & Services → Helpers → Create helper → Number** named *Water level offset* with unit `cm`, min `-100`, max `250`, step `1`. Default value `0`.
 2. **Settings → Devices & Services → Helpers → Create helper → Template sensor**:
 
    | Field | Value |
    |---|---|
    | Name | Pool water level (corrected) |
-   | State template | `{{ states('sensor.aseko_local_water_level')\|float(0) + states('input_number.water_level_offset')\|float(0) }}` |
+   | State template | `{{ states('sensor.YOUR_WATER_LEVEL') \| float + states('input_number.water_level_offset') \| float }}` |
+   | Availability template | `{{ has_value('sensor.YOUR_WATER_LEVEL') and has_value('input_number.water_level_offset') }}` |
    | Unit of measurement | cm |
    | Device class | Distance |
 
-This mirrors the same pattern used for canister volume in the previous section and works for any device that exposes `sensor.<device>_water_level` (HOME, SALT, OXY). Devices without a water-level sensor (e.g. NET) will simply not have these entities.
+Replace the entity ID with your water level sensor. Devices without a water-level sensor (e.g. NET) do not have these entities; on a unit whose sensor is not connected they are unavailable.
 
 ## Backwash (ASIN Aqua Home, Salt, Oxygen, Profi)
 

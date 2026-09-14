@@ -27,6 +27,11 @@
 
 Normal frame (only filtration running), 2026-04-02 19:33:38:
 
+> **Transcription error:** the checksum of the middle segment of this frame does not match
+> (computed `0x32`, stored `0x3f`). Most likely one hex digit among bytes 40–78 was mistyped
+> when the frame was copied here; which one cannot be told from the checksum. Do not use it
+> as test data. The flocculant frame below checks out.
+
 ```
 06 90 dd 6d 05 01 1a 04 02 17 15 0a 00 00 02 cd 00 1e 00 1e fd 9d 80 fe 70 00 5f fe aa 08
 00 00 00 00 00 00 00 03 08 35
@@ -110,7 +115,7 @@ Values are from the Winnetoux unit. Setpoint values marked (04-11) come from the
 | 97 | pH+ flow rate | ml/min | assumed | 60; position unconfirmed, `ph_plus_flow_rate` is not mapped on any protocol. |
 | 99 | `oxygen_flow_rate` | ml/min | confirmed | 60 ml/min. |
 | 101 | `flocculant_flow_rate` | ml/min | confirmed | 10 ml/min; see §6 for the consumption check. |
-| 102–105 | water level thresholds | cm | assumed | Level thresholds on SALT; on OXY `byte[103]` is the algicide flow rate, so `water_level_refill_start` read there cannot be right. |
+| 102, 104, 105 | water level thresholds | cm | assumed | Level thresholds on SALT. `water_level_refill_start` is not located on OXY: `byte[103]` is the algicide flow rate. |
 | 103 | `algaecide_flow_rate` | ml/min | confirmed | 60 ml/min (04-11), stable across sessions. |
 | 106–107 | `dosing_delay` | s | observed | `00 78` = 120 s; not compared with the app. |
 | 112 | `ph_minus_concentration` | % | assumed | Confirmed on HOME. |

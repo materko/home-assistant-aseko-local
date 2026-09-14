@@ -6,7 +6,8 @@
     },
     "error": {
       "cannot_connect": "Připojení se nezdařilo",
-      "unknown": "Neočekávaná chyba"
+      "unknown": "Neočekávaná chyba",
+      "invalid_port": "Zadejte číslo portu od 1 do 65535"
     },
     "step": {
       "user": {
@@ -14,12 +15,18 @@
           "host": "Poslouchat na adrese",
           "port": "Poslouchat na portu"
         },
-        "description": "Zadejte číslo portu. IP adresa může obvykle zůstat 0.0.0.0"
+        "description": "Zadejte číslo portu. IP adresa může obvykle zůstat 0.0.0.0",
+        "data_description": {
+          "port": "47524 pro firmware 7.x a starší, 51050 pro firmware 8.x — nebo napište port nastavený v jednotce"
+        }
       },
       "reconfigure": {
         "data": {
           "host": "Poslouchat na adrese",
           "port": "Poslouchat na portu"
+        },
+        "data_description": {
+          "port": "47524 pro firmware 7.x a starší, 51050 pro firmware 8.x — nebo napište port nastavený v jednotce"
         }
       }
     }
@@ -377,6 +384,14 @@
       },
       "oxy_refill_reset": {
         "name": "Doplnění OXY Pure"
+      }
+    }
+  },
+  "selector": {
+    "port": {
+      "options": {
+        "47524": "47524 — firmware 7.x a starší",
+        "51050": "51050 — firmware 8.x"
       }
     }
   }

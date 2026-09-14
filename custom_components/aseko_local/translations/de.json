@@ -6,7 +6,8 @@
     },
     "error": {
       "cannot_connect": "Verbindung fehlgeschlagen",
-      "unknown": "Unerwarteter Fehler"
+      "unknown": "Unerwarteter Fehler",
+      "invalid_port": "Portnummer zwischen 1 und 65535 eingeben"
     },
     "step": {
       "user": {
@@ -14,12 +15,18 @@
           "host": "Mit IP-Adresse binden",
           "port": "Port"
         },
-        "description": "Bitte geben Sie Port ein. Die IP-Adresse kann in der Regel auf 0.0.0.0 belassen werden."
+        "description": "Bitte geben Sie Port ein. Die IP-Adresse kann in der Regel auf 0.0.0.0 belassen werden.",
+        "data_description": {
+          "port": "47524 für Firmware 7.x und älter, 51050 für Firmware 8.x — oder den am Gerät eingestellten Port eingeben"
+        }
       },
       "reconfigure": {
         "data": {
           "host": "Mit IP-Adresse binden",
           "port": "Port"
+        },
+        "data_description": {
+          "port": "47524 für Firmware 7.x und älter, 51050 für Firmware 8.x — oder den am Gerät eingestellten Port eingeben"
         }
       }
     }
@@ -377,6 +384,14 @@
       },
       "oxy_refill_reset": {
         "name": "OXY Pure nachfüllen"
+      }
+    }
+  },
+  "selector": {
+    "port": {
+      "options": {
+        "47524": "47524 — Firmware 7.x und älter",
+        "51050": "51050 — Firmware 8.x"
       }
     }
   }

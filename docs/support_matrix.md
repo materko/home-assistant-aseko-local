@@ -84,7 +84,7 @@ Further profiles exist that no unit is meant to decode with and that the tables 
 | `water_level` | ✅ | ✅ | ❓ | — | ❓ |
 | `water_level_high_alarm` | ✅ | ✅ | ❓ | — | ❓ |
 | `water_level_low_alarm` | ✅ | ✅ | ❓ | — | ❓ |
-| `water_level_refill_start` | ❓ | ✅ | ❓ | — | ❓ |
+| `water_level_refill_start` | ❓ | ✅ | 🔍 | — | ❓ |
 | `water_level_refill_stop` | ✅ | ✅ | ❓ | — | ❓ |
 | `water_level_sensor_enabled` | ❓ | ✅ | ❓ | — | — |
 | `water_temperature` | ✅ | ✅ | 👁 | ✅ | ❓ |
@@ -162,7 +162,6 @@ Every entry below is read today without a confirming capture.  If you own one of
 - `water_level` — assumed: byte[27], confirmed on HOME
 - `water_level_high_alarm` — assumed: byte[105] as on SALT; the captured OXY has no level sensor
 - `water_level_low_alarm` — assumed: byte[102] as on SALT; the captured OXY has no level sensor
-- `water_level_refill_start` — unconfirmed: byte[103] is algaecide_flow_rate on OXY (confirmed, 60 ml/min); reading it as a level threshold too cannot be right
 - `water_level_refill_stop` — assumed: byte[104] as on SALT; the captured OXY has no level sensor
 - `water_level_sensor_enabled` — assumed: byte[37] 0x40 as on SALT; clear in the OXY frames (0x03), which fits byte[27] = 0xFE (no level sensor)
 
@@ -262,6 +261,7 @@ Values these models have but nobody has found in the frame.  If you own one of t
 
 - `freeze_protection_enabled` — not located: the ASIN AQUA Oxygen manual describes freeze protection; no OXY frame has been compared with it
 - `heating_control_enabled` — not located: the ASIN AQUA Oxygen manual describes heating control; no OXY frame has been compared with it
+- `water_level_refill_start` — not located: byte[103] carries the algicide flow rate on OXY (confirmed, 60 ml/min), so the refill start threshold is elsewhere on an OXY with a level sensor; the captured OXY has none
 
 ## Seen, not compared
 
