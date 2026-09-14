@@ -49,7 +49,7 @@ If you own an Aseko unit that is not listed above as fully supported, or the [su
 
 #### 1. Record test cases with the card (recommended)
 
-![Aseko test cases card](images/aseko_test_cases_card.png)
+<img src="images/aseko_test_cases_card.png" alt="Aseko test cases card" width="438">
 
 **How it works.** The integration keeps a *frame log*: every frame the unit sends, compressed and capped at 256 kB (about five days of frames), kept across Home Assistant restarts. Each time you record a test case, the card writes a *marker* into that log, with your note and, if you like, a photo of the unit's display. Every change you make on the unit then sits right next to the frames that carry it — nobody has to compare clocks, and messengers cannot strip the time from the photos.
 
