@@ -136,6 +136,23 @@ class AsekoDeviceServer:
                         "Frame warning sink raised an exception", exc_info=True
                     )
 
+    async def _report_rejected_v8(self, frame: bytes, reason: str) -> None:
+        """Count a v8 frame the decoder rejected, under its serial if readable."""
+        if not self._frame_warning_sink:
+            return
+        try:
+            serial = int(
+                frame.decode("ascii", errors="replace").lstrip("{ ").split()[1]
+            )
+        except (ValueError, IndexError):
+            return
+        try:
+            await self._maybe_await(
+                self._frame_warning_sink(serial, f"v8 frame rejected: {reason}")
+            )
+        except Exception:
+            _LOGGER.error("Frame warning sink raised an exception", exc_info=True)
+
     async def _call_v8_raw_sink(self, data: bytes) -> None:
         if self._v8_raw_sink:
             try:
@@ -229,15 +246,18 @@ class AsekoDeviceServer:
                 # v8 text frame: decode, forward, deliver to on_data
                 if frame_type == FrameType.V8:
                     await self._call_forward_v8_cb(frame)
+                    # Log the frame before decoding it: a frame the decoder
+                    # rejects is exactly the one worth having in the frame log.
+                    await self._call_v8_raw_sink(frame)
                     try:
                         device = decode(frame, Protocol.V8)
-                        await self._call_v8_raw_sink(frame)
                     except ValueError as exc:
                         _LOGGER.error(
                             "v8 decode error from %s: %s → closing connection",
                             addr,
                             exc,
                         )
+                        await self._report_rejected_v8(frame, str(exc))
                         break
                     except Exception:
                         _LOGGER.error(

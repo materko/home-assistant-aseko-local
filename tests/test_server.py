@@ -403,3 +403,28 @@ async def test_remove_leaves_other_servers_running(monkeypatch) -> None:
     assert not one.running
     assert two.running
     await AsekoDeviceServer.remove(host="127.0.0.1", port=12352)
+
+
+@pytest.mark.asyncio
+async def test_rejected_v8_frame_still_reaches_the_frame_log() -> None:
+    """R5: the raw sink sees a v8 frame before the decoder can reject it."""
+    logged: list[bytes] = []
+    warnings: list[tuple[int, str]] = []
+
+    server = AsekoDeviceServer(
+        host="127.0.0.1",
+        port=12353,
+        on_data=None,
+        v8_raw_sink=logged.append,
+        frame_warning_sink=lambda serial, reason: warnings.append((serial, reason)),
+    )
+    reader = asyncio.StreamReader()
+    writer = DummyWriter("127.0.0.1", 12353)
+    reader.feed_data(V8_FULL_FRAME)  # header without the four numbers: rejected
+    reader.feed_eof()
+    await server._handle_client(reader, writer)
+
+    assert logged == [V8_FULL_FRAME]
+    assert len(warnings) == 1
+    assert warnings[0][0] == 12345678
+    assert warnings[0][1].startswith("v8 frame rejected:")
