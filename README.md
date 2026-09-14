@@ -73,6 +73,20 @@ Then, standing at the unit with your phone:
 
 > The frames and the unit's display carry its serial number; check the photos before you attach them to a public issue.
 
+**Limits — what is kept and for how long**
+
+| What | Limit | When it is reached |
+|---|---|---|
+| Frame log | 256 kB compressed, about five days of frames from one v7 unit | the oldest frames are dropped; a marker older than the oldest frame has nothing next to it, so download within a few days |
+| Markers (test cases) | 500 | the oldest markers are dropped |
+| Photos | 200 photos or 100 MB, 2048 px | the oldest photos are deleted |
+| Waiting for a frame | 60 seconds | the case is written without a new frame and the card shows it as an error; check the unit is sending, then record the case again |
+
+- **Downloaded** means your browser received the whole zip. If the download breaks off, the cases stay *new* and **Download new** offers them again.
+- Several units sending to one entry share the frame log, so it covers fewer days.
+- Bytes that could not be aligned into a frame are kept in the log as *rejected* and counted, with the reason, under `rejected_frames` in the diagnostics.
+- A unit whose model the integration does not know gets no entities; it is logged as a warning and its frames are still recorded — the diagnostics list it under `unrecognised_devices`, which is exactly what adding it needs.
+
 #### 2. Diagnostics only
 
 1. In Home Assistant go to **Settings → Devices & Services → Aseko Local**
@@ -87,7 +101,11 @@ The card is a front end for this action, so an automation or a dashboard button 
 
 Which values are read on which model, and which of them still lack a confirming capture, is listed per model in the [support matrix](docs/support_matrix.md). It is generated from the decoder's device profiles, so it is always current; every ❓ in it is a value a recorded test case from that model would settle.
 
-How the decoder is put together (one feature file per value, one profile per model) is described in [Decoding by device profile](docs/decoding-by-device-profile.md).
+How the decoder is put together (one feature file per value, one profile per model) is described in [Decoding by device profile](docs/decoding-by-device-profile.md). For contributors: [Adding a model or a value](docs/adding-a-model.md), [Evidence rules](docs/evidence-rules.md) (what ✅ 👁 ❓ 🔍 mean and how a value earns them), and the per-model byte maps in [device analyses](docs/device%20analyzes/).
+
+### Entities that appear later or go unavailable
+
+Every value your model can have gets an entity. One your unit has not shown since Home Assistant started is created **disabled** and switches itself on the first time the unit sends it (Home Assistant reloads the integration for that, so entities may blink once). An entity whose value the last frame did not carry — the accessory is not fitted any more, the shared pump port was routed to the other chemical — is **unavailable** rather than removed, so its history stays. An entity you disabled yourself stays disabled. Note that some settings (water level, heating, variable-speed pump) can be switched on at the unit without the accessory connected; the entity then appears but shows nothing meaningful.
 
 ## Installation
 
