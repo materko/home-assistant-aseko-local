@@ -7,42 +7,31 @@ values are read on which model. Short guides: [Troubleshooting](troubleshooting.
 
 ## Overview
 
-```mermaid
-flowchart LR
-  unit[Aseko unit] -->|TCP| server[server.py]
-  server -->|raw bytes| log[recording/frame_log]
-  server -->|frame| dec[decoding.decode]
-  dec --> parse[frames.parse_frame]
-  parse --> detect[profiles.detect_profile]
-  detect --> engine[engine.decode]
-  engine --> dev[AsekoDevice]
-  dev --> coord[coordinator.py]
-  coord --> trackers[trackers/ backwash, consumption]
-  coord --> ent[sensor / binary_sensor / button / datetime]
-  server -.->|optional| fwd[forwarder.py → Aseko Cloud]
-```
+![Architecture: the server aligns frames, parse_frame reads them, detect_profile picks the model's profile, the engine runs the profile's plan over one feature file per value, and the coordinator turns the AsekoDevice into entities](images/aseko-architecture.png)
+
+The picture is generated from [`images/src/aseko-architecture.html`](images/src/aseko-architecture.html).
 
 | Package / module | Responsibility |
 |---|---|
-| `server.py` | One TCP server per host:port (`AsekoDeviceServer`). Aligns the stream into v7 (120 bytes) or v8 (`{v1 …}`) frames; bytes it cannot align go to the frame log as `rejected` and are counted in diagnostics. |
+| `server.py` | One TCP server per host:port (`AsekoDeviceServer`). Aligns the stream into v7 (120 bytes) or v8 (`{v1 …}`) frames; a fragment is kept as a partial frame, bytes it cannot align are counted in diagnostics as `rejected` (and logged while recording). Optionally forwards every frame to Aseko Cloud (`forwarder.py`). |
 | `decoding/` | Bytes → `AsekoDevice`. Knows nothing about Home Assistant. |
 | `coordinator.py` | Keeps the latest `AsekoDevice` per serial, merges feature sets, notifies platforms, owns the frame log and consumption store, waits for frames for `mark_dump`. |
 | `entity.py` + platforms | Entities for every value the model can have (see [Entity lifecycle](#entity-lifecycle)). |
 | `trackers/` | State the frame does not carry: backwash history, chemical consumption (exact ml, HA Store). |
 | `recording/` | Frame log with markers, photos, HTTP views and the test cases card. |
-| `diagnostics.py` | Annotated raw frame, profile, `possible_features`, `not_present_now`, rejected frames, frame log. |
+| `diagnostics.py` | Per unit: annotated raw frame, `profile`, `reading_overrides`, `frame_problems`, `possible_features`, `not_present_now`, frame warnings. For the entry: unrecognised units, rejected frames, `frame_log_enabled`, frame log. |
 
 ## The decoding package
 
 ```
 decoding/
   __init__.py      decode(raw, protocol=None) — the one entry point
-  frames/          parse_frame: v7.py (bytes view), v8.py (sections view), values.py, protocol.py
+  frames/          parse_frame: v7.py (120-byte view), v8.py (sections + problems), values.py, protocol.py
   feature.py       Feature base class, NOT_LOCATED readings
-  features/        one file per AsekoDevice field (~70), ALL_FEATURES
+  features/        one file per AsekoDevice field (71), ALL_FEATURES
   profile.py       Profile class, v7 unit type → model
   profiles/
-    __init__.py    ALL_PROFILES, FALLBACK_PROFILES, detect_profile
+    __init__.py    ALL_PROFILES, FALLBACK_PROFILES, detect_profile, profile_named
     v7/            common.py (shared feature groups) + home, salt, oxy, net, profi, unknown
     v8/            common.py (shared layout) + net, salt, unknown; header type → model
   presence.py      NOT_PRESENT
@@ -101,6 +90,8 @@ A **profile** is one (protocol, model) combination in its own module:
 - `evidence` — why each entry is believed, spelled out per profile ([rules](evidence-rules.md));
 - `flags` — model facts consumers need, instead of `device_type` checks: `MENU_BIT_IS_PRESENCE_ONLY` (read by the backwash tracker), `DELAYS_IN_MINUTES` (v8 delays, read by `sensor.py`).
 
+A profile is validated and its plan built once, at import; `overrides` and `evidence` are read-only afterwards. A profile changes by editing its module, never in memory.
+
 ```python
 # profiles/v7/home.py (abridged)
 HOME = Profile(
@@ -133,12 +124,27 @@ Probe configuration is per unit, not per model, so it is handled this way
 rather than with more profiles: `byte[53]` is one of four setpoints and the
 profile lists all four.
 
-The engine sets on the device: `possible_features` (every field the profile
-reads), `present_features` (present in this frame). The coordinator keeps
-`features` as the union of everything the unit has shown since Home Assistant
-started.
+The engine sets on the device: `profile` (the name of the profile that read
+the frame), `possible_features` (every field the profile reads),
+`present_features` (present in this frame) and `frame_problems` (what the
+parser could not read). The coordinator keeps `features` as the union of
+everything the unit has shown since Home Assistant started.
+
+### Frames the parser refuses or only partly reads
+
+- **v7** must be exactly 120 bytes; anything else is a `ValueError`. The server
+  never decodes a fragment — it keeps it as the partial frame for diagnostics.
+- **v8**: an unparseable header is a `ValueError` (counted as `v8 frame
+  rejected`). A value that is not a number reads None and the rest of its
+  section stands; it and any missing `ins` / `ains` / `outs` / `areqs` section
+  become `frame_problems`, which the server logs and counts. `crc16` is read as
+  hex but not checked — its algorithm is not known.
+- An unfilled `0xFF` / `0xFFFF` is never a number: a measurement reads None, a
+  setting or an absent input reads `NOT_PRESENT`.
 
 ## Entity lifecycle
+
+![Entity lifecycle: no entity when the model lacks the value, disabled until the unit shows it, unavailable when the last frame did not carry it, unknown when it could not be read](images/aseko-entity-lifecycle.png)
 
 | Situation | Entity |
 |---|---|
@@ -166,10 +172,12 @@ automations survive an accessory being added or removed.
   closed.
 - **Photos** (`recording/photos.py`): downscaled to 2048 px, at most 200 photos
   or 100 MB, written atomically under a lock.
-- **Views** (`recording/views.py`, admin only): cases list, photo upload,
-  zip export (frames, markers, diagnostics, photos) and
-  `/api/aseko_local/exported`, which the card calls once it has received the
-  whole zip — only then are the cases marked as downloaded.
+- **Views** (`recording/views.py`, admin only): `status` (frame ages, cases,
+  recording on/off), `photo` upload, `export` (zip with frames, markers,
+  diagnostics and photos per entry), `exported` — called by the card once it
+  has received the whole zip, only then are the cases marked as downloaded —
+  `forget` (clear the list), `recording` (turn the frame log on or off) and
+  `delete` (every recorded frame, case and photo).
 
 ## Support matrix
 
@@ -191,7 +199,7 @@ pump presence (wrong for v8), and the backwash tracker checked
 `device_type is SALT`. Whether an entity was created depended on the first
 frame's value not being None.
 
-![Architecture before the refactor](images/aseko-decoder-current.png)
+![Architecture before the refactor: one v7 decoder with model branches, a separate v8 decoder, entity code importing v7 byte masks](images/aseko-decoder-before-profiles.png)
 
 **HOME firmware A / B.** HOME was thought to have two firmwares, told apart by
 `byte[37]` bit `0x40`, with a `firmware_variant` on the device and two
@@ -216,5 +224,3 @@ old and new implementations with no differing field. Steps: add `Feature` and
 presence and the SALT check out of the entity layer; cut `_fill_*` and the v8
 decoder into feature files. `AsekoDecoder.decode(bytes)` was then replaced by
 `decoding.decode(raw, protocol=None)`.
-
-![Architecture with profiles](images/aseko-decoder-proposed.png)
