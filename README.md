@@ -337,7 +337,7 @@ The device does **not** report *why* the valve opened.
 
 | Menu during the cycle | Valve opened within ±15 min of `backwash_time` (schedule enabled) | Otherwise |
 |---|---|---|
-| open | **manual** | **manual** |
+| open | **scheduled** | **manual** |
 | closed | **scheduled** | **not attributed** — neither the schedule nor a person explains it |
 
 A not attributed cycle updates `sensor.last_backwash` only; `last_scheduled_backwash` and `last_manual_backwash` keep their values, and the diagnostics show `last_backwash_trigger: unknown`.
@@ -410,7 +410,7 @@ cycle is never second-guessed.
 
 ### Known ways the estimate gets it wrong
 
-* A cycle you start **by hand near the scheduled time** is reported as scheduled — except on an ASIN Aqua Salt, where the open menu gives it away.
+* A cycle you start **by hand near the scheduled time** is reported as scheduled, on every model.
 * Only the **time of day** is checked, not the day itself. A manual cycle at exactly `backwash_time` on a day the interval does not fall on still counts as scheduled. (Checking the day would require knowing the schedule phase — which is exactly what this is trying to establish — and would break whenever you change the interval.)
 * If the unit's **clock drifts** more than 15 minutes from Home Assistant's, its own scheduled cycles are reported as manual (not attributed on an ASIN Aqua Salt).
 * A cycle the unit runs on its own **for some other reason** (e.g. after a fault) is reported as manual — on an ASIN Aqua Salt as not attributed.

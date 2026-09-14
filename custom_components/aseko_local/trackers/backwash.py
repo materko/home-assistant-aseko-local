@@ -14,8 +14,8 @@ moment the relay opened against the unit's configured ``backwash_start_time``:
     * anything else                                    →  MANUAL
 
 — except on units that report their settings menu (below), where MANUAL
-needs the menu to have been open and a cycle that neither the schedule nor
-the menu explains is UNKNOWN.
+needs the menu to have been open outside the window, and a cycle that neither
+the schedule nor the menu explains is UNKNOWN.
 
 The device does not transmit *why* the valve opened, nor when it last ran, so
 on most units the start time is the only signal available and the
@@ -28,9 +28,9 @@ Units whose profile carries ``AsekoProfileFlag.MENU_BIT_IS_PRESENCE_ONLY``
 (SALT today) are the exception: byte[37] bit 0x04 marks their settings menu
 being open, and that is the menu a backwash is started by hand from — so a
 cycle that runs while the bit is set is manual as a matter of observation
-rather than inference.  With the menu closed a cycle is scheduled when it
-started in the schedule window and UNKNOWN otherwise: nobody was at the menu
-and the schedule does not explain it.  See ``_service_menu_open``.
+rather than inference — outside the schedule window.  In the window a cycle
+is always SCHEDULED; outside it with the menu closed it is UNKNOWN: nobody was
+at the menu and the schedule does not explain it.  See ``_service_menu_open``.
 
 Nothing is guessed before the first observation, though: every value starts out
 as ``None``: until a cycle has actually been seen, the honest answer is
@@ -503,22 +503,21 @@ class BackwashTracker:
     ) -> AsekoBackwashTrigger:
         """Return whether a cycle starting at ``started_at`` was scheduled.
 
-        ``service_menu_observed`` is the one hard signal available: on SALT the
-        unit reports that somebody was operating it by hand while the valve
-        was open (see ``_service_menu_open``), which settles the question.
-        It is only ever raised, never lowered — its absence proves nothing.
-
-        Without it, a cycle counts as scheduled only if the unit could have
-        started it itself: the schedule must be configured and enabled, and
-        the relay must have opened within ``SCHEDULED_MATCH_TOLERANCE`` of the
-        configured time of day.  Everything else is a manual start.
+        A cycle counts as scheduled when the unit could have started it
+        itself: the schedule is configured and enabled, and the relay opened
+        within ``SCHEDULED_MATCH_TOLERANCE`` of the configured time of day —
+        whatever the menu did.  Outside that window ``service_menu_observed``
+        decides: on SALT the unit reports somebody at its menu while the valve
+        was open (see ``_service_menu_open``), so the cycle is manual; with
+        the menu closed it is UNKNOWN on SALT and, by elimination, manual on
+        units that do not report the menu.
 
         That part is a guess, not a fact.  The device reports that the valve
         opened, never why, so the start time is all there is to go on.  Known
         ways it gets the answer wrong:
 
         * A cycle started by hand within the tolerance window of the scheduled
-          time is reported as scheduled (unless ``service_menu_observed``).
+          time is reported as scheduled.
         * Only the time of day is checked, not the day itself — a manual cycle
           at exactly ``backwash_start_time`` on a day the interval does not fall on
           still counts as scheduled.  Checking the day would need the schedule
@@ -533,27 +532,29 @@ class BackwashTracker:
         the cycle, and is never revisited: changing ``backwash_start_time`` later
         does not reclassify history.
         """
-        if service_menu_observed:
-            # Observed fact rather than inference: a person was at the unit.
-            return AsekoBackwashTrigger.MANUAL
-
-        # A unit that reports its menu and did not have it open: nobody
-        # started the cycle by hand, so it is scheduled or unexplained.
-        not_by_hand = AsekoBackwashTrigger.MANUAL
-        if AsekoProfileFlag.MENU_BIT_IS_PRESENCE_ONLY in device.flags:
-            not_by_hand = AsekoBackwashTrigger.UNKNOWN
-
         scheduled_time = device.backwash_start_time
         interval = device.backwash_interval
-        if scheduled_time is None or interval is None or interval <= 0:
-            # No usable schedule (0xFF in the config bytes, or interval 0 =
-            # "automatic backwash disabled") — the unit cannot have started
-            # this on its own.
-            return not_by_hand
-
-        if _within_tolerance(started_at, scheduled_time, SCHEDULED_MATCH_TOLERANCE):
+        if (
+            scheduled_time is not None
+            and interval is not None
+            and interval > 0
+            and _within_tolerance(started_at, scheduled_time, SCHEDULED_MATCH_TOLERANCE)
+        ):
+            # In the schedule window the unit's own timer explains the cycle,
+            # whether or not somebody had the menu open at the time.
             return AsekoBackwashTrigger.SCHEDULED
-        return not_by_hand
+
+        if service_menu_observed:
+            # Outside the window, a person at the menu started it.
+            return AsekoBackwashTrigger.MANUAL
+
+        # Neither the schedule nor the menu explains it.  A unit that reports
+        # its menu (SALT) had it closed: not attributed.  Units that do not
+        # report it keep the elimination rule, or they could never show a
+        # manual cycle at all.
+        if AsekoProfileFlag.MENU_BIT_IS_PRESENCE_ONLY in device.flags:
+            return AsekoBackwashTrigger.UNKNOWN
+        return AsekoBackwashTrigger.MANUAL
 
     def next_scheduled_backwash(
         self, device: "AsekoDevice", now: datetime

@@ -96,8 +96,9 @@ class AsekoBackwashTrigger(Enum):
         configured ``backwash_start_time`` on a device whose backwash schedule is
         enabled, so the unit ran it on its own.
     MANUAL — somebody started it by hand.  On units that report their
-        settings menu (SALT) only a cycle run while the menu was open; on the
-        others, any cycle outside the window or with no usable schedule.
+        settings menu (SALT) only a cycle outside the window run while the
+        menu was open; on the others, any cycle outside the window or with no
+        usable schedule.  In the window a cycle is always SCHEDULED.
     UNKNOWN — a unit that reports its menu ran a cycle outside the window
         with the menu closed: neither the schedule nor a person explains it.
 
