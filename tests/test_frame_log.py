@@ -308,3 +308,27 @@ def test_oldest_frame_time_survives_dropping_and_a_restart() -> None:
     restored = FrameLog(max_bytes=64 * 1024)
     restored.load_store(log.to_store())
     assert restored._oldest_time() == first  # noqa: SLF001
+
+
+@pytest.mark.parametrize(
+    "damage",
+    [
+        {"next_marker": "broken"},
+        {"exported_through": None},
+        {"markers": "not a list"},
+        {"chunks": ["!!not base64!!"]},
+        {"dropped_chunks": [1]},
+    ],
+)
+def test_a_damaged_store_leaves_the_log_empty_instead_of_raising(damage) -> None:
+    """A broken diagnostic history must never stop the integration from starting."""
+    log = FrameLog()
+    for received, raw in _v8_frames(50):
+        log.append_frame(received, KIND_V8, raw)
+    log.append_marker(T0, "a case")
+    stored = {**log.to_store(), **damage}
+
+    restored = FrameLog()
+    restored.load_store(stored)  # must not raise
+    assert restored.records() == []
+    assert restored.markers() == []

@@ -112,14 +112,24 @@ class Profile:
                 )
         for feature in self.features:
             self.reading_for(feature)  # raises when there is nothing to call
+            for dependency in feature.depends_on:
+                if (
+                    dependency not in listed
+                    and dependency not in feature.optional_depends_on
+                ):
+                    raise ValueError(
+                        f"{self.name}: {feature.__name__} needs "
+                        f"{dependency.__name__}, which is not listed"
+                    )
 
 
 def _ordered(features: tuple[type[Feature], ...]) -> list[type[Feature]]:
     """Return ``features`` with every dependency ahead of its dependant.
 
     Stable: features stay in listed order unless a dependency forces a move.
-    A dependency that is not listed is simply not decoded; the dependant
-    sees None for it, which every reading treats as "not configured".
+    Only an optional dependency (``Feature.optional_depends_on``) can be
+    missing here -- ``Profile._validate`` rejects any other -- and the
+    dependant then sees None for it.
     """
     listed = set(features)
     done: list[type[Feature]] = []

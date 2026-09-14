@@ -27,6 +27,7 @@ from custom_components.aseko_local.decoding.features import (
     FiltrationSchedule,
     HeatingControlEnabled,
     Ph,
+    PhTarget,
     ServiceMenuOpen,
 )
 from custom_components.aseko_local.decoding.frames import (
@@ -563,3 +564,25 @@ def test_salt_settings_found_with_marked_test_cases() -> None:
     assert device.heating_allowed is False
     assert device.variable_speed_pump_type.value == "hayward"
     assert device.electrode_polarity.value == "left"
+
+
+def test_profile_rejects_a_feature_whose_dependency_is_not_listed() -> None:
+    """A pH target without the probe configuration would silently read nothing."""
+    with pytest.raises(ValueError, match="needs Configuration"):
+        Profile(
+            name="broken",
+            protocol=Protocol.V7,
+            model=AsekoDeviceType.SALT,
+            features=(PhTarget,),
+        )
+
+
+def test_an_optional_dependency_may_be_left_out() -> None:
+    """Filtration reads the menu bit only in HOME's named reading."""
+    profile = Profile(
+        name="filtration only",
+        protocol=Protocol.V7,
+        model=AsekoDeviceType.SALT,
+        features=(FiltrationRunning,),
+    )
+    assert profile.feature_names == {"filtration_running"}

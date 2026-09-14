@@ -295,30 +295,37 @@ class FrameLog:
         """Restore what ``to_store`` saved; an unreadable store leaves the log empty."""
         try:
             chunks = [base64.b64decode(chunk) for chunk in data.get("chunks", [])]
-            for chunk in chunks:
-                zlib.decompress(chunk)
             stored_open = data.get("open")
             open_lines = (
                 zlib.decompress(base64.b64decode(stored_open)) if stored_open else b""
             )
             open_records = list(decode_lines(open_lines.splitlines(keepends=True)))
-        except (ValueError, TypeError, KeyError, zlib.error) as err:
+            chunk_times = [
+                datetime.fromisoformat(
+                    json.loads(zlib.decompress(chunk).split(b"\n", 1)[0])["t"]
+                )
+                for chunk in chunks
+            ]
+            dropped_chunks = int(data.get("dropped_chunks", 0))
+            next_marker = int(data.get("next_marker", 1))
+            exported_through = int(data.get("exported_through", 0))
+            markers = data.get("markers", [])
+            if not isinstance(markers, list):
+                raise TypeError("markers is not a list")
+        except (ValueError, TypeError, KeyError, AttributeError, zlib.error) as err:
             _LOGGER.warning("Discarding an unreadable Aseko frame log: %s", err)
             return
         self._chunks = deque(chunks)
-        self._chunk_times = deque(
-            datetime.fromisoformat(
-                json.loads(zlib.decompress(chunk).split(b"\n", 1)[0])["t"]
-            )
-            for chunk in chunks
-        )
+        self._chunk_times = deque(chunk_times)
         self._sealed_bytes = sum(len(chunk) for chunk in chunks)
-        self._dropped_chunks = int(data.get("dropped_chunks", 0))
-        self._next_marker = int(data.get("next_marker", 1))
+        self._dropped_chunks = dropped_chunks
+        self._next_marker = next_marker
         self._markers = [
-            m for m in data.get("markers", []) if isinstance(m, dict) and "n" in m
+            m
+            for m in markers
+            if isinstance(m, dict) and "n" in m and isinstance(m.get("t"), str)
         ][-MAX_MARKERS:]
-        self._exported_through = int(data.get("exported_through", 0))
+        self._exported_through = exported_through
         backfill = "markers" not in data
         self._start_chunk()
         # Re-encode rather than replay the lines: a chunk sealed on the way

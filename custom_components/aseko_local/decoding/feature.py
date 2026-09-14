@@ -46,6 +46,10 @@ class Feature:
     #: Features whose values this one reads off the device.  The profile
     #: orders its plan so these are decoded first.
     depends_on: ClassVar[tuple[type[Feature], ...]] = ()
+    #: The part of ``depends_on`` a profile may leave out: the default
+    #: reading copes without it, only a named reading uses it.  Everything
+    #: else in ``depends_on`` must be listed, or the profile fails to build.
+    optional_depends_on: ClassVar[tuple[type[Feature], ...]] = ()
 
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> Any:
         """Default reading from a v7 frame.  Absent when v7 has none."""

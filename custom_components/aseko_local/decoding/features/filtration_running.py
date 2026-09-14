@@ -27,6 +27,8 @@ class FiltrationRunning(Feature):
 
     field = "filtration_running"
     depends_on = (ServiceMenuOpen,)
+    # only ``decode_v7_menu_override`` (HOME) reads it
+    optional_depends_on = (ServiceMenuOpen,)
 
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool:
         return bool(frame[29] & FILTRATION)
