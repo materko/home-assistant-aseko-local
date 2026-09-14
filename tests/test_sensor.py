@@ -462,7 +462,13 @@ async def test_async_setup_salt_clf(hass) -> None:
     # + 2 heating_control_enabled / freeze_protection_enabled binary sensors: the
     #   SALT Configuration menu has Heating control and Winter mode, but
     #   their place in the frame is not known yet, so they read unknown
-    assert len(added_entities) == 47
+    # - 1 free_chlorine_mv: bytes 20-21 are salinity and chlorine production
+    #   on SALT, not a probe voltage
+    assert len(added_entities) == 46
+    assert not any(
+        getattr(e.entity_description, "key", None) == "free_chlorine_mv"
+        for e in added_entities
+    )
     assert any(
         getattr(e.entity_description, "key", None) != "water_flow_to_probes"
         for e in added_entities

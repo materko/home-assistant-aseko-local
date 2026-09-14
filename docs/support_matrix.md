@@ -51,7 +51,7 @@ Further profiles exist that no unit is meant to decode with and that the tables 
 | `flocculant_pump_running` | ❓ | ✅ | ✅ | — | ❓ |
 | `flow_detection_enabled` | ❓ | ✅ | ❓ | — | — |
 | `free_chlorine` | ✅ | ✅ | — | ✅ | ❓ |
-| `free_chlorine_mv` | ✅ | ✅ | — | ✅ | ❓ |
+| `free_chlorine_mv` | ✅ | — | — | ✅ | ❓ |
 | `free_chlorine_target` | ✅ | ✅ | — | 👁 | ❓ |
 | `freeze_protection_enabled` | ✅ | ✅ `decode_v7_winter_mode` | 🔍 | — | — |
 | `heating_allowed` | — | ✅ | — | — | — |

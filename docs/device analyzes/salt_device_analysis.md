@@ -41,10 +41,9 @@ No representative hex frame is recorded in this document.
 | 12 | alarm bits | bitmask | confirmed on HOME | usually `0x00` on SALT; see [§4](#byte12--byte13--warnings-and-alarms) |
 | 13 | alarm bits | bitmask | confirmed on NET / HOME | see [§4](#byte12--byte13--warnings-and-alarms) |
 | 14–15 | `ph` | uint16 BE / 100 | confirmed | |
-| 16–17 | `free_chlorine` / `redox` | CLF: / 100 mg/l; REDOX: × 1 mV | confirmed | 0.77 and 0.93 mg/l on the CLF unit; 593..670 mV on the REDOX unit (profile evidence cites bytes 16-19 for redox) |
-| 18–19 | — | — | — | REDOX-with-CLF slot on PROFI-style units; not applicable on basic SALT |
+| 16–17 | `free_chlorine` / `redox` | CLF: / 100 mg/l; REDOX: × 1 mV | confirmed | 0.77 and 0.93 mg/l on the CLF unit; 593..670 mV on the REDOX unit |
+| 18–19 | `redox` (second slot) | × 1 mV | — | read instead of 16–17 when not `0xFFFF` (CLF + REDOX units); `0xFFFF` on a basic SALT |
 | 20 | `salinity` | / 10 (g/l = kg/m³) | confirmed | |
-| 20–21 | `free_chlorine_mv` | uint16 BE, mV | confirmed | 6656 and 6934 mV on the CLF unit — overlaps `salinity` / `chlorine_production`, see [Open questions](#8-open-questions) |
 | 21 | `chlorine_production` | raw | confirmed | read while `byte[29]` 0x10 is set; `0` when the electrolyzer is not running |
 | 22 | settings flags | bitmask | confirmed | see [§4](#byte22--settings-flags) |
 | 23–24 | `air_temperature` | int16 BE / 10 °C, window −30.0 … 60.0 | confirmed | see [§5 Air temperature](#air-temperature) |
@@ -282,7 +281,6 @@ Switching winter mode on (2026-09-13, twice):
 | 2026-09-13/14 | `max_ph_doses` | moved | 17 → 20 | ✓ |
 | 2026-09-13/14 | `ph_minus_concentration` (`byte[112]`) | moved | 15 → 21 % | ✓ |
 | 2026-09-13/14 | `water_temperature_target` (`byte[55]`) | moved | 25 → 15 °C | ✓ |
-| — | `max_refill_time` | 1800 s | 30 min (Aseko Live) | ✓ (profile evidence, date not recorded) |
 | 2026-08-11, 2026-08-17 | `air_temperature` | 36.0 / 30.8 °C | unit readings | ✓ see §5 |
 
 ## 7. Settings the frame does not carry
@@ -305,17 +303,18 @@ Visible in the unit or the app, not located yet: the **water flow meter** toggle
 4. **Other SALT alarms** (no flow, low salt) — a marked test case while the alarm is shown.
 5. **`byte[38]` 0x10 = heating control parent to filtration?** — seen once in a session that also changed other heating settings; `byte[38]` also takes `0x20`, `0xA1`, `0x01` around winter mode. A clean test of that one setting.
 6. **Water flow meter toggle and pool flow type** — toggle each with a marker after the next frame.
-7. **`free_chlorine_mv` bytes 20–21 vs `salinity` `byte[20]` / `chlorine_production` `byte[21]`** — the profile claims both; a CLF-unit frame with the electrolyzer running and the mV value shown would settle which bytes carry what.
-8. **`byte[37]` routing on older firmware** — Issue #84 (v5.0) `0x13` = algicide with bit 7 clear; a v5.x frame with the third port switched between chemicals.
-9. **`heating_running`** — `byte[29]` 0x04 assumed; a frame with heating control on and the heater running.
-10. **DOSE SALT** (`byte[4]` = `0x0F`, `byte[53]` as `chlorine_dose_target`) — a frame from a DOSE unit.
-11. **Constant bytes 73, 108, 109–110, 111, 113, 116–118** — change one setting at a time with a marker.
-12. **Varying bytes 30, 31, 96, 97, 98, 114** — correlate with the app's history.
-13. **Checksum algorithm** (bytes 39, 79, 119) — not a plain sum; needs analysis over many frames.
-14. **Sub-zero air temperature** — a capture below 0 °C with an air probe fitted.
+7. **`byte[37]` routing on older firmware** — Issue #84 (v5.0) `0x13` = algicide with bit 7 clear; a v5.x frame with the third port switched between chemicals.
+8. **`heating_running`** — `byte[29]` 0x04 assumed; a frame with heating control on and the heater running.
+9. **DOSE SALT** (`byte[4]` = `0x0F`, `byte[53]` as `chlorine_dose_target`) — a frame from a DOSE unit.
+10. **Constant bytes 73, 108, 109–110, 111, 113, 116–118** — change one setting at a time with a marker.
+11. **Varying bytes 30, 31, 96, 97, 98, 114** — correlate with the app's history.
+12. **Checksum algorithm** (bytes 39, 79, 119) — not a plain sum; needs analysis over many frames.
+13. **Sub-zero air temperature** — a capture below 0 °C with an air probe fitted.
 
 ## 9. History
 
+- `free_chlorine_mv` was read from bytes 20–21 as on NET / HOME (6656, 6934 and 7936 mV in SALT CLF frames). Those are `0x1a00`, `0x1b16` and `0x1f00`: salinity 2.6 / 2.7 / 3.1 and chlorine production 0 / 22 / 0 — the same two bytes. SALT has no such value; removed from the profile 2026-09-14.
+- `max_refill_time` evidence once said 1800 s = 30 min; the check against the unit on 2026-09-11 read 1140 s = 19 min, which is what the profile records.
 - `byte[103]` was once read as a duplicate third-pump flow rate (60 ml/min, mirroring `byte[101]`, "does not flip with the algicide/floc switch"); bytes 102–105 are the water level thresholds, confirmed against the unit 2026-09-11.
 - The electrolyzer table once said `electrolysis_running` is True "when RIGHT cycle running"; it is the plain 0x10 run bit, polarity is 0x40.
 - Electrode polarity was first read the other way round (`0x50` = left, from one April frame); the by-hand switch on 2026-09-13 settled set = right and the decoder was corrected.

@@ -1189,7 +1189,10 @@ def test_decode_issue_99_salt() -> None:
     assert device.device_type == AsekoDeviceType.SALT
     assert device.configuration == {AsekoProbeType.PH, AsekoProbeType.CLF}
     assert device.free_chlorine is not None
-    assert device.free_chlorine_mv is not None
+    # bytes 20-21 are salinity (0x1f = 3.1) and chlorine production (0) on SALT
+    assert device.salinity == 3.1
+    assert device.free_chlorine_mv is None
+    assert "free_chlorine_mv" not in device.possible_features
     assert device.redox is None
 
 
@@ -1347,8 +1350,8 @@ def test_unspecified_16_bit_values_are_not_decoded_as_numbers() -> None:
         assert getattr(device, field) is None, field
         assert field not in device.features, field
 
-    clf = _make_base_bytes()
-    clf[4] = 0x0D  # SALT CLF
+    clf = _make_home_bytes()
+    clf[4] = 0x02  # HOME CLF; SALT sends salinity in bytes 20-21 instead
     clf[16:18] = bytes([0xFF] * 2)
     clf[20:22] = bytes([0xFF] * 2)
     device = decode(bytes(clf))
