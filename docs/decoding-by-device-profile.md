@@ -154,11 +154,13 @@ automations survive an accessory being added or removed.
 
 ## Recording
 
-- **Frame log** (`recording/frame_log.py`): every frame as received, kinds
+- **Frame log** (`recording/frame_log.py`): off until turned on in the test cases
+  card (`POST /api/aseko_local/recording`), a choice kept across restarts and
+  updates; while on, every frame as received, kinds
   `v7`, `v8`, `partial`, `rejected`, plus `mark` markers. Compressed ring buffer
   capped at 256 kB (chunks of 16 kB compressed or 384 kB raw), at most 500
   markers, saved across restarts, exported in an executor snapshot.
-- **Markers**: `aseko_local.mark_dump` and the test cases card write a marker
+- **Markers** (only while recording): `aseko_local.mark_dump` and the test cases card write a marker
   only after the next whole frame arrives (at most 60 s), optionally for one
   serial number — a change made on the unit may not be sent until its menu is
   closed.

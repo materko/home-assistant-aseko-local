@@ -452,6 +452,8 @@ async def async_get_config_entry_diagnostics(
         # bytes the server could not align into a frame; they are in the
         # frame log as kind "rejected" with the reason
         "rejected_frames": getattr(coordinator, "get_rejected_frames", dict)(),
+        # the test cases card turns it on; off, the log below is what it held
+        "frame_log_enabled": coordinator.frame_log.enabled,
         "frame_log": await hass.async_add_executor_job(
             coordinator.frame_log.snapshot().export
         ),

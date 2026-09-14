@@ -107,6 +107,10 @@ class FrameLog:
         self._next_marker = 1
         self._markers: list[dict[str, Any]] = []
         self._exported_through = 0
+        # Off until someone turns recording on (the test cases card).  The
+        # coordinator appends nothing while it is off; the log keeps what it
+        # already holds until it is cleared.
+        self.enabled = False
         self._start_chunk()
 
     # -- writing -----------------------------------------------------------
@@ -249,6 +253,16 @@ class FrameLog:
         """Every marker up to number ``through`` has been downloaded."""
         self._exported_through = max(self._exported_through, through)
 
+    def clear(self) -> None:
+        """Drop every frame and marker; marker numbers keep counting."""
+        self._chunks.clear()
+        self._chunk_times.clear()
+        self._sealed_bytes = 0
+        self._dropped_chunks = 0
+        self._markers = []
+        self._exported_through = self._next_marker - 1
+        self._start_chunk()
+
     def forget_markers(self) -> None:
         """Clear the list of markers (the frames stay)."""
         self._markers = []
@@ -296,6 +310,7 @@ class FrameLog:
             "next_marker": self._next_marker,
             "markers": self._markers,
             "exported_through": self._exported_through,
+            "enabled": self.enabled,
         }
 
     def load_store(self, data: dict[str, Any]) -> None:
@@ -316,6 +331,10 @@ class FrameLog:
             dropped_chunks = int(data.get("dropped_chunks", 0))
             next_marker = int(data.get("next_marker", 1))
             exported_through = int(data.get("exported_through", 0))
+            # A store from before the switch was recording all along: keep it on.
+            enabled = data.get("enabled", True)
+            if not isinstance(enabled, bool):
+                raise TypeError("enabled is not a bool")
             markers = data.get("markers", [])
             if not isinstance(markers, list):
                 raise TypeError("markers is not a list")
@@ -333,6 +352,7 @@ class FrameLog:
             if isinstance(m, dict) and "n" in m and isinstance(m.get("t"), str)
         ][-MAX_MARKERS:]
         self._exported_through = exported_through
+        self.enabled = enabled
         backfill = "markers" not in data
         self._start_chunk()
         # Re-encode rather than replay the lines: a chunk sealed on the way

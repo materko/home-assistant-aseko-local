@@ -109,6 +109,14 @@ class PhotoStore:
             key=lambda p: (p.stat().st_mtime, p.name),
         )
 
+    def clear(self) -> int:
+        """Delete every stored photo; return how many."""
+        with self.lock:
+            files = self.files()
+            for path in files:
+                path.unlink(missing_ok=True)
+        return len(files)
+
     def size(self) -> int:
         return sum(p.stat().st_size for p in self.files())
 

@@ -16,6 +16,8 @@ const PHOTO_URL = "/api/aseko_local/photo";
 const EXPORT_URL = "/api/aseko_local/export";
 const FORGET_URL = "/api/aseko_local/forget";
 const EXPORTED_URL = "/api/aseko_local/exported";
+const RECORDING_URL = "/api/aseko_local/recording";
+const DELETE_URL = "/api/aseko_local/delete";
 
 const STRINGS = {
   "en": {
@@ -56,7 +58,17 @@ const STRINGS = {
     "download_failed": "Download failed: {e}",
     "clear_confirm": "Clear the list of cases? Frames and photos stay in Home Assistant.",
     "cleared": "List cleared.",
-    "clear_failed": "Not cleared: {e}"
+    "clear_failed": "Not cleared: {e}",
+    "recording_on": "Recording on",
+    "recording_off": "Recording off",
+    "recording_off_hint": "Recording is off: frames are not saved and cases cannot be marked. Turn it on first.",
+    "recording_turned_on": "Recording on: every frame is saved from now on.",
+    "recording_turned_off": "Recording off. What is recorded stays until you delete it.",
+    "recording_failed": "Recording not switched: {e}",
+    "delete": "Delete recording",
+    "delete_confirm": "Delete every recorded frame, case and photo? This cannot be undone.",
+    "deleted": "Recording deleted ({p} photos).",
+    "delete_failed": "Not deleted: {e}"
   },
   "sk": {
     "title": "Aseko \u2013 z\u00e1znam pokusov",
@@ -96,7 +108,17 @@ const STRINGS = {
     "download_failed": "S\u0165ahovanie zlyhalo: {e}",
     "clear_confirm": "Vymaza\u0165 zoznam pokusov? R\u00e1mce a fotky ostan\u00fa v Home Assistante.",
     "cleared": "Zoznam vymazan\u00fd.",
-    "clear_failed": "Nevymazan\u00e9: {e}"
+    "clear_failed": "Nevymazan\u00e9: {e}",
+    "recording_on": "Nahr\u00e1vanie zapnut\u00e9",
+    "recording_off": "Nahr\u00e1vanie vypnut\u00e9",
+    "recording_off_hint": "Nahr\u00e1vanie je vypnut\u00e9: r\u00e1mce sa neukladaj\u00fa a pokusy sa nedaj\u00fa zaznamena\u0165. Najprv ho zapni.",
+    "recording_turned_on": "Nahr\u00e1vanie zapnut\u00e9: odteraz sa uklad\u00e1 ka\u017ed\u00fd r\u00e1mec.",
+    "recording_turned_off": "Nahr\u00e1vanie vypnut\u00e9. Nahrat\u00e9 ost\u00e1va, k\u00fdm ho nevyma\u017ee\u0161.",
+    "recording_failed": "Nahr\u00e1vanie sa neprepnulo: {e}",
+    "delete": "Vymaza\u0165 nahr\u00e1vku",
+    "delete_confirm": "Vymaza\u0165 v\u0161etky nahrat\u00e9 r\u00e1mce, pokusy a fotky? Ned\u00e1 sa to vr\u00e1ti\u0165.",
+    "deleted": "Nahr\u00e1vka vymazan\u00e1 (fotky: {p}).",
+    "delete_failed": "Nevymazan\u00e9: {e}"
   },
   "cs": {
     "title": "Aseko \u2013 z\u00e1znam pokus\u016f",
@@ -136,7 +158,17 @@ const STRINGS = {
     "download_failed": "Stahov\u00e1n\u00ed selhalo: {e}",
     "clear_confirm": "Vymazat seznam pokus\u016f? R\u00e1mce a fotky z\u016fstanou v Home Assistantu.",
     "cleared": "Seznam vymaz\u00e1n.",
-    "clear_failed": "Nevymaz\u00e1no: {e}"
+    "clear_failed": "Nevymaz\u00e1no: {e}",
+    "recording_on": "Nahr\u00e1v\u00e1n\u00ed zapnuto",
+    "recording_off": "Nahr\u00e1v\u00e1n\u00ed vypnuto",
+    "recording_off_hint": "Nahr\u00e1v\u00e1n\u00ed je vypnut\u00e9: r\u00e1mce se neukl\u00e1daj\u00ed a pokusy nelze zaznamenat. Nejprve ho zapn\u011bte.",
+    "recording_turned_on": "Nahr\u00e1v\u00e1n\u00ed zapnuto: od te\u010f se ukl\u00e1d\u00e1 ka\u017ed\u00fd r\u00e1mec.",
+    "recording_turned_off": "Nahr\u00e1v\u00e1n\u00ed vypnuto. Nahran\u00e9 z\u016fst\u00e1v\u00e1, dokud ho nesma\u017eete.",
+    "recording_failed": "Nahr\u00e1v\u00e1n\u00ed se nep\u0159epnulo: {e}",
+    "delete": "Smazat nahr\u00e1vku",
+    "delete_confirm": "Smazat v\u0161echny nahran\u00e9 r\u00e1mce, pokusy a fotky? Nelze to vr\u00e1tit.",
+    "deleted": "Nahr\u00e1vka smaz\u00e1na (fotky: {p}).",
+    "delete_failed": "Nesmaz\u00e1no: {e}"
   },
   "de": {
     "title": "Aseko-Testf\u00e4lle",
@@ -176,7 +208,17 @@ const STRINGS = {
     "download_failed": "Download fehlgeschlagen: {e}",
     "clear_confirm": "Liste der F\u00e4lle leeren? Frames und Fotos bleiben in Home Assistant.",
     "cleared": "Liste geleert.",
-    "clear_failed": "Nicht geleert: {e}"
+    "clear_failed": "Nicht geleert: {e}",
+    "recording_on": "Aufzeichnung an",
+    "recording_off": "Aufzeichnung aus",
+    "recording_off_hint": "Die Aufzeichnung ist aus: Frames werden nicht gespeichert und F\u00e4lle k\u00f6nnen nicht markiert werden. Zuerst einschalten.",
+    "recording_turned_on": "Aufzeichnung an: ab jetzt wird jeder Frame gespeichert.",
+    "recording_turned_off": "Aufzeichnung aus. Das Aufgezeichnete bleibt, bis es gel\u00f6scht wird.",
+    "recording_failed": "Aufzeichnung nicht umgeschaltet: {e}",
+    "delete": "Aufzeichnung l\u00f6schen",
+    "delete_confirm": "Alle aufgezeichneten Frames, F\u00e4lle und Fotos l\u00f6schen? Das kann nicht r\u00fcckg\u00e4ngig gemacht werden.",
+    "deleted": "Aufzeichnung gel\u00f6scht ({p} Fotos).",
+    "delete_failed": "Nicht gel\u00f6scht: {e}"
   },
   "fr": {
     "title": "Cas de test Aseko",
@@ -216,7 +258,17 @@ const STRINGS = {
     "download_failed": "\u00c9chec du t\u00e9l\u00e9chargement : {e}",
     "clear_confirm": "Vider la liste des cas ? Les trames et photos restent dans Home Assistant.",
     "cleared": "Liste vid\u00e9e.",
-    "clear_failed": "Non vid\u00e9e : {e}"
+    "clear_failed": "Non vid\u00e9e : {e}",
+    "recording_on": "Enregistrement activ\u00e9",
+    "recording_off": "Enregistrement d\u00e9sactiv\u00e9",
+    "recording_off_hint": "L'enregistrement est d\u00e9sactiv\u00e9 : les trames ne sont pas conserv\u00e9es et aucun cas ne peut \u00eatre marqu\u00e9. Activez-le d'abord.",
+    "recording_turned_on": "Enregistrement activ\u00e9 : chaque trame est conserv\u00e9e \u00e0 partir de maintenant.",
+    "recording_turned_off": "Enregistrement d\u00e9sactiv\u00e9. Ce qui est enregistr\u00e9 reste jusqu'\u00e0 sa suppression.",
+    "recording_failed": "Enregistrement non bascul\u00e9 : {e}",
+    "delete": "Supprimer l'enregistrement",
+    "delete_confirm": "Supprimer toutes les trames, cas et photos enregistr\u00e9s ? Action irr\u00e9versible.",
+    "deleted": "Enregistrement supprim\u00e9 ({p} photos).",
+    "delete_failed": "Non supprim\u00e9 : {e}"
   }
 };
 
@@ -232,6 +284,7 @@ class AsekoTestCasesCard extends HTMLElement {
     this._pruneThumbs(null);
     this._thumbs = {};
     this._listKey = "";
+    this._isBusy = false;
     if (!this.shadowRoot) {
       this.attachShadow({ mode: "open" });
     }
@@ -301,6 +354,7 @@ class AsekoTestCasesCard extends HTMLElement {
         }
         * { box-sizing: border-box; }
         ha-card {
+          display: block;
           container-type: inline-size;
           overflow: hidden;
           border-radius: var(--ha-card-border-radius, 16px);
@@ -353,6 +407,9 @@ class AsekoTestCasesCard extends HTMLElement {
         .age[data-state="stale"]::before { background: var(--warning-color, #f0a000); box-shadow: 0 0 0 3px color-mix(in srgb, var(--warning-color, #f0a000) 18%, transparent); }
         .age[data-state="error"]::before { background: var(--error-color, #db4437); box-shadow: 0 0 0 3px color-mix(in srgb, var(--error-color, #db4437) 18%, transparent); }
         .age b { color: var(--primary-text-color); font-size: 1em; font-weight: 700; }
+        .rec { flex: 0 0 auto; min-height: 36px; padding: 0 12px; font-size: .82rem; }
+        .rec::before { flex: 0 0 9px; width: 9px; height: 9px; border-radius: 50%; background: var(--disabled-text-color); content: ""; }
+        .rec[aria-pressed="true"]::before { background: var(--error-color, #db4437); box-shadow: 0 0 0 3px color-mix(in srgb, var(--error-color, #db4437) 20%, transparent); }
         .body { padding: 20px 22px 22px; }
         .composer {
           padding: 14px;
@@ -497,7 +554,8 @@ class AsekoTestCasesCard extends HTMLElement {
         .footer-actions .danger { margin-left: auto; }
         .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
         @container (max-width: 560px) {
-          .hero { padding: 17px 16px 15px; }
+          .hero { flex-wrap: wrap; padding: 17px 16px 15px; }
+          .rec { width: 100%; }
           .body { padding: 16px; }
           .composer { padding: 12px; }
           .action-row { align-items: stretch; flex-wrap: wrap; }
@@ -518,6 +576,7 @@ class AsekoTestCasesCard extends HTMLElement {
             <h2>${esc(title)}</h2>
             <div class="age" id="age" data-state="unknown">${esc(this._t("last_frame", { v: "\u2026" }))}</div>
           </div>
+          <button id="recording" class="secondary rec" aria-pressed="false" hidden>${esc(this._t("recording_off"))}</button>
         </header>
         <div class="body">
           <section class="composer">
@@ -540,7 +599,8 @@ class AsekoTestCasesCard extends HTMLElement {
             <div class="footer-actions">
               <button id="export-new"><ha-icon icon="mdi:download-outline" aria-hidden="true"></ha-icon>${esc(this._t("download_new"))}</button>
               <button id="export-all" class="secondary"><ha-icon icon="mdi:archive-arrow-down-outline" aria-hidden="true"></ha-icon>${esc(this._t("download_all"))}</button>
-              <button id="forget" class="secondary danger"><ha-icon icon="mdi:delete-sweep-outline" aria-hidden="true"></ha-icon>${esc(this._t("clear"))}</button>
+              <button id="forget" class="secondary"><ha-icon icon="mdi:delete-sweep-outline" aria-hidden="true"></ha-icon>${esc(this._t("clear"))}</button>
+              <button id="delete" class="secondary danger"><ha-icon icon="mdi:delete-forever-outline" aria-hidden="true"></ha-icon>${esc(this._t("delete"))}</button>
             </div>
           </section>
         </div>
@@ -559,6 +619,9 @@ class AsekoTestCasesCard extends HTMLElement {
     $("export-new").addEventListener("click", () => this._export(true));
     $("export-all").addEventListener("click", () => this._export(false));
     $("forget").addEventListener("click", () => this._forget());
+    $("delete").addEventListener("click", () => this._delete());
+    $("recording").addEventListener("click", () => this._toggleRecording());
+    this._applyRecording();
   }
 
   _el(id) {
@@ -572,10 +635,65 @@ class AsekoTestCasesCard extends HTMLElement {
   }
 
   _busy(busy) {
-    for (const id of ["photo", "mark", "export-new", "export-all", "forget"]) this._el(id).disabled = busy;
-    this._el("note").disabled = busy;
+    this._isBusy = busy;
+    for (const id of ["recording", "export-new", "export-all", "forget", "delete"]) this._el(id).disabled = busy;
     this._el("unit").disabled = busy;
     this._el("status").setAttribute("aria-busy", String(busy));
+    this._applyRecording();
+  }
+
+  // Cases can be marked only while the frame log records: a case with no
+  // frames around it says nothing.
+  _applyRecording() {
+    const button = this._el("recording");
+    if (!button) return;
+    const known = this._recording !== undefined;
+    const on = this._recording === true;
+    button.hidden = !known;
+    button.setAttribute("aria-pressed", String(on));
+    button.textContent = this._t(on ? "recording_on" : "recording_off");
+    for (const id of ["photo", "mark"]) this._el(id).disabled = this._isBusy || !on;
+    this._el("note").disabled = this._isBusy || !on;
+    const status = this._el("status");
+    if (known && !on && !this._isBusy && !/done|error|waiting/.test(status.className)) {
+      this._setStatus(this._t("recording_off_hint"), "");
+    }
+  }
+
+  async _toggleRecording() {
+    const enabled = !this._recording;
+    this._busy(true);
+    try {
+      const response = await this._hass.fetchWithAuth(RECORDING_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      this._recording = enabled;
+      this._setStatus(this._t(enabled ? "recording_turned_on" : "recording_turned_off"), "done");
+      this._poll();
+    } catch (err) {
+      this._setStatus(this._t("recording_failed", { e: err.message }), "error");
+    } finally {
+      this._busy(false);
+    }
+  }
+
+  async _delete() {
+    if (!window.confirm(this._t("delete_confirm"))) return;
+    this._busy(true);
+    try {
+      const response = await this._hass.fetchWithAuth(DELETE_URL, { method: "POST" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
+      this._setStatus(this._t("deleted", { p: data.photos_deleted }), "done");
+      this._poll();
+    } catch (err) {
+      this._setStatus(this._t("delete_failed", { e: err.message }), "error");
+    } finally {
+      this._busy(false);
+    }
   }
 
   async _poll() {
@@ -590,6 +708,8 @@ class AsekoTestCasesCard extends HTMLElement {
         ? this._t("last_frame_ago", { s: Math.round(youngest) })
         : esc(this._t("last_frame_none"));
       this._el("age").dataset.state = youngest == null ? "unknown" : youngest <= 15 ? "fresh" : "stale";
+      this._recording = data.entries.some((e) => e.recording);
+      this._applyRecording();
       this._renderCases(data.entries);
       this._renderUnits(data.entries);
     } catch (err) {

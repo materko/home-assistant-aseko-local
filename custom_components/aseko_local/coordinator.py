@@ -41,6 +41,10 @@ FRAME_LOG_SAVE_DELAY = 60
 FRAME_LOG_SAVE_INTERVAL = timedelta(minutes=10)
 
 
+class RecordingOff(Exception):
+    """A marker was asked for while the frame log is off."""
+
+
 class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
     """Aseko Local coordinator."""
 
@@ -399,13 +403,14 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
     def store_rejected_frame(self, raw_frame: bytes, reason: str) -> None:
         """Log bytes the server could not align into a frame, and count the reason."""
         received = dt_util.utcnow()
-        self.frame_log.append_frame(received, KIND_REJECTED, raw_frame, reason)
         entry = self._rejected_frames.setdefault(
             reason, {"count": 0, "first_seen": received.isoformat()}
         )
         entry["count"] += 1
         entry["last_seen"] = received.isoformat()
-        self._request_frame_log_save()
+        if self.frame_log.enabled:
+            self.frame_log.append_frame(received, KIND_REJECTED, raw_frame, reason)
+            self._request_frame_log_save()
 
     def get_rejected_frames(self) -> dict[str, dict[str, Any]]:
         """Why the server rejected bytes it could not align, for diagnostics."""
@@ -454,7 +459,8 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
 
     def _log_frame(self, kind: str, raw_frame: bytes, serial: int | None) -> None:
         received = dt_util.utcnow()
-        self.frame_log.append_frame(received, kind, raw_frame)
+        if self.frame_log.enabled:
+            self.frame_log.append_frame(received, kind, raw_frame)
         if serial is not None:
             self._last_frame_at[serial] = received
         # A fragment, or a frame whose serial number could not be read, says
@@ -470,7 +476,8 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
                 else:
                     still_waiting.append((waiter, wanted))
             self._frame_waiters = still_waiting
-        self._request_frame_log_save()
+        if self.frame_log.enabled:
+            self._request_frame_log_save()
 
     async def async_wait_for_frame(
         self, timeout: float, serial_number: int | None = None
@@ -525,8 +532,11 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
 
         The marker records how many seconds ago each unit's last frame
         arrived, so a reader can tell whether the change it marks could
-        already be in that frame.
+        already be in that frame.  Raises ``RecordingOff`` while the frame log
+        is off: a marker with no frames around it says nothing.
         """
+        if not self.frame_log.enabled:
+            raise RecordingOff
         received = dt_util.utcnow()
         since = self.seconds_since_last_frame(received)
         number = self.frame_log.append_marker(
@@ -552,6 +562,17 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
     def mark_exported(self, through: int) -> None:
         """Record that markers up to ``through`` were downloaded, and save."""
         self.frame_log.mark_exported(through)
+        self._request_frame_log_save(delay=5)
+
+    def set_recording(self, enabled: bool) -> None:
+        """Turn the frame log on or off; what it holds stays."""
+        self.frame_log.enabled = enabled
+        _LOGGER.info("Aseko frame log recording %s", "on" if enabled else "off")
+        self._request_frame_log_save(delay=5)
+
+    def clear_recording(self) -> None:
+        """Delete every recorded frame and case of this entry."""
+        self.frame_log.clear()
         self._request_frame_log_save(delay=5)
 
     def forget_markers(self) -> None:

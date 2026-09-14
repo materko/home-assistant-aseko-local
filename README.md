@@ -51,7 +51,7 @@ If you own an Aseko unit that is not listed above as fully supported, or the [su
 
 <img src="images/aseko_test_cases_card.png" alt="Aseko test cases card" width="438">
 
-**How it works.** The integration keeps a *frame log*: every frame the unit sends, compressed and capped at 256 kB (about five days of frames), kept across Home Assistant restarts. Each time you record a test case, the card writes a *marker* into that log, with your note and, if you like, a photo of the unit's display. Every change you make on the unit then sits right next to the frames that carry it — nobody has to compare clocks, and messengers cannot strip the time from the photos.
+**How it works.** While recording is on, the integration keeps a *frame log*: every frame the unit sends, compressed and capped at 256 kB (about five days of frames), kept across Home Assistant restarts. Recording is **off** until you turn it on in the card, and it stays the way you left it across restarts and updates. Each time you record a test case, the card writes a *marker* into that log, with your note and, if you like, a photo of the unit's display. Every change you make on the unit then sits right next to the frames that carry it — nobody has to compare clocks, and messengers cannot strip the time from the photos.
 
 Add the card to any dashboard (it is loaded automatically, no resource to add):
 
@@ -63,13 +63,13 @@ Then, standing at the unit with your phone:
 
 > **Android:** open the dashboard in **Chrome** (your Home Assistant address, e.g. `http://192.168.1.10:8123`). The Home Assistant app offers only the gallery when the card asks for a photo, even with the camera permission granted; in Chrome **Photo + mark** opens the camera. A photo picked from the gallery works too.
 
-1. Check the header: **Last frame: N s ago** shows the unit is sending (a v7 unit sends about every 10 seconds).
+1. Check the header: **Last frame: N s ago** shows the unit is sending (a v7 unit sends about every 10 seconds). Tap **Recording off** to turn recording on; **Photo + mark** and **Mark** work only while it is on.
 2. Change **one** setting on the unit.
 3. Type what you changed, e.g. *Heating control ON*, and tap **Photo + mark** to photograph the display, or **Mark** without a photo. Either way the case is **not** written at the tap: the photo is stored at once, but the marker waits for the next whole frame from the unit (at most 60 seconds), because the unit may not have sent the change yet — with its settings menu open it sends nothing until the menu is closed. The card then says *frame received, go on with the next change*; only then change the next setting. When several units send to the same entry, pick the one you are testing in the **Unit** list.
 4. Repeat for as many changes as you like; switching a setting back is a useful case too. The cases stay in Home Assistant, so the list is the same on the phone and on a PC, and the ones not downloaded yet are highlighted.
 5. On any device tap **Download new**: one zip with the frames, the markers, the diagnostics and the photos. Open a new issue at [github.com/hopkins-tk/home-assistant-aseko-local](https://github.com/hopkins-tk/home-assistant-aseko-local/issues/new), say which model and firmware you have, and attach the zip.
 
-**Download all** exports every case again; **Clear list** empties the list while frames and photos stay. The card follows the Home Assistant language (English, Slovak, Czech, German, French; `language: en` overrides it). Photos are downscaled to 2048 px and kept in `<config>/aseko_local/photos`, at most 200 photos or 100 MB (the oldest go first). The card and its endpoints are for admin users, like the diagnostics download.
+**Download all** exports every case again; **Clear list** empties the list while frames and photos stay; **Delete recording** deletes every recorded frame, case and photo. Turn recording off when you are done: what was recorded stays until you delete it. The card follows the Home Assistant language (English, Slovak, Czech, German, French; `language: en` overrides it). Photos are downscaled to 2048 px and kept in `<config>/aseko_local/photos`, at most 200 photos or 100 MB (the oldest go first). The card and its endpoints are for admin users, like the diagnostics download.
 
 > The frames and the unit's display carry its serial number; check the photos before you attach them to a public issue.
 
@@ -84,8 +84,8 @@ Then, standing at the unit with your phone:
 
 - **Downloaded** means your browser received the whole zip. If the download breaks off, the cases stay *new* and **Download new** offers them again.
 - Several units sending to one entry share the frame log, so it covers fewer days.
-- Bytes that could not be aligned into a frame are kept in the log as *rejected* and counted, with the reason, under `rejected_frames` in the diagnostics.
-- A unit whose model the integration does not know gets no entities; it is logged as a warning and its frames are still recorded — the diagnostics list it under `unrecognised_devices`, which is exactly what adding it needs.
+- Bytes that could not be aligned into a frame are counted, with the reason, under `rejected_frames` in the diagnostics, and kept in the log as *rejected* while recording is on.
+- A unit whose model the integration does not know gets no entities; it is logged as a warning, its frames are recorded while recording is on, and the diagnostics list it under `unrecognised_devices`, which is exactly what adding it needs.
 
 #### 2. Diagnostics only
 
@@ -93,11 +93,11 @@ Then, standing at the unit with your phone:
 2. Click on your device, then click **Download Diagnostics** (3-dots menu beside settings symbol)
 3. Open a new issue at [github.com/hopkins-tk/home-assistant-aseko-local](https://github.com/hopkins-tk/home-assistant-aseko-local/issues/new) and attach the downloaded JSON file
 
-The diagnostics file contains an annotated table of every byte in the raw data frame sent by your device, and the frame log with its markers.
+The diagnostics file contains an annotated table of every byte in the last raw data frame sent by your device, and — if recording was on — the frame log with its markers.
 
 #### 3. Without the card: the `aseko_local.mark_dump` action
 
-The card is a front end for this action, so an automation or a dashboard button can write markers too. Call `aseko_local.mark_dump`, optionally with a short `note`. It writes the marker only once the next whole frame has arrived (at most 60 seconds); `wait_for_next_frame: false` writes it at once, and `serial_number` waits for one unit's frame when several send to the same entry. It returns the marker number and how many seconds ago each unit's last frame arrived, and a Home Assistant notification shows *waiting for a frame* and then *written*. `python scripts/frame_log_tool.py DIAGNOSTICS.json --around 1` prints the frames around marker 1.
+The card is a front end for this action, so an automation or a dashboard button can write markers too. Call `aseko_local.mark_dump`, optionally with a short `note`; recording has to be on (turn it on in the card), otherwise the action fails. It writes the marker only once the next whole frame has arrived (at most 60 seconds); `wait_for_next_frame: false` writes it at once, and `serial_number` waits for one unit's frame when several send to the same entry. It returns the marker number and how many seconds ago each unit's last frame arrived, and a Home Assistant notification shows *waiting for a frame* and then *written*. `python scripts/frame_log_tool.py DIAGNOSTICS.json --around 1` prints the frames around marker 1.
 
 Which values are read on which model, and which of them still lack a confirming capture, is listed per model in the [support matrix](docs/support_matrix.md). It is generated from the decoder's device profiles, so it is always current; every ❓ in it is a value a recorded test case from that model would settle.
 

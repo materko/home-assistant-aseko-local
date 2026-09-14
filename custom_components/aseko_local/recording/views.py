@@ -2,17 +2,21 @@
 
 The card (``frontend/aseko-test-cases-card.js``) is loaded on every dashboard, so
 ``type: custom:aseko-test-cases-card`` works without adding a resource by hand.  It
-talks to three authenticated endpoints, admin only like the diagnostics
+talks to these authenticated endpoints, admin only like the diagnostics
 download they extend:
 
 * ``POST /api/aseko_local/photo`` -- a photo straight from the phone camera
-  (multipart field ``photo``, optional ``note``).  The marker is written into
-  every entry's frame log the moment the upload arrives, and the photo is
-  stored under that time.
+  (multipart field ``photo``, optional ``note``).  The photo is stored under
+  the upload time at once; the marker goes into every recording entry's frame
+  log after the next whole frame (``wait``, ``serial_number``).
 * ``GET /api/aseko_local/status`` -- how long ago each unit's last frame
   arrived, so the card can show it while waiting before a change.
 * ``GET /api/aseko_local/export`` -- frames, markers, diagnostics and photos
   as one zip.
+* ``POST /api/aseko_local/recording`` -- ``{"enabled": true|false}`` turns the
+  frame log of every entry on or off; it is off until someone turns it on.
+* ``POST /api/aseko_local/delete`` -- delete every recorded frame, case and
+  photo.
 """
 
 from __future__ import annotations
@@ -75,6 +79,8 @@ async def async_setup_recording(hass: HomeAssistant, version: str) -> None:
     hass.http.register_view(AsekoStatusView())
     hass.http.register_view(AsekoExportView())
     hass.http.register_view(AsekoExportedView())
+    hass.http.register_view(AsekoRecordingView())
+    hass.http.register_view(AsekoDeleteRecordingView())
 
 
 def _loaded_entries(hass: HomeAssistant) -> list[Any]:
@@ -108,6 +114,9 @@ class AsekoPhotoView(HomeAssistantView):
         entries = _loaded_entries(hass)
         if not entries:
             return self.json_message("No Aseko Local entry is loaded", 409)
+        entries = [e for e in entries if e.runtime_data.coordinator.frame_log.enabled]
+        if not entries:
+            return self.json_message("Recording is off", 409)
 
         note: str | None = None
         wait = True
@@ -205,6 +214,7 @@ class AsekoStatusView(HomeAssistantView):
                     {
                         "entry": entry.title,
                         "entry_id": entry.entry_id,
+                        "recording": entry.runtime_data.coordinator.frame_log.enabled,
                         "seconds_since_last_frame": {
                             str(serial): age
                             for serial, age in entry.runtime_data.coordinator.seconds_since_last_frame(
@@ -298,3 +308,36 @@ class AsekoExportedView(HomeAssistantView):
             if entry.entry_id in marks:
                 entry.runtime_data.coordinator.mark_exported(marks[entry.entry_id])
         return self.json({"marked": marks})
+
+
+class AsekoRecordingView(HomeAssistantView):
+    """Turn the frame log of every entry on or off."""
+
+    url = f"/api/{DOMAIN}/recording"
+    name = f"api:{DOMAIN}:recording"
+
+    async def post(self, request: web.Request) -> web.Response:
+        hass = _require_admin(request)
+        try:
+            enabled = (await request.json())["enabled"]
+        except (ValueError, KeyError, TypeError):
+            enabled = None
+        if not isinstance(enabled, bool):
+            return self.json_message('Expected {"enabled": true|false}', 400)
+        for entry in _loaded_entries(hass):
+            entry.runtime_data.coordinator.set_recording(enabled)
+        return self.json({"enabled": enabled})
+
+
+class AsekoDeleteRecordingView(HomeAssistantView):
+    """Delete every recorded frame, case and photo; recording stays as it is."""
+
+    url = f"/api/{DOMAIN}/delete"
+    name = f"api:{DOMAIN}:delete"
+
+    async def post(self, request: web.Request) -> web.Response:
+        hass = _require_admin(request)
+        for entry in _loaded_entries(hass):
+            entry.runtime_data.coordinator.clear_recording()
+        photos = await hass.async_add_executor_job(photo_store(hass).clear)
+        return self.json({"photos_deleted": photos})

@@ -109,6 +109,7 @@ def _setup(tmp_path: Path, entries: int = 1) -> tuple[MagicMock, list[MagicMock]
         entry.data = {"host": "0.0.0.0", "port": 47524 + index}
         entry.options = {}
         entry.runtime_data.coordinator = AsekoLocalDataUpdateCoordinator(hass, entry)
+        entry.runtime_data.coordinator.set_recording(True)
         loaded.append(entry)
     hass.config_entries.async_entries.return_value = loaded
     return hass, loaded
@@ -338,3 +339,75 @@ async def test_forget_clears_the_cases_but_keeps_frames_and_photos(tmp_path) -> 
     assert coordinator.frame_log.markers() == []
     assert coordinator.frame_log.snapshot().records()
     assert len(PhotoStore(tmp_path / "photos").files()) == 1
+
+
+# ── recording on / off, delete ───────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_recording_is_switched_for_every_entry_and_shown_in_status(
+    tmp_path,
+) -> None:
+    hass, entries = _setup(tmp_path, entries=2)
+    view = views.AsekoRecordingView()
+
+    assert _body(await view.post(FakeRequest(hass, body={"enabled": False}))) == {
+        "enabled": False
+    }
+    status = _body(await views.AsekoStatusView().get(FakeRequest(hass)))
+    assert [e["recording"] for e in status["entries"]] == [False, False]
+
+    await view.post(FakeRequest(hass, body={"enabled": True}))
+    assert all(e.runtime_data.coordinator.frame_log.enabled for e in entries)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("body", [ValueError("not json"), {}, {"enabled": "yes"}])
+async def test_recording_refuses_a_malformed_request(tmp_path, body) -> None:
+    hass, _ = _setup(tmp_path)
+    response = await views.AsekoRecordingView().post(FakeRequest(hass, body=body))
+    assert response.status == 400
+
+
+@pytest.mark.asyncio
+async def test_no_photo_is_stored_while_recording_is_off(tmp_path) -> None:
+    hass, (entry,) = _setup(tmp_path)
+    entry.runtime_data.coordinator.set_recording(False)
+
+    response = await views.AsekoPhotoView().post(
+        FakeRequest(hass, parts={"wait": b"0", "photo": _jpeg()})
+    )
+
+    assert response.status == 409
+    assert PhotoStore(tmp_path / "photos").files() == []
+
+
+@pytest.mark.asyncio
+async def test_delete_removes_frames_cases_and_photos_but_not_the_switch(
+    tmp_path,
+) -> None:
+    hass, (entry,) = _setup(tmp_path)
+    _frame_arrives(entry)
+    await views.AsekoPhotoView().post(
+        FakeRequest(hass, parts={"wait": b"0", "photo": _jpeg()})
+    )
+    coordinator = entry.runtime_data.coordinator
+
+    body = _body(await views.AsekoDeleteRecordingView().post(FakeRequest(hass)))
+
+    assert body == {"photos_deleted": 1}
+    assert coordinator.frame_log.records() == []
+    assert coordinator.frame_log.markers() == []
+    assert PhotoStore(tmp_path / "photos").files() == []
+    assert coordinator.frame_log.enabled is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("view", "method"),
+    [(views.AsekoRecordingView, "post"), (views.AsekoDeleteRecordingView, "post")],
+)
+async def test_switch_and_delete_are_admin_only(tmp_path, view, method) -> None:
+    hass, _ = _setup(tmp_path)
+    with pytest.raises(Unauthorized):
+        await getattr(view(), method)(FakeRequest(hass, admin=False))

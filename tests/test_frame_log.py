@@ -8,6 +8,7 @@ import zlib
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from homeassistant.util import dt as dt_util
 
 from custom_components.aseko_local.recording.frame_log import (
     KIND_MARK,
@@ -166,6 +167,7 @@ def test_coordinator_logs_every_frame_and_numbers_markers() -> None:
     from .test_entity_growth import _coordinator
 
     coordinator = _coordinator()
+    coordinator.set_recording(True)
     coordinator.store_v8_frame(REFERENCE_FRAME)
     coordinator.store_raw_frame(bytes(120))
     coordinator.store_raw_frame(bytes(40))  # partial frame
@@ -364,6 +366,7 @@ def test_rejected_bytes_are_logged_with_their_reason_and_counted() -> None:
     from .test_entity_growth import _coordinator
 
     coordinator = _coordinator()
+    coordinator.set_recording(True)
     coordinator.store_rejected_frame(bytes(range(120)), "frame sync failed: IndexError")
     coordinator.store_rejected_frame(bytes(range(120)), "frame sync failed: IndexError")
 
@@ -374,3 +377,72 @@ def test_rejected_bytes_are_logged_with_their_reason_and_counted() -> None:
     assert (
         coordinator.get_rejected_frames()["frame sync failed: IndexError"]["count"] == 2
     )
+
+
+# -- recording on / off ------------------------------------------------------
+
+
+def test_recording_is_off_until_turned_on_and_nothing_is_logged() -> None:
+    from custom_components.aseko_local.coordinator import RecordingOff
+
+    from .test_entity_growth import _coordinator
+
+    coordinator = _coordinator()
+    assert coordinator.frame_log.enabled is False
+    coordinator.store_v8_frame(REFERENCE_FRAME)
+    coordinator.store_rejected_frame(bytes(range(120)), "frame sync failed")
+    assert coordinator.frame_log.records() == []
+    # the frame age and the rejection count still work while off
+    assert 123456789 in coordinator.seconds_since_last_frame(dt_util.utcnow())
+    assert coordinator.get_rejected_frames()["frame sync failed"]["count"] == 1
+    with pytest.raises(RecordingOff):
+        coordinator.mark_dump("no frames around it")
+
+    coordinator.set_recording(True)
+    coordinator.store_v8_frame(REFERENCE_FRAME)
+    coordinator.mark_dump("now")
+    assert [r["k"] for r in coordinator.frame_log.records()] == ["v8", "mark"]
+
+    coordinator.set_recording(False)  # what was recorded stays
+    coordinator.store_v8_frame(REFERENCE_FRAME)
+    assert [r["k"] for r in coordinator.frame_log.records()] == ["v8", "mark"]
+
+
+@pytest.mark.parametrize(
+    ("stored", "expected"),
+    [
+        (None, False),  # no log before: off
+        ({"enabled": False}, False),  # turned off: stays off
+        ({"enabled": True}, True),  # turned on: stays on
+        ({}, True),  # a log from before the switch was recording: stays on
+    ],
+)
+def test_recording_state_survives_a_restart_and_an_update(stored, expected) -> None:
+    log = FrameLog()
+    if stored is not None:
+        log.load_store({**FrameLog().to_store(), **stored} if stored else _legacy())
+    assert log.enabled is expected
+
+
+def _legacy() -> dict:
+    """A store written before recording could be switched off."""
+    data = FrameLog().to_store()
+    del data["enabled"]
+    return data
+
+
+def test_clear_drops_frames_and_cases_but_keeps_counting() -> None:
+    log = FrameLog()
+    log.enabled = True
+    for received, raw in _v8_frames(20):
+        log.append_frame(received, KIND_V8, raw)
+    log.append_marker(T0, "one")
+    log.append_marker(T0, "two")
+
+    log.clear()
+
+    assert log.records() == []
+    assert log.markers() == []
+    assert log.not_downloaded() == 0
+    assert log.enabled is True
+    assert log.append_marker(T0, "three") == 3

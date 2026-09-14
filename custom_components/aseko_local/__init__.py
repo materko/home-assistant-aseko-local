@@ -371,6 +371,11 @@ async def async_setup_entry(
             ]
             if not loaded:
                 raise ServiceValidationError("No Aseko Local entry is loaded")
+            loaded = [e for e in loaded if e.runtime_data.coordinator.frame_log.enabled]
+            if not loaded:
+                raise ServiceValidationError(
+                    "Recording is off: turn it on in the Aseko test cases card first"
+                )
 
             tapped = dt_util.utcnow()
             label = f" ({note})" if note else ""
