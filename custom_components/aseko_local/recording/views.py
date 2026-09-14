@@ -18,6 +18,7 @@ download they extend:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from pathlib import Path
 from typing import Any
@@ -36,6 +37,8 @@ from .photos import PhotoStore, build_export_zip
 _LOGGER = logging.getLogger(__name__)
 
 STATIC_URL = f"/{DOMAIN}_static"
+# the newest marker number per entry an export holds, as JSON
+EXPORT_THROUGH_HEADER = "X-Aseko-Export-Through"
 CARD_FILE = "aseko-test-cases-card.js"
 DATA_RECORDING = f"{DOMAIN}_recording"
 # Well under Home Assistant's 16 MB request limit; phone photos are 2-8 MB.
@@ -71,6 +74,7 @@ async def async_setup_recording(hass: HomeAssistant, version: str) -> None:
     hass.http.register_view(AsekoForgetView())
     hass.http.register_view(AsekoStatusView())
     hass.http.register_view(AsekoExportView())
+    hass.http.register_view(AsekoExportedView())
 
 
 def _loaded_entries(hass: HomeAssistant) -> list[Any]:
@@ -253,17 +257,44 @@ class AsekoExportView(HomeAssistantView):
                 }
             )
         store = photo_store(hass)
-        photos = await hass.async_add_executor_job(store.files)
-        if only_new:
-            photos = [p for p in photos if p.name in wanted_photos]
-        body = await hass.async_add_executor_job(
-            build_export_zip, entries, photos, created
-        )
-        for entry in loaded:
-            entry.runtime_data.coordinator.mark_exported(newest[entry.entry_id])
+
+        def build() -> bytes:
+            # list and read the photos under the store's lock: no upload or
+            # cap can change them in between
+            with store.lock:
+                photos = store.files()
+                if only_new:
+                    photos = [p for p in photos if p.name in wanted_photos]
+                return build_export_zip(entries, photos, created)
+
+        body = await hass.async_add_executor_job(build)
         filename = f"aseko-local-export-{created.strftime('%Y%m%d-%H%M%S')}.zip"
+        # Nothing is marked downloaded here: the response may never arrive.
+        # The card confirms with the ids below once it holds the whole zip.
         return web.Response(
             body=body,
             content_type="application/zip",
-            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                EXPORT_THROUGH_HEADER: json.dumps(newest),
+            },
         )
+
+
+class AsekoExportedView(HomeAssistantView):
+    """The card received an export: mark its cases downloaded."""
+
+    url = f"/api/{DOMAIN}/exported"
+    name = f"api:{DOMAIN}:exported"
+
+    async def post(self, request: web.Request) -> web.Response:
+        hass = _require_admin(request)
+        try:
+            through = (await request.json())["through"]
+            marks = {str(entry_id): int(n) for entry_id, n in through.items()}
+        except (ValueError, KeyError, TypeError, AttributeError):
+            return self.json_message('Expected {"through": {entry_id: n}}', 400)
+        for entry in _loaded_entries(hass):
+            if entry.entry_id in marks:
+                entry.runtime_data.coordinator.mark_exported(marks[entry.entry_id])
+        return self.json({"marked": marks})

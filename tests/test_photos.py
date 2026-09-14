@@ -128,3 +128,34 @@ def test_export_zip_keeps_two_entries_with_the_same_title_apart(tmp_path) -> Non
     assert len(names) == len(set(names))
     assert "frames-Aseko-Local-01AAA.jsonl" in names
     assert "diagnostics-Aseko-Local-01BBB.json" in names
+
+
+def test_concurrent_uploads_in_the_same_second_get_their_own_files(tmp_path) -> None:
+    """Minor fix 3: the name is claimed atomically, no upload overwrites another."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    store = PhotoStore(tmp_path / "photos")
+    when = T0 + timedelta(seconds=5)
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        saved = list(
+            pool.map(lambda i: store.save(_jpeg(40 + i, 30), when, "pH"), range(8))
+        )
+    names = {s.file for s in saved}
+    assert len(names) == 8
+    assert len(store.files()) == 8
+    assert not any(p.name.startswith(".") for p in (tmp_path / "photos").iterdir())
+
+
+def test_export_skips_a_photo_that_vanished_after_the_list(tmp_path) -> None:
+    """Minor fix 3: a photo dropped between listing and reading does not fail the zip."""
+    store = PhotoStore(tmp_path / "photos")
+    kept = store.save(_jpeg(40, 30), T0, "kept")
+    gone = store.save(_jpeg(40, 30), T0 + timedelta(seconds=1), "gone")
+    photos = store.files()
+    (store.directory / gone.file).unlink()
+
+    body = build_export_zip([], photos, T0)
+    with zipfile.ZipFile(io.BytesIO(body)) as archive:
+        names = archive.namelist()
+    assert f"photos/{kept.file}" in names
+    assert f"photos/{gone.file}" not in names

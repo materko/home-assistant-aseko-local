@@ -15,6 +15,7 @@ const STATUS_URL = "/api/aseko_local/status";
 const PHOTO_URL = "/api/aseko_local/photo";
 const EXPORT_URL = "/api/aseko_local/export";
 const FORGET_URL = "/api/aseko_local/forget";
+const EXPORTED_URL = "/api/aseko_local/exported";
 
 const STRINGS = {
   "en": {
@@ -751,7 +752,8 @@ class AsekoTestCasesCard extends HTMLElement {
     try {
       const response = await this._hass.fetchWithAuth(`${EXPORT_URL}${onlyNew ? "?new=1" : ""}`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const blob = await response.blob();
+      const blob = await response.blob(); // the whole zip is here now
+      const through = response.headers.get("X-Aseko-Export-Through");
       const disposition = response.headers.get("Content-Disposition") || "";
       const match = /filename="([^"]+)"/.exec(disposition);
       const link = document.createElement("a");
@@ -761,6 +763,14 @@ class AsekoTestCasesCard extends HTMLElement {
       link.click();
       link.remove();
       setTimeout(() => URL.revokeObjectURL(link.href), 60000);
+      if (through) {
+        // Only now, with the zip received, are its cases downloaded.
+        await this._hass.fetchWithAuth(EXPORTED_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ through: JSON.parse(through) }),
+        });
+      }
       this._setStatus(this._t("zipped", { kb: Math.round(blob.size / 1024) }), "done");
       this._poll();
     } catch (err) {

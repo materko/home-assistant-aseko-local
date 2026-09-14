@@ -19,7 +19,9 @@ from __future__ import annotations
 import io
 import json
 import logging
+import os
 import re
+import threading
 import zipfile
 from dataclasses import dataclass
 from datetime import datetime
@@ -61,6 +63,9 @@ class PhotoStore:
         self.directory = directory
         self.max_bytes = max_bytes
         self.max_count = max_count
+        # Held while a photo is written, old ones are dropped and an export
+        # reads them, so an export never meets a half-written or vanishing file.
+        self.lock = threading.Lock()
 
     def save(
         self, data: bytes, received: datetime, note: str | None = None
@@ -71,21 +76,36 @@ class PhotoStore:
         stem = received.strftime("%Y%m%d-%H%M%S")
         if note:
             stem += f"_{_slug(note)}"
-        path = self.directory / f"{stem}{suffix}"
-        counter = 1
-        while path.exists():
-            counter += 1
-            path = self.directory / f"{stem}_{counter}{suffix}"
-        path.write_bytes(image)
-        self._enforce_cap()
+        with self.lock:
+            path = self._reserve(stem, suffix)
+            temporary = path.with_name(f".{path.name}.part")
+            temporary.write_bytes(image)
+            os.replace(temporary, path)
+            self._enforce_cap()
         return SavedPhoto(file=path.name, bytes=len(image), captured=captured)
+
+    def _reserve(self, stem: str, suffix: str) -> Path:
+        """Claim a free file name: creating it fails if another upload has it."""
+        counter = 1
+        while True:
+            name = f"{stem}{suffix}" if counter == 1 else f"{stem}_{counter}{suffix}"
+            path = self.directory / name
+            try:
+                with open(path, "xb"):
+                    return path
+            except FileExistsError:
+                counter += 1
 
     def files(self) -> list[Path]:
         """Stored photos, oldest first."""
         if not self.directory.is_dir():
             return []
         return sorted(
-            (p for p in self.directory.iterdir() if p.is_file()),
+            (
+                p
+                for p in self.directory.iterdir()
+                if p.is_file() and not p.name.startswith(".")
+            ),
             key=lambda p: (p.stat().st_mtime, p.name),
         )
 
@@ -190,5 +210,9 @@ def build_export_zip(
                 json.dumps(entry["diagnostics"], indent=2, default=str),
             )
         for photo in photos:
-            archive.write(photo, f"photos/{photo.name}")
+            try:
+                archive.write(photo, f"photos/{photo.name}")
+            except FileNotFoundError:
+                # dropped by the cap after the list was taken: skip, not fail
+                _LOGGER.debug("Aseko photo %s vanished during the export", photo.name)
     return buffer.getvalue()
