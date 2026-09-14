@@ -129,7 +129,7 @@ Shared v7 alarm layout; see [`home_device_analysis.md`](home_device_analysis.md)
 | `byte[12]` 0x40 | `alarm_ph_dosing_ineffective` | confirmed on HOME | Issue #134 |
 | `byte[13]` 0x01 | `alarm_max_disinfection_dose` | confirmed on HOME | Issue #151 |
 | `byte[13]` 0x02 | `alarm_ph_dosing_ineffective` | assumed | inferred |
-| `byte[13]` 0x04 | `alarm_no_flow_to_probes` | confirmed on NET | DomSchCoding NET frame |
+| `byte[13]` 0x04 | `alarm_no_flow_to_probes` | confirmed | set 2026-09-14 05:00:41 when filtration started with no flow yet, cleared when the flow arrived a second later; the unit reported *there is no flow to probes* (also DomSchCoding NET frame) |
 | `byte[13]` 0x08 | `alarm_rapid_ph_change` | assumed | from error_codes.md; never set in the SALT dumps; possibly "Low pH under 6,7" instead (open question) |
 
 ### `byte[22]` — settings flags
@@ -279,6 +279,7 @@ Switching winter mode on (2026-09-13, twice):
 | 2026-09-06 | `refilling` (`byte[29]` 0x02) | set 08:12 → 08:21 | level fell to 10 cm (refill on), rose only while set, cleared at 25 cm (refill off) | ✓ from the Home Assistant history |
 | 2026-09-12 19:47 | `max_ph_doses` | `0x14` → `0x11` | setting 20 → 17 | ✓ the only 17 in the frame |
 | 2026-09-13/14 | `max_ph_doses` | moved | 17 → 20 | ✓ |
+| 2026-09-14 05:00 | `alarm_no_flow_to_probes` (`byte[13]` 0x04) | on for one second after filtration start, off with the flow | unit: *there is no flow to probes* | ✓ from the Home Assistant history |
 | 2026-09-13/14 | `ph_minus_concentration` (`byte[112]`) | moved | 15 → 21 % | ✓ |
 | 2026-09-13/14 | `water_temperature_target` (`byte[55]`) | moved | 25 → 15 °C | ✓ |
 | 2026-08-11, 2026-08-17 | `air_temperature` | 36.0 / 30.8 °C | unit readings | ✓ see §5 |
@@ -300,7 +301,7 @@ Visible in the unit or the app, not located yet: the **water flow meter** toggle
 1. **pH− pump bit** — `byte[29]` 0x80 assumed (as HOME/OXY); a frame captured while the pH− pump doses.
 2. **"Low pH under 6,7" alarm bit** — `byte[13]` 0x08 or 0x20: the HOME frame with pH 6.29 (see `home_device_analysis.md`) carried `byte[13]` = 0x28, while 0x08 is currently read as rapid pH change on the strength of error_codes.md alone; a download while the app shows this alarm.
 3. **"Water level too high" alarm bit** — unknown (the level bytes are thresholds and the live level); a download while the level is above `water_level_high_alarm`, bytes 12–13.
-4. **Other SALT alarms** (no flow, low salt) — a marked test case while the alarm is shown.
+4. **Other SALT alarms** (low salt) — a marked test case while the alarm is shown.
 5. **`byte[38]` 0x10 = heating control parent to filtration?** — seen once in a session that also changed other heating settings; `byte[38]` also takes `0x20`, `0xA1`, `0x01` around winter mode. A clean test of that one setting.
 6. **Water flow meter toggle and pool flow type** — toggle each with a marker after the next frame.
 7. **`byte[37]` routing on older firmware** — Issue #84 (v5.0) `0x13` = algicide with bit 7 clear; a v5.x frame with the third port switched between chemicals.
@@ -308,11 +309,11 @@ Visible in the unit or the app, not located yet: the **water flow meter** toggle
 9. **DOSE SALT** (`byte[4]` = `0x0F`, `byte[53]` as `chlorine_dose_target`) — a frame from a DOSE unit.
 10. **Constant bytes 73, 108, 109–110, 111, 113, 116–118** — change one setting at a time with a marker.
 11. **Varying bytes 30, 31, 96, 97, 98, 114** — correlate with the app's history.
-12. **Checksum algorithm** (bytes 39, 79, 119) — not a plain sum; needs analysis over many frames.
-13. **Sub-zero air temperature** — a capture below 0 °C with an air probe fitted.
+12. **Sub-zero air temperature** — a capture below 0 °C with an air probe fitted.
 
 ## 9. History
 
+- The segment checksum (bytes 39, 79, 119) was once listed as unknown; it is 0xAA XOR the 39 bytes before it and the decoder checks it.
 - `free_chlorine_mv` was read from bytes 20–21 as on NET / HOME (6656, 6934 and 7936 mV in SALT CLF frames). Those are `0x1a00`, `0x1b16` and `0x1f00`: salinity 2.6 / 2.7 / 3.1 and chlorine production 0 / 22 / 0 — the same two bytes. SALT has no such value; removed from the profile 2026-09-14.
 - `max_refill_time` evidence once said 1800 s = 30 min; the check against the unit on 2026-09-11 read 1140 s = 19 min, which is what the profile records.
 - `byte[103]` was once read as a duplicate third-pump flow rate (60 ml/min, mirroring `byte[101]`, "does not flip with the algicide/floc switch"); bytes 102–105 are the water level thresholds, confirmed against the unit 2026-09-11.

@@ -21,7 +21,7 @@ Further profiles exist that no unit is meant to decode with and that the tables 
 |---|---|---|---|---|---|
 | `air_temperature` | ❓ | ✅ | ❓ | — | — |
 | `alarm_max_disinfection_dose` | ✅ | ❓ | ❓ | ❓ | ❓ |
-| `alarm_no_flow_to_probes` | ❓ | ❓ | ❓ | ✅ | ❓ |
+| `alarm_no_flow_to_probes` | ❓ | ✅ | ❓ | ✅ | ❓ |
 | `alarm_ph_dosing_ineffective` | ✅ | ❓ | ❓ | ❓ | ❓ |
 | `alarm_rapid_ph_change` | ❓ | ❓ | ❓ | ❓ | ❓ |
 | `algaecide_dose_target` | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | — | — |
@@ -137,7 +137,6 @@ Every entry below is read today without a confirming capture.  If you own one of
 ### v7 SALT
 
 - `alarm_max_disinfection_dose` — confirmed on HOME: byte[12] 0x20 (Issue #134), byte[13] 0x01 (Issue #151)
-- `alarm_no_flow_to_probes` — confirmed on NET: byte[13] 0x04 (DomSchCoding, NET frame)
 - `alarm_ph_dosing_ineffective` — confirmed on HOME: byte[12] 0x40 (Issue #134); byte[13] 0x02 inferred
 - `alarm_rapid_ph_change` — unconfirmed: byte[13] 0x08 from error_codes.md; never set in the own SALT dumps, 37 frames 2026-08-08..28
 - `chlorine_dose_target` — unverified: byte[53] for a DOSE unit; neither unit of the own SALT dumps, 37 frames 2026-08-08..28 is one
