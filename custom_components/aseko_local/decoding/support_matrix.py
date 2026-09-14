@@ -105,7 +105,7 @@ def render() -> str:
     w("| Mark | Meaning |")
     w("|---|---|")
     w(
-        f"| {CONFIRMED} | read on this model, checked against the unit display or the Aseko Live app on **this** model |"
+        f"| {CONFIRMED} | read on this model, checked against the unit display or the Aseko Live app on **this** model — or *derived*: it follows from the protocol or from confirmed values (the evidence text says which) |"
     )
     w(
         f"| {OBSERVED} | seen repeatedly in captures from a real unit with consistent, plausible values, but not compared with the unit display or the app — **a glance at the unit would settle it** |"
@@ -114,7 +114,7 @@ def render() -> str:
         f"| {UNSURE} | read on this model, but not checked on it: assumed, or confirmed only on another model — **a diagnostics dump would settle it** |"
     )
     w(
-        f"| {ABSENT} | this model does not have the value, so no entity is created for it |"
+        f"| {ABSENT} | the profile does not read it: the model does not have the value, or the integration does not decode it (yet); no entity is created |"
     )
     w(
         f"| {NOT_LOCATED_MARK} | this model has the value (its menu or manual shows it), but where the frame carries it is not known yet: the entity exists and reads unknown — **a diagnostics dump before and after changing it on the unit would settle it** |"

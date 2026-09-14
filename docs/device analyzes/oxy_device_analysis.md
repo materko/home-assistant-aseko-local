@@ -27,9 +27,10 @@
 
 Normal frame (only filtration running), 2026-04-02 19:33:38:
 
-> **Transcription error:** the checksum of the middle segment of this frame does not match
-> (computed `0x32`, stored `0x3f`). Most likely one hex digit among bytes 40–78 was mistyped
-> when the frame was copied here; which one cannot be told from the checksum. Do not use it
+> **Checksum mismatch, suspected transcription error:** the checksum of the middle segment of this frame does not match
+> (computed `0x32`, stored `0x3f`). A mistyped hex digit among bytes 40–78 when the frame was
+> copied here would explain it, but without the original capture that is not proven, and which
+> byte cannot be told from the checksum. Do not use it
 > as test data. The flocculant frame below checks out.
 
 ```
@@ -75,7 +76,7 @@ Values are from the Winnetoux unit. Setpoint values marked (04-11) come from the
 | 22 | settings | bit field | assumed | `0x80`. See §4. |
 | 23–24 | `air_temperature` | ÷10 | assumed | `0xFE70` (no air probe, the SALT marker) in every OXY frame, so no entity yet. See §7. |
 | 25–26 | `water_temperature` | ÷10 | observed | `00 5f` = 9.5 °C; not compared with the app. |
-| 27 | `water_level` | cm | assumed | Confirmed on HOME; `0xFE` on OXY = no level sensor. |
+| 27 | `water_level` | cm | assumed | Confirmed on HOME; `0xFE` on the captured OXY = no level sensor connected (other OXY units may have one). |
 | 28 | `water_flow_to_probes` | `== 0xAA` | observed | `0xAA` = flow; not compared with the app. |
 | 29 | actuators | bit field | confirmed | See §4. |
 | 37 | settings / routing | bit field | assumed | `0x03` in every frame. See §4. |
@@ -212,7 +213,7 @@ All bits are independent and additive; any combination is valid (see §5).
 
 ### CLF / REDOX sentinel slots
 
-Bytes 16–17 and 18–19 both read `0x001E` = 30 in every captured frame; bytes 20–21 read `0xFD9D` = −611 mV. As CLF this would be 0.30 mg/L, as REDOX 30 mV (physically impossible, real pool ORP ≥ ~100 mV). The values never fluctuate: `0x001E` is the OXY firmware's placeholder for unconnected analogue probe slots, and the profile creates no CLF or REDOX entities. By contrast, a NET in DOSE mode still sends a real, fluctuating CLF value (`0x006a` = 1.06 mg/L on 2026-04-07) because the probe stays connected.
+Bytes 16–17 and 18–19 both read `0x001E` = 30 in every captured frame; bytes 20–21 read `0xFD9D` = −611 mV. As CLF this would be 0.30 mg/L, as REDOX 30 mV (implausible for a pool). The values never fluctuate, which suggests `0x001E` is a placeholder for probe slots with nothing connected on this unit, and the profile creates no CLF or REDOX entities. By contrast, a NET in DOSE mode still sends a real, fluctuating CLF value (`0x006a` = 1.06 mg/L on 2026-04-07) because the probe stays connected.
 
 ### `byte[53]` — disinfection setpoint slot
 

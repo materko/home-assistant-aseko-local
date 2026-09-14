@@ -128,7 +128,7 @@ OXY = Profile(
         BackwashStartTime: "observed: bytes 69-70 = 12:30 on the Winnetoux OXY (serial 110157165); not compared with the app",
         Configuration: "confirmed: fixed pH + OXY Pure, the SANOSIL probe sits in the CLF slot",
         DosingDelay: "observed: bytes 106-107 = 120 s on the Winnetoux OXY (serial 110157165); not compared with the app",
-        StartupDelay: "observed: bytes 74-75 = 240 s on the Winnetoux OXY; the analysis document mislabels byte[73]",
+        StartupDelay: "observed: bytes 74-75 = 240 s on the Winnetoux OXY; not compared with the app",
         FiltrationRunning: "confirmed: byte[29] 0x08 in every captured frame",
         FiltrationSchedule: "observed: byte[37] = 0x03 reads nonstop while the Winnetoux OXY ran filtration 24 h; no schedule transition captured",
         FlocculantPumpRunning: "confirmed: byte[29] 0x20 toggles at the 19:33:52 floc event",

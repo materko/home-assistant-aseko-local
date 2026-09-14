@@ -98,7 +98,7 @@ Example values are from the representative frame unless stated otherwise.
 | 80–91 | segment header | serial, type, marker `0x02`, timestamp | confirmed | |
 | 92–93 | `pool_volume` | u16 m³ | confirmed | 60 m³ |
 | 94 | unknown | — | — | `0x00` |
-| 95 | `ph_minus_flow_rate` | ml/min | confirmed | 60; the Aseko Live app lists the pH− pump |
+| 95 | `ph_minus_flow_rate` | ml/min | observed | 60; the Aseko Live app lists the pH− pump, the rate itself was not compared (`byte[95]` confirmed on SALT) |
 | 96 | unknown | — | — | `0x00` |
 | 97 | unknown | — | — | `0x3c` = 60; `ph_plus_flow_rate`? unconfirmed, not mapped |
 | 98 | unknown | — | — | `0x00` |
@@ -233,7 +233,7 @@ The override is HOME-only. On SALT the same bit marks the settings menu being op
 - **Issue #134** (2026-07-05), before/after clearing on the controller: both warnings → `byte[12]` = `0x60`; pH only → `0x40`; cleared → `0x00`; `byte[13]` stayed `0x00`.
 - **Issue #151** (2026-08-06/08): "Maximum disinfection dose exceeded" → `byte[13]` = `0x01` (`byte[12]` = `0x00`); pH fault → `byte[12]` = `0x40`; cleared → both `0x00`.
 
-The disinfection fault appeared in `byte[12]` `0x20` in July and in `byte[13]` `0x01` in August, likely a firmware change; both paths are ORed. The same fault is `ins[12]` bit `0x80` on v8 frames (Issue #151), so both protocols share `alarm_max_disinfection_dose`.
+The disinfection fault appeared in `byte[12]` `0x20` in July and in `byte[13]` `0x01` in August, likely a firmware change; both paths are ORed. Issue #151 reports the same fault as `ins[12]` bit `0x80` on v8 frames; that is a hypothesis for now — the v8 profiles do not read `alarm_max_disinfection_dose`.
 
 ### Variable-speed pump
 
@@ -275,7 +275,7 @@ Serial 110128063, frame 2026-04-28 08:27:07, against the Aseko Live app; pH and 
 | 2026-04-28 | `pool_volume` | 60 m³ | 60 m³ | match |
 | 2026-04-28 | `startup_delay` | 480 s | 8 min | match |
 | 2026-04-28 | `dosing_delay` | 240 s | 4 min | match |
-| 2026-04-28 | `ph_minus_flow_rate` | 60 | pH− pump listed | match |
+| 2026-04-28 | `ph_minus_flow_rate` | 60 | pH− pump listed, rate not shown | not compared |
 | 2026-04-28 | `chlorine_flow_rate` | 60 | Chlor Pure listed | match |
 | 2026-04-28 | `flocculant_flow_rate` | 10 | Floc+c listed | match |
 | 2026-04-28 | `ph_minus_concentration` | 15 % (raw `0x0f`) | 5 % | **mismatch**, unresolved — see §8 |

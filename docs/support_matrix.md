@@ -6,10 +6,10 @@ A **profile** is one (protocol, model) combination.  A **feature** is one field 
 
 | Mark | Meaning |
 |---|---|
-| ✅ | read on this model, checked against the unit display or the Aseko Live app on **this** model |
+| ✅ | read on this model, checked against the unit display or the Aseko Live app on **this** model — or *derived*: it follows from the protocol or from confirmed values (the evidence text says which) |
 | 👁 | seen repeatedly in captures from a real unit with consistent, plausible values, but not compared with the unit display or the app — **a glance at the unit would settle it** |
 | ❓ | read on this model, but not checked on it: assumed, or confirmed only on another model — **a diagnostics dump would settle it** |
-| — | this model does not have the value, so no entity is created for it |
+| — | the profile does not read it: the model does not have the value, or the integration does not decode it (yet); no entity is created |
 | 🔍 | this model has the value (its menu or manual shows it), but where the frame carries it is not known yet: the entity exists and reads unknown — **a diagnostics dump before and after changing it on the unit would settle it** |
 | `decode_…` | the profile uses this reading instead of the protocol default |
 
@@ -66,7 +66,7 @@ Further profiles exist that no unit is meant to decode with and that the tables 
 | `oxygen_pump_running` | — | — | ✅ | — | — |
 | `ph` | ✅ | ✅ | 👁 | ✅ | ❓ |
 | `ph_minus_concentration` | ✅ | ✅ | ❓ | — | ❓ |
-| `ph_minus_flow_rate` | ✅ | ✅ | ✅ | ✅ | ❓ |
+| `ph_minus_flow_rate` | 👁 | ✅ | ✅ | ✅ | ❓ |
 | `ph_minus_pump_running` | ❓ | ❓ | ✅ | ✅ `decode_v7_net` | ❓ |
 | `ph_target` | ✅ | ✅ | 👁 | ✅ | ❓ |
 | `pool_volume` | ✅ | ✅ | 👁 | 👁 | ❓ |
@@ -271,6 +271,7 @@ Values captured from real units that nobody has yet checked against the unit dis
 
 - `backwash_schedule_enabled` — observed: byte[22] 0x10 set on serial 110128063 with backwash every 3 days (0x90); confirmed on an ASIN AQUA Salt (2026-09-13)
 - `max_ph_doses` — observed: byte[115] = 20 on serial 110128063; the position is confirmed on SALT, the HOME setting was never compared
+- `ph_minus_flow_rate` — observed: byte[95] = 60 on serial 110128063; Aseko Live lists the pH- pump but the rate was not compared; the position is confirmed on SALT
 
 ### v7 OXY
 
@@ -288,7 +289,7 @@ Values captured from real units that nobody has yet checked against the unit dis
 - `ph_target` — observed: byte[52] / 10 = 7.2 on the Winnetoux OXY (serial 110157165); not compared with the app
 - `pool_volume` — observed: bytes 92-93 = 41 m3 on the Winnetoux OXY (serial 110157165); not compared with the app
 - `service_menu_open` — observed: byte[37] bit 0x04 clear in every OXY frame; the menu never captured open
-- `startup_delay` — observed: bytes 74-75 = 240 s on the Winnetoux OXY; the analysis document mislabels byte[73]
+- `startup_delay` — observed: bytes 74-75 = 240 s on the Winnetoux OXY; not compared with the app
 - `water_flow_to_probes` — observed: byte[28] = 0xAA on the Winnetoux OXY (serial 110157165); not compared with the app
 - `water_temperature` — observed: bytes 25-26 = 9.5 C on the Winnetoux OXY (serial 110157165); not compared with the app
 - `water_temperature_target` — observed: byte[55] = 25 C on the Winnetoux OXY (serial 110157165); not compared with the app

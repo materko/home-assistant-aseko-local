@@ -147,11 +147,11 @@ The profile follows the Aseko Live app and the PROFI manuals: the setpoints show
 
 ### Disinfection setpoint
 
-`byte[53]` is read as free chlorine target (CLF) or chlorine dose target. `redox_target` is not in the profile: the old decoder skipped it on PROFI because the REDOX setpoint was believed to use a different scaling (raw mV, not × 10). Neither scaling is verified.
+`byte[53]` is read as free chlorine target (CLF). The chlorine dose target reading needs a DOSE configuration, which the PROFI profile does not have, so it is never reached. `redox_target` is not in the profile: the old decoder skipped it on PROFI because the REDOX setpoint was believed to use a different scaling (raw mV, not × 10). Neither scaling is verified.
 
 ### Filtration period 2 (Issue #133)
 
-Like SALT (PR #122 frame diff) and HOME (Issue #133 diagnostics), PROFI is assumed to keep sending the last-configured period 2 times in bytes 60-63 after period 2 is disabled on the controller. Reasons: the manual describes the same filtration schedule, and there is no reason the firmware would clear the bytes. The bytes are read unconditionally; the entities are skipped only while the bytes are `0xFF` (never configured). `filtration_schedule` (from `byte[37]`) reports when the second period is inactive. See [`home_device_analysis.md`](home_device_analysis.md) for the proof on HOME.
+Like SALT (PR #122 frame diff) and HOME (Issue #133 diagnostics), PROFI is assumed to keep sending the last-configured period 2 times in bytes 60-63 after period 2 is disabled on the controller. Reasons: the manual describes the same filtration schedule, and there is no reason the firmware would clear the bytes. The bytes are read unconditionally; while they are `0xFF` (never configured) the value is not present, so the entity stays disabled or unavailable rather than showing a time. `filtration_schedule` (from `byte[37]`) reports when the second period is inactive. See [`home_device_analysis.md`](home_device_analysis.md) for the proof on HOME.
 
 ### Water level and refill
 

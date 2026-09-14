@@ -161,7 +161,7 @@ HOME = Profile(
         AlgaecideFlowRate: "not located: byte[103] was read as the algicide flow rate (Issues #110, #115), but bytes 102-105 are the water level thresholds -- confirmed on SALT against the unit (2026-09-11) and 13 / 33 / 55 / 100 cm in order on serial 110128063; OXY sends the flow rate there only because it has no level sensor",
         ChlorineFlowRate: "confirmed: byte[99], serials 110071590 / 110128063 (Issues #110, #115)",
         FlocculantFlowRate: "confirmed: byte[101], Issues #110, #115",
-        PhMinusFlowRate: "confirmed: byte[95] = 60, Aseko Live lists the pH- pump, serial 110128063",
+        PhMinusFlowRate: "observed: byte[95] = 60 on serial 110128063; Aseko Live lists the pH- pump but the rate was not compared; the position is confirmed on SALT",
         HeatingRunning: "assumed: byte[29] 0x04 per JS-DE-Tech relay_byte bit 2; no HOME frame with the heater running (open item 9)",
         HeatingControlEnabled: "confirmed: byte[37] 0x08, serial 110175608 (Issue #135); the same bit on an ASIN AQUA Salt (2026-09-13)",
         Redox: "assumed: bytes 16-19 as on SALT (bytes 18-19 when not 0xFFFF); no REDOX HOME frame with the app's value",

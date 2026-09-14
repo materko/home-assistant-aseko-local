@@ -49,9 +49,9 @@ If you own an Aseko unit that is not listed above as fully supported, or the [su
 
 <img src="images/aseko_test_cases_card.png" alt="Aseko test cases card" width="438">
 
-**How it works.** While recording is on, the integration keeps a *frame log*: every frame the unit sends, compressed and capped at 256 kB (about five days of frames), kept across Home Assistant restarts. Each time you record a test case, the card writes a *marker* into that log, with your note and, if you like, a photo of the unit's display. Every change you make on the unit then sits right next to the frames that carry it — nobody has to compare clocks, and messengers cannot strip the time from the photos.
+**How it works.** While recording is on, the integration keeps a *frame log*: every frame the unit sends, compressed and capped at 256 kB (roughly five days of frames — it depends on how often the unit sends and how much changes), kept across Home Assistant restarts. Each time you record a test case, the card writes a *marker* into that log, with your note and, if you like, a photo of the unit's display. Every change you make on the unit then sits right next to the frames that carry it — nobody has to compare clocks, and messengers cannot strip the time from the photos.
 
-Recording is **off** until you turn it on in the card, and it stays the way you left it across restarts and updates. Nothing is recorded while it is off.
+Recording is **off** until you turn it on in the card, and it stays the way you left it across restarts and updates. While it is off the frame log records nothing; the diagnostics still show the last frame of each unit.
 
 Add the card to any dashboard (it is loaded automatically, no resource to add):
 
@@ -89,7 +89,7 @@ The card follows the Home Assistant language (English, Slovak, Czech, German, Fr
 
 | What | Limit | When it is reached |
 |---|---|---|
-| Frame log | 256 kB compressed, about five days of frames from one v7 unit | the oldest frames are dropped; a marker older than the oldest frame has nothing next to it, so download within a few days |
+| Frame log | 256 kB compressed, roughly five days of frames from one v7 unit (an estimate) | the oldest frames are dropped; a marker older than the oldest frame has nothing next to it, so download within a few days |
 | Markers (test cases) | 500 | the oldest markers are dropped |
 | Photos | 200 photos or 100 MB, 2048 px | the oldest photos are deleted |
 | Waiting for a frame | 60 seconds | the case is written without a new frame and the card shows it as an error; check the unit is sending, then record the case again |
@@ -152,7 +152,7 @@ You need to re-configure your Aseko unit to send data to your Home Assistant ins
    ![Aseko unit initial configuration](images/aseko-init.png)
    You can see the default **Remote Srver Address** is **pool.aseko.com** (or something similar) and **Local/Remote Port Number** is **47524** or **51050** - make note of that if you would like to keep sending the data there as well - see [Optional: Send data to Aseko Cloud](#optional-send-data-to-aseko-cloud)
 
-   The port shown here tells you which firmware version your device is running:
+   Out of the box the unit uses one of two ports, depending on its firmware (you can change it on both sides):
    - **Port 47524** → firmware v7 or older (120-byte binary frame)
    - **Port 51050** → firmware v8 (text frame of varying length)
 
@@ -189,7 +189,7 @@ If you want to keep sending the data to Aseko Cloud, you had to use a TCP proxy 
 
 ## Chemical consumption & canister management
 
-The unit does **not** send how much chemical it dosed. The integration **estimates** it: for every frame in which a pump runs, it adds the time since the previous frame multiplied by that pump's flow rate (ml/min, as set on the unit). The estimate is as good as the pump-running bit and the flow rate for your model — check both in the [support matrix](docs/support_matrix.md); a pump with ❓ or 🔍 there gives a rough or no figure. The millilitres are kept exactly across restarts.
+The unit does **not** send how much chemical it dosed. The integration **estimates** it: for every frame in which a pump runs, it adds the time since the previous frame multiplied by that pump's flow rate (ml/min, as set on the unit). The estimate is as good as the pump-running bit and the flow rate for your model — check both in the [support matrix](docs/support_matrix.md); a pump with ❓ or 🔍 there gives a rough or no figure. Each interval counts at most 30 seconds, so a gap in the frames is not counted as dosing; the stretch up to the frame in which the pump stops is counted. The millilitres are stored without rounding to litres; if Home Assistant stops abruptly, the last minute before the save can be lost.
 
 Two consumption sensors per pump (the names below are the entity names; pick the entity IDs from your own Home Assistant):
 
@@ -321,8 +321,9 @@ History, recorded live and persisted across restarts. **These are not all equall
 | `sensor.last_manual_backwash` | Last cycle that did not | Observed | Estimated |
 | `sensor.next_scheduled_backwash` | Projected next automatic cycle. **Unknown** until a scheduled cycle is known | **Calculated** | Inherited |
 
-The two columns matter separately. A cycle the integration watched has an exact
-timestamp — what is estimated is only *which* of the two buckets it belongs in.
+The two columns matter separately. A cycle the integration watched has a
+timestamp from the frames (accurate to about one transmit interval) — what is
+estimated is only *which* of the two buckets it belongs in.
 Only `next_scheduled_backwash` holds a timestamp that was computed rather than
 measured, which is why it is the one carrying "(estimated)" in its name.
 

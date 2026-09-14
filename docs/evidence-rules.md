@@ -16,12 +16,13 @@ The word before the first `:` decides the mark in the generated
 
 | Evidence starts with | Mark | Use it when |
 |---|---|---|
-| `confirmed` (or `derived`) | ✅ | the decoded value was compared with the unit display or the Aseko Live app **on this model** — or follows directly from confirmed values |
+| `confirmed` | ✅ | the decoded value was compared with the unit display or the Aseko Live app **on this model** |
+| `derived` | ✅ | not compared on this model, but it follows from the protocol itself or from confirmed values — say which in the text; not a check of a real unit |
 | `confirmed on <MODEL>` | ✅ only in `<MODEL>`'s column, ❓ elsewhere | the byte was confirmed on another model and this profile reads it the same way |
 | `observed` | 👁 | seen repeatedly in real frames from this model with consistent, plausible values, but never compared with the unit |
 | anything else (`assumed`, `unverified`, `uncertain`, …) or missing | ❓ | inherited from another model or an older decoder, nothing contradicts it yet |
 | override `decode_v7_not_located` / `decode_v8_not_located` | 🔍 | the model has the value (menu, manual), but where the frame carries it is unknown; the entity exists and reads unknown |
-| feature not listed in the profile | — | the model does not have it |
+| feature not listed in the profile | — | the profile does not read it: the model does not have it, or nobody has decoded it yet |
 
 ## Writing evidence
 

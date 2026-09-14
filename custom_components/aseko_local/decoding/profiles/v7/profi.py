@@ -132,7 +132,7 @@ PROFI = Profile(
         FreeChlorineTarget: "assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)",
         PhTarget: "assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)",
         WaterTemperatureTarget: "assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)",
-        SerialNumber: "confirmed: bytes 0-3, repeated in every segment header",
+        SerialNumber: "derived: bytes 0-3, repeated in every segment header -- the v7 frame layout every unit shares; no PROFI frame has been captured",
         ServiceMenuOpen: "assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)",
         FiltrationPeriod1Start: "assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)",
         FiltrationPeriod2Start: "assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)",
