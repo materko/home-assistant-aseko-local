@@ -62,7 +62,7 @@ areqs: 74 74 4 5 0 36 36 0 0 0 6 0 36 0 45 0 255 2 2 10 0 15 0 0 0 0
 |---|---|---|---|---|
 | `v1` | — | — | Protocol version identifier | confirmed |
 | header[0] | `110203680` | `110203680` | `serial_number` | ✅ confirmed |
-| header[1] | `804` | `804` | unknown — constant across frames | ❓ |
+| header[1] | `804` | `804` | product line and firmware version: 8xx = NET (804 / 805 / 812, the last added as firmware 8.12 in PR #119), 1xx = Salt NET (105); picks the profile, see `decoding/profiles/v8/__init__.py` | 👁 |
 | header[2] | `0` | `0` | unknown — always 0 | ❓ |
 | header[3] | `27` | `27` | unknown — always 27 | ❓ |
 
@@ -212,7 +212,7 @@ CRC16 validation **not yet implemented**.
 | 1 | What are `ins[13–15]`? (date-related?) | ❓ need more frames |
 | 2 | What are `outs[0]` and `outs[1]`? (dosing pumps?) | ❓ need frame with pumps running |
 | 3 | What is `ains[2]`? — slightly below `ains[6]`, not a simple duplicate | ❓ |
-| 4 | What do header fields `804 0 27` mean? | ❓ constant in all known frames |
+| 4 | What do header fields `0 27` mean? (`804` is the product line and firmware version) | ❓ constant in all known frames |
 | 5 | What are `areqs[2–3]` (`4`, `5`)? | ❓ |
 | 6 | What are `areqs[5, 6, 10, 12]` (all `36` or `6`)? | ❓ |
 | 7 | What is `reqs[7]=24`? Filtration hours per day? | probable ✅ |

@@ -411,10 +411,11 @@ async def async_get_config_entry_diagnostics(
         unrecognised_info.append(
             {
                 "note": (
-                    "Unit type byte[4] is not mapped to a model; no entities were "
-                    "created.  The decoded values below come from the generic v7 "
-                    "readings and are unverified.  Please share this download in "
-                    "a GitHub issue to help add support for this device."
+                    "The unit type (v7 byte[4]) or header type (v8) is not mapped "
+                    "to a model; no entities were created.  The decoded values below "
+                    "come from the generic readings and are unverified.  Please share "
+                    "this download in a GitHub issue to help add support for this "
+                    "device."
                 ),
                 "device": _device_state(device),
                 **(_raw_frames(coordinator, serial) if serial is not None else {}),

@@ -334,10 +334,11 @@ def test_bad_header_raises():
 
 
 def test_unknown_header_type_is_tolerated(caplog):
-    """Unknown f2 values must not raise — they fall back to NET with a warning.
+    """A header type no product line matches must not raise (PR #119).
 
-    Backport of v1.6.3 hotfix (PR #119) so unknown future FW revisions do not
-    crash the integration when an unreleased header type appears in the field.
+    It decodes with the unknown v8 profile -- no model, so no entities --
+    and a warning names it; a new firmware of a known line (813, 106) does
+    not get here.
     """
     import logging
 
@@ -352,7 +353,7 @@ def test_unknown_header_type_is_tolerated(caplog):
             b"areqs: 74 73 4 5 0 36 36 0 0 0 6 0 36 0 45 0 255 2 2 10 0 15 0 0 0 0 "
             b"crc16: C3C8}\n"
         )
-    assert device.device_type == AsekoDeviceType.NET
+    assert device.device_type is None
     assert device.serial_number == 123456789
     assert device.ph == pytest.approx(7.08)
     # Warning must have been emitted to help diagnose the unknown header in the wild.

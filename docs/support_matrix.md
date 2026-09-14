@@ -13,7 +13,7 @@ A **profile** is one (protocol, model, firmware) combination.  A **feature** is 
 | 🔍 | this model has the value (its menu or manual shows it), but where the frame carries it is not known yet: the entity exists and reads unknown — **a diagnostics dump before and after changing it on the unit would settle it** |
 | `decode_…` | the profile uses this reading instead of the protocol default |
 
-A further profile exists that no unit is meant to decode with and that the tables leave out: **v7 unknown unit type**.  It reads everything that has a generic v7 reading so an unmapped unit shows as much as possible in diagnostics, where it is reported as unrecognised.
+Further profiles exist that no unit is meant to decode with and that the tables leave out: **v7 unknown unit type** and **v8 unknown header type**.  They read an unmapped unit (v7 unit type, v8 header type) with the generic readings so it shows as much as possible in diagnostics, where it is reported as unrecognised; it gets no entities.
 
 ## v7
 
@@ -311,4 +311,4 @@ Fields that exist on `AsekoDevice` but that nothing knows how to read yet.
 - features known: 71
 - with a v7 reading: 69
 - with a v8 reading: 17
-- profiles: 8
+- profiles: 9

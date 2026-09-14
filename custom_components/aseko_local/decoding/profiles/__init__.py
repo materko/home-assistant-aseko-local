@@ -26,12 +26,13 @@ ALL_PROFILES: tuple[Profile, ...] = (
     v7.UNKNOWN,
     v8.NET,
     v8.SALT,
+    v8.UNKNOWN,
 )
 
 #: Profiles no unit is *meant* to decode with: the frame did not allow the
 #: proper one to be picked.  Real decoding paths, but not answers to "what
 #: does my model support", so the support matrix keeps them out of its tables.
-FALLBACK_PROFILES: tuple[Profile, ...] = (v7.UNKNOWN,)
+FALLBACK_PROFILES: tuple[Profile, ...] = (v7.UNKNOWN, v8.UNKNOWN)
 
 
 def profile_for(protocol: Protocol, model: AsekoDeviceType | None) -> Profile:
@@ -47,16 +48,7 @@ def detect_profile(frame: V7Frame | V8Frame) -> Profile:
     Runs on every frame, not once at setup.
     """
     if isinstance(frame, V8Frame):
-        model = v8.MODEL_BY_HEADER_TYPE.get(frame.header_type)
-        if model is None:
-            _LOGGER.warning(
-                "Unknown V8 header type %s for serial %s - falling back to NET. "
-                "Please report this at https://github.com/hopkins-tk/home-assistant-aseko-local/issues",
-                frame.header_type,
-                frame.serial_number,
-            )
-            model = AsekoDeviceType.NET
-        return v8.BY_MODEL[model]
+        return v8.detect(frame)
     return profile_for(Protocol.V7, unit_type_from_byte(frame.unit_type))
 
 

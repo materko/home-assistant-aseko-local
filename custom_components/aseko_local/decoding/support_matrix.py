@@ -122,12 +122,12 @@ def render() -> str:
     w("| `decode_…` | the profile uses this reading instead of the protocol default |")
     w("")
     w(
-        "A further profile exists that no unit is meant to decode with and that "
+        "Further profiles exist that no unit is meant to decode with and that "
         "the tables leave out: **"
         + "** and **".join(p.name for p in FALLBACK_PROFILES)
-        + "**.  It reads everything that has a generic v7 reading so an unmapped "
-        "unit shows as much as possible in diagnostics, where it is reported as "
-        "unrecognised."
+        + "**.  They read an unmapped unit (v7 unit type, v8 header type) with "
+        "the generic readings so it shows as much as possible in diagnostics, "
+        "where it is reported as unrecognised; it gets no entities."
     )
     w("")
 

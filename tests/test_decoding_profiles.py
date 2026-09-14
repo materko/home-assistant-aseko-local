@@ -274,9 +274,23 @@ def test_detect_v8_model_from_header_type() -> None:
     assert detect_profile(parse_v8(REFERENCE_FRAME_105)) is v8.SALT
 
 
-def test_detect_v8_unknown_header_falls_back_to_net() -> None:
-    frame = parse_v8(REFERENCE_FRAME.replace(b" 804 ", b" 999 "))
-    assert detect_profile(frame) is v8.NET
+@pytest.mark.parametrize(
+    ("header_type", "expected"),
+    [
+        (804, "v8 NET"),
+        (805, "v8 NET"),
+        (812, "v8 NET"),
+        (899, "v8 NET"),
+        (105, "v8 SALT"),
+        (199, "v8 SALT"),
+        (999, "v8 unknown header type"),
+        (42, "v8 unknown header type"),
+    ],
+)
+def test_detect_v8_model_from_the_header_line(header_type: int, expected: str) -> None:
+    """The product line picks the model, whatever the firmware version in it."""
+    frame = parse_v8(REFERENCE_FRAME.replace(b" 804 ", f" {header_type} ".encode()))
+    assert detect_profile(frame).name == expected
 
 
 def test_parse_frame_picks_the_protocol() -> None:
