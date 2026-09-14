@@ -36,13 +36,21 @@ def _status(profile: Profile, feature: type[Feature]) -> str:
         return NOT_LOCATED_MARK
     evidence = profile.evidence.get(feature, "")
     word = evidence.split(":", 1)[0].strip().lower()
-    if any(word.startswith(prefix) for prefix in _CONFIRMED_PREFIXES):
+    if word.startswith("confirmed on "):
+        # "confirmed on HOME: ..." confirms HOME, not the profile quoting it
+        mark = CONFIRMED if _model_word(profile) in word.split() else UNSURE
+    elif any(word.startswith(prefix) for prefix in _CONFIRMED_PREFIXES):
         mark = CONFIRMED
     elif word.startswith("observed"):
         mark = OBSERVED
     else:
         mark = UNSURE
     return f"{mark} `{reading}`" if reading else mark
+
+
+def _model_word(profile: Profile) -> str:
+    """The model as evidence names it: "salt", "home", "oxy", "net", "profi"."""
+    return profile.name.split(" ", 1)[-1].lower()
 
 
 def _profiles_for(protocol: Protocol) -> list[Profile]:
@@ -97,13 +105,13 @@ def render() -> str:
     w("| Mark | Meaning |")
     w("|---|---|")
     w(
-        f"| {CONFIRMED} | read on this model, checked against the unit display or the Aseko Live app |"
+        f"| {CONFIRMED} | read on this model, checked against the unit display or the Aseko Live app on **this** model |"
     )
     w(
         f"| {OBSERVED} | seen repeatedly in captures from a real unit with consistent, plausible values, but not compared with the unit display or the app — **a glance at the unit would settle it** |"
     )
     w(
-        f"| {UNSURE} | read on this model, but never seen with a real value in any capture — **a diagnostics dump would settle it** |"
+        f"| {UNSURE} | read on this model, but not checked on it: assumed, or confirmed only on another model — **a diagnostics dump would settle it** |"
     )
     w(
         f"| {ABSENT} | this model does not have the value, so no entity is created for it |"
@@ -114,13 +122,12 @@ def render() -> str:
     w("| `decode_…` | the profile uses this reading instead of the protocol default |")
     w("")
     w(
-        "Two further profiles exist that no unit is meant to decode with and that "
+        "A further profile exists that no unit is meant to decode with and that "
         "the tables leave out: **"
         + "** and **".join(p.name for p in FALLBACK_PROFILES)
-        + "**.  The first reads what both HOME firmware revisions share while a "
-        "frame with `byte[37]` unset cannot tell them apart; the second reads "
-        "everything that has a generic v7 reading so an unmapped unit shows as much "
-        "as possible in diagnostics, where it is reported as unrecognised."
+        + "**.  It reads everything that has a generic v7 reading so an unmapped "
+        "unit shows as much as possible in diagnostics, where it is reported as "
+        "unrecognised."
     )
     w("")
 

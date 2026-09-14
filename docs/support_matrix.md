@@ -6,27 +6,27 @@ A **profile** is one (protocol, model, firmware) combination.  A **feature** is 
 
 | Mark | Meaning |
 |---|---|
-| ✅ | read on this model, checked against the unit display or the Aseko Live app |
+| ✅ | read on this model, checked against the unit display or the Aseko Live app on **this** model |
 | 👁 | seen repeatedly in captures from a real unit with consistent, plausible values, but not compared with the unit display or the app — **a glance at the unit would settle it** |
-| ❓ | read on this model, but never seen with a real value in any capture — **a diagnostics dump would settle it** |
+| ❓ | read on this model, but not checked on it: assumed, or confirmed only on another model — **a diagnostics dump would settle it** |
 | — | this model does not have the value, so no entity is created for it |
 | 🔍 | this model has the value (its menu or manual shows it), but where the frame carries it is not known yet: the entity exists and reads unknown — **a diagnostics dump before and after changing it on the unit would settle it** |
 | `decode_…` | the profile uses this reading instead of the protocol default |
 
-Two further profiles exist that no unit is meant to decode with and that the tables leave out: **v7 unknown unit type**.  The first reads what both HOME firmware revisions share while a frame with `byte[37]` unset cannot tell them apart; the second reads everything that has a generic v7 reading so an unmapped unit shows as much as possible in diagnostics, where it is reported as unrecognised.
+A further profile exists that no unit is meant to decode with and that the tables leave out: **v7 unknown unit type**.  It reads everything that has a generic v7 reading so an unmapped unit shows as much as possible in diagnostics, where it is reported as unrecognised.
 
 ## v7
 
 | field | HOME | SALT | OXY | NET | PROFI |
 |---|---|---|---|---|---|
 | `air_temperature` | ❓ | ✅ | ❓ | — | — |
-| `alarm_max_disinfection_dose` | ✅ | ✅ | ❓ | ❓ | ❓ |
-| `alarm_no_flow_to_probes` | ✅ | ✅ | ❓ | ✅ | ❓ |
-| `alarm_ph_dosing_ineffective` | ✅ | ✅ | ❓ | ❓ | ❓ |
+| `alarm_max_disinfection_dose` | ✅ | ❓ | ❓ | ❓ | ❓ |
+| `alarm_no_flow_to_probes` | ❓ | ❓ | ❓ | ✅ | ❓ |
+| `alarm_ph_dosing_ineffective` | ✅ | ❓ | ❓ | ❓ | ❓ |
 | `alarm_rapid_ph_change` | ❓ | ❓ | ❓ | ❓ | ❓ |
 | `algaecide_dose_target` | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | — | — |
-| `algaecide_flow_rate` | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | — | — |
-| `algaecide_pump_running` | ❓ | ✅ | ✅ `decode_v7_oxy` | — | — |
+| `algaecide_flow_rate` | 🔍 | ✅ `decode_v7_routed_by_byte37` | ✅ | — | — |
+| `algaecide_pump_running` | ❓ `decode_v7_oxy` | ✅ | ✅ `decode_v7_oxy` | — | — |
 | `backwash_duration` | ✅ | ✅ | 👁 | — | ❓ |
 | `backwash_interval` | ✅ | ✅ | 👁 | — | ❓ |
 | `backwash_running` | ❓ | ✅ | ❓ | — | ❓ |
@@ -49,7 +49,7 @@ Two further profiles exist that no unit is meant to decode with and that the tab
 | `flocculant_dose_target` | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | — | ❓ `decode_v7_routed_by_byte37` |
 | `flocculant_flow_rate` | ✅ | ✅ `decode_v7_routed_by_byte37` | ✅ | — | ❓ `decode_v7_routed_by_byte37` |
 | `flocculant_pump_running` | ❓ | ✅ | ✅ | — | ❓ |
-| `flow_detection_enabled` | ✅ | ✅ | ❓ | — | — |
+| `flow_detection_enabled` | ❓ | ✅ | ❓ | — | — |
 | `free_chlorine` | ✅ | ✅ | — | ✅ | ❓ |
 | `free_chlorine_mv` | ✅ | ✅ | — | ✅ | ❓ |
 | `free_chlorine_target` | ✅ | ✅ | — | 👁 | ❓ |
@@ -85,7 +85,7 @@ Two further profiles exist that no unit is meant to decode with and that the tab
 | `water_level_low_alarm` | ✅ | ✅ | ❓ | — | ❓ |
 | `water_level_refill_start` | ❓ | ✅ | ❓ | — | ❓ |
 | `water_level_refill_stop` | ✅ | ✅ | ❓ | — | ❓ |
-| `water_level_sensor_enabled` | ✅ | ✅ | ❓ | — | — |
+| `water_level_sensor_enabled` | ❓ | ✅ | ❓ | — | — |
 | `water_temperature` | ✅ | ✅ | 👁 | ✅ | ❓ |
 | `water_temperature_target` | ✅ | ✅ | 👁 | — | ❓ |
 
@@ -118,21 +118,27 @@ Every entry below is read today without a confirming capture.  If you own one of
 ### v7 HOME
 
 - `air_temperature` — unverified: bytes 23-24 = 0xFE70 (no air probe, the SALT marker) in every captured HOME frame, so no entity yet; the Aseko Live app shows air temperature on HOME units
+- `alarm_no_flow_to_probes` — confirmed on NET: byte[13] 0x04 (DomSchCoding, NET frame)
 - `alarm_rapid_ph_change` — unconfirmed: byte[13] 0x08 was set on serial 110128063 with no matching alarm known in the app
-- `algaecide_pump_running` — uncertain: byte[29] 0x20 assumed
+- `algaecide_pump_running` — assumed: byte[29] 0x10 as on OXY, which has the same four independent pump ports (0x20 is the flocculant); read only once the algicide flow rate is located, so no state yet
 - `backwash_running` — assumed: byte[29] 0x01, confirmed on SALT
 - `chlorine_dose_target` — no evidence recorded
 - `chlorine_pump_running` — uncertain: byte[29] 0x40, port may be chlorine or OXY Pure
-- `flocculant_pump_running` — uncertain: byte[29] 0x20 assumed
+- `flocculant_pump_running` — assumed: byte[29] 0x20 as on OXY (confirmed there)
+- `flow_detection_enabled` — confirmed on SALT: byte[37] 0x02 (2026-09-13); on HOME 0x43 / 0x53 have it set and Issue #135's 0x41 / 0x45 / 0x49 clear
 - `heating_running` — assumed: byte[29] 0x04 per JS-DE-Tech relay_byte bit 2; no HOME frame with the heater running (open item 9)
 - `max_refill_time` — assumed: bytes 76-77 = 10800 s on serial 110128063, plausible (180 min); verified on SALT only
 - `ph_minus_pump_running` — uncertain: byte[29] 0x80 assumed
 - `redox` — no evidence recorded
 - `redox_target` — no evidence recorded
-- `water_level_refill_start` — unconfirmed: byte[103] = 33 on serial 110128063 is read both as this threshold (cm) and as algaecide_flow_rate (ml/min); the two mappings cannot both be right
+- `water_level_refill_start` — confirmed on SALT: byte[103], bytes 102-105 are the level thresholds (SALT 2026-09-11 against the unit); 33 cm on serial 110128063 sits between the low alarm 13 and the refill stop 55
+- `water_level_sensor_enabled` — confirmed on SALT: byte[37] 0x40 (2026-09-13); set in every frame of the level-meter HOME units (once 'firmware A'), clear on serial 110169464 (once 'firmware B')
 
 ### v7 SALT
 
+- `alarm_max_disinfection_dose` — confirmed on HOME: byte[12] 0x20 (Issue #134), byte[13] 0x01 (Issue #151)
+- `alarm_no_flow_to_probes` — confirmed on NET: byte[13] 0x04 (DomSchCoding, NET frame)
+- `alarm_ph_dosing_ineffective` — confirmed on HOME: byte[12] 0x40 (Issue #134); byte[13] 0x02 inferred
 - `alarm_rapid_ph_change` — unconfirmed: byte[13] 0x08 from error_codes.md; never set in the own SALT dumps, 37 frames 2026-08-08..28
 - `chlorine_dose_target` — unverified: byte[53] for a DOSE unit; neither unit of the own SALT dumps, 37 frames 2026-08-08..28 is one
 - `heating_running` — assumed: byte[29] 0x04 per JS-DE-Tech relay_byte bit 2; never set in the own SALT dumps, whose unit has heating control OFF
@@ -246,6 +252,10 @@ Every entry below is read today without a confirming capture.  If you own one of
 ## Not located yet
 
 Values these models have but nobody has found in the frame.  If you own one of these units, download diagnostics, change the setting on the unit, wait a minute and download again: the two frames show where it is.
+
+### v7 HOME
+
+- `algaecide_flow_rate` — not located: byte[103] was read as the algicide flow rate (Issues #110, #115), but bytes 102-105 are the water level thresholds -- confirmed on SALT against the unit (2026-09-11) and 13 / 33 / 55 / 100 cm in order on serial 110128063; OXY sends the flow rate there only because it has no level sensor
 
 ### v7 OXY
 

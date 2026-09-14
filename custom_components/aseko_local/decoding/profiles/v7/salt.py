@@ -137,7 +137,7 @@ SALT = Profile(
         VariableSpeedPumpType: "confirmed: byte[78] 0x0C, every brand selected in turn; confirmed on the own SALT by toggling it on the unit with a frame-log marker after each change, 2026-09-13/14",
         WaterLevelSensorEnabled: "confirmed: byte[37] 0x40; confirmed on the own SALT by toggling it on the unit with a frame-log marker after each change, 2026-09-13/14",
         AirTemperature: "confirmed: two dumps from one SALT vs the unit display (Issue #155); matches the app and unit display, 2026-09-11",
-        AlarmNoFlowToProbes: "confirmed: byte[13] 0x04 (DomSchCoding, NET frame)",
+        AlarmNoFlowToProbes: "confirmed on NET: byte[13] 0x04 (DomSchCoding, NET frame)",
         AlarmMaxDisinfectionDose: "confirmed on HOME: byte[12] 0x20 (Issue #134), byte[13] 0x01 (Issue #151)",
         AlarmPhDosingIneffective: "confirmed on HOME: byte[12] 0x40 (Issue #134); byte[13] 0x02 inferred",
         AlarmRapidPhChange: "unconfirmed: byte[13] 0x08 from error_codes.md; never set in the own SALT dumps, 37 frames 2026-08-08..28",

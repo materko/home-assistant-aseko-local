@@ -1197,38 +1197,31 @@ def test_decode_issue_99_salt() -> None:
 
 
 def test_decode_home_independent_flowrates() -> None:
-    """HOME devices use byte[101]=floc, byte[103]=algicide independently.
+    """HOME reads the flocculant on byte[101] whatever byte[37] says (Issue #115).
 
-    Before this fix, HOME fell through to the SALT routing logic, which routed
-    byte[101] exclusively to either floc or algicide (per byte[37] bit 7).
-    This caused Issue #115: `algaecide_dose_target` and `algaecide_flow_rate`
-    entities were never created on HOME, and the algicide pump binary sensor
-    was always missing.
-
-    Confirmed by HOME frame from Issue #110 (serial 110071590, byte[4]=0x02):
-        byte[101] = 0x0a (10) → flocculant_flow_rate
-        byte[103] = 0x0b (11) → algaecide_flow_rate  (was None before fix)
+    byte[103] was read as the algicide flow rate too, but bytes 102-105 are the
+    water level thresholds (confirmed on SALT); on HOME byte[103] is the refill
+    start, and where HOME sends the algicide flow rate is not known yet.
     """
     data = _make_base_bytes()
     data[4] = 0x02  # HOME CLF
     data[99] = 60  # chlorine_flow_rate (Chlor Pure)
     data[101] = 10  # flocculant_flow_rate
-    data[103] = 11  # algaecide_flow_rate — was never read on HOME before
-    data[37] = 0x53  # HOME filtration mode flag (irrelevant for flowrates)
+    data[103] = 33  # the refill start threshold
+    data[37] = 0x53
 
     device = decode(bytes(data))
     assert device.device_type == AsekoDeviceType.HOME
     assert device.chlorine_flow_rate == 60
-    # byte[95] is overwritten to 60 by the max_refill_time setter in _make_base_bytes.
     assert device.ph_minus_flow_rate == 60
     assert device.flocculant_flow_rate == 10
-    assert device.algaecide_flow_rate == 11  # NEW — previously None
-    # Byte 37 bit 7 has no meaning on HOME (no shared pump port).
-    # Confirms we do not depend on byte[37] for HOME flowrates.
-    data[37] = 0xB3  # SALT-style "algicide routing" value — must be IGNORED on HOME
+    assert device.water_level_refill_start == 33
+    assert device.algaecide_flow_rate is None  # not located
+    assert "algaecide_flow_rate" in device.features
+    # byte[37] bit 7 has no meaning on HOME (no shared pump port)
+    data[37] = 0xB3
     device = decode(bytes(data))
     assert device.flocculant_flow_rate == 10
-    assert device.algaecide_flow_rate == 11
 
 
 def test_decode_home_flowrates_unspecified() -> None:
@@ -1246,39 +1239,28 @@ def test_decode_home_flowrates_unspecified() -> None:
     assert device.algaecide_flow_rate is None
 
 
-def test_decode_home_algicide_pump_running() -> None:
-    """Issue #115: HOME devices must expose algaecide_pump_running binary sensor.
+def test_decode_home_pump_bits_follow_oxy() -> None:
+    """HOME has OXY's four independent ports: bit 0x20 is the flocculant only.
 
-    Before the HOME-specific flowrate branch was added, algaecide_flow_rate
-    was always None on HOME, which made _fill_consumable_data short-circuit
-    the algaecide_pump_running assignment — so the binary sensor was never
-    registered.  With algaecide_flow_rate now decoded, the binary sensor
-    correctly reflects byte[29] bit 5 (0x20).
+    The algicide pump (bit 0x10 on OXY) is not read until the algicide flow
+    rate is located, so one running pump no longer counts two chemicals.
     """
     data = _make_base_bytes()
     data[4] = 0x02  # HOME CLF
-    data[99] = 60  # chlor
-    data[101] = 10  # floc — pump installed
-    data[103] = 20  # algicide — pump installed (key for this test)
+    data[99] = 60
+    data[101] = 10  # floc pump installed
+    data[103] = 20
     data[37] = 0x53
 
-    # Algicide running: bit 5 (0x20) set, bit 3 (0x08) filtration on
-    data[29] = 0x28
+    data[29] = 0x28  # bit 0x20 + filtration
     device = decode(bytes(data))
-    assert device.algaecide_pump_running is True
-    # On HOME, floc and algicide share bit 0x20 in byte[29] (the existing
-    # HOME masks in ACTUATOR_MASKS mark both algicide=0x20 and flocculant=0x20
-    # with the "uncertain" comment).  The current implementation reports
-    # BOTH as active when bit 0x20 is set — this is a known limitation and
-    # the binary sensors exist for both chemicals.  See home_device_analysis.md
-    # §"Actuator byte[29] — HOME masks (uncertain)" for confirmation that
-    # the per-pump bit for HOME is unverified.  The important point of this
-    # test is that algaecide_pump_running is no longer None on HOME.
+    assert device.flocculant_pump_running is True
+    assert device.algaecide_pump_running is None
+    assert "algaecide_pump_running" not in device.features
 
-    # Algicide stopped
-    data[29] = 0x08
+    data[29] = 0x18  # bit 0x10 + filtration
     device = decode(bytes(data))
-    assert device.algaecide_pump_running is False
+    assert device.flocculant_pump_running is False
 
 
 def test_decode_home_floc_pump_running_independent() -> None:

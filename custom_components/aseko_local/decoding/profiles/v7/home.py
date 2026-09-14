@@ -121,18 +121,24 @@ HOME = Profile(
     overrides={
         Configuration: "decode_v7_by_unit_type_byte",
         FiltrationRunning: "decode_v7_menu_override",
+        # four independent pump ports like OXY: algicide is bit 0x10, not the
+        # 0x20 flocculant bit, which counted both chemicals for one pump
+        AlgaecidePumpRunning: "decode_v7_oxy",
+        # byte[103] is the refill start threshold here; where HOME sends the
+        # algicide flow rate is not known
+        AlgaecideFlowRate: "decode_v7_not_located",
     },
     evidence={
         BackwashScheduleEnabled: "observed: byte[22] 0x10 set on serial 110128063 with backwash every 3 days (0x90); confirmed on an ASIN AQUA Salt (2026-09-13)",
-        FlowDetectionEnabled: "derived: byte[37] 0x02, confirmed on an ASIN AQUA Salt (2026-09-13); on HOME 0x43 / 0x53 have it set and Issue #135's 0x41 / 0x45 / 0x49 clear",
+        FlowDetectionEnabled: "confirmed on SALT: byte[37] 0x02 (2026-09-13); on HOME 0x43 / 0x53 have it set and Issue #135's 0x41 / 0x45 / 0x49 clear",
         VariableSpeedPumpType: "confirmed: byte[78] 0x22 / 0x26 / 0x2a for Speck-Uwe / Pentair-Dab / Hayward (Issue #137); the same bits on an ASIN AQUA Salt (2026-09-13/14)",
-        WaterLevelSensorEnabled: "derived: byte[37] 0x40, confirmed on an ASIN AQUA Salt (2026-09-13); set in every frame of the level-meter HOME units (once 'firmware A'), clear on serial 110169464 (once 'firmware B')",
+        WaterLevelSensorEnabled: "confirmed on SALT: byte[37] 0x40 (2026-09-13); set in every frame of the level-meter HOME units (once 'firmware A'), clear on serial 110169464 (once 'firmware B')",
         AirTemperature: "unverified: bytes 23-24 = 0xFE70 (no air probe, the SALT marker) in every captured HOME frame, so no entity yet; the Aseko Live app shows air temperature on HOME units",
-        AlarmNoFlowToProbes: "confirmed: byte[13] 0x04 (DomSchCoding, NET frame)",
+        AlarmNoFlowToProbes: "confirmed on NET: byte[13] 0x04 (DomSchCoding, NET frame)",
         AlarmMaxDisinfectionDose: "confirmed on HOME: byte[12] 0x20 (Issue #134), byte[13] 0x01 (Issue #151)",
         AlarmPhDosingIneffective: "confirmed on HOME: byte[12] 0x40 (Issue #134); byte[13] 0x02 inferred",
         AlarmRapidPhChange: "unconfirmed: byte[13] 0x08 was set on serial 110128063 with no matching alarm known in the app",
-        AlgaecidePumpRunning: "uncertain: byte[29] 0x20 assumed",
+        AlgaecidePumpRunning: "assumed: byte[29] 0x10 as on OXY, which has the same four independent pump ports (0x20 is the flocculant); read only once the algicide flow rate is located, so no state yet",
         FreezeProtectionEnabled: "confirmed: byte[37] 0x80, serial 110175608 (Issue #136)",
         BackwashRunning: "assumed: byte[29] 0x01, confirmed on SALT",
         BackwashDuration: "confirmed: byte[71] * 10 = 120 s vs '02:00 min' in Aseko Live, serial 110128063",
@@ -146,8 +152,8 @@ HOME = Profile(
         StartupDelay: "confirmed: bytes 74-75 = 480 s vs '8 min' in Aseko Live, serial 110128063",
         FiltrationRunning: "confirmed: byte[29] 0x08 stays set under the override, so 0x04 wins (Issue #133)",
         FiltrationSchedule: "confirmed: byte[37] 0x10 / 0x20, 0x01 / 0x11 / 0x31 on serial 110169464 (Issue #133); the values once read as firmware A (0x43 nonstop, 0x53 timer) are the same bits with Waterlevel (0x40) and Flow detection (0x02) set",
-        FlocculantPumpRunning: "uncertain: byte[29] 0x20 assumed",
-        AlgaecideFlowRate: "confirmed: byte[103], Issues #110, #115 -- but the same byte is also read as water_level_refill_start, and one of the two must be wrong",
+        FlocculantPumpRunning: "assumed: byte[29] 0x20 as on OXY (confirmed there)",
+        AlgaecideFlowRate: "not located: byte[103] was read as the algicide flow rate (Issues #110, #115), but bytes 102-105 are the water level thresholds -- confirmed on SALT against the unit (2026-09-11) and 13 / 33 / 55 / 100 cm in order on serial 110128063; OXY sends the flow rate there only because it has no level sensor",
         ChlorineFlowRate: "confirmed: byte[99], serials 110071590 / 110128063 (Issues #110, #115)",
         FlocculantFlowRate: "confirmed: byte[101], Issues #110, #115",
         PhMinusFlowRate: "confirmed: byte[95] = 60, Aseko Live lists the pH- pump, serial 110128063",
@@ -176,7 +182,7 @@ HOME = Profile(
         WaterFlowToProbes: "confirmed: byte[28] != 0xAA while Aseko Live showed 'NO', serial 110128063",
         WaterLevel: "confirmed: byte[27] (domin211, Issue #110)",
         WaterLevelRefillStop: "confirmed: byte[104] (domin211, DomSchCoding, Issue #110)",
-        WaterLevelRefillStart: "unconfirmed: byte[103] = 33 on serial 110128063 is read both as this threshold (cm) and as algaecide_flow_rate (ml/min); the two mappings cannot both be right",
+        WaterLevelRefillStart: "confirmed on SALT: byte[103], bytes 102-105 are the level thresholds (SALT 2026-09-11 against the unit); 33 cm on serial 110128063 sits between the low alarm 13 and the refill stop 55",
         WaterLevelHighAlarm: "confirmed: byte[105] (domin211, Issue #110)",
         WaterLevelLowAlarm: "confirmed: byte[102] (domin211, Issue #110)",
         WaterTemperature: "confirmed: bytes 25-26 = 37.9 C vs 38.2 C in Aseko Live (later reading), serial 110128063",
