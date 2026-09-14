@@ -167,7 +167,12 @@ class AsekoPhotoView(HomeAssistantView):
             try:
                 marker = coordinator.mark_dump(
                     note,
-                    {"photo": saved.file, "captured": saved.captured},
+                    {
+                        "photo": saved.file,
+                        "captured": saved.captured,
+                        "serial_number": serial_number,
+                        "waited_for_frame": waited,
+                    },
                     generation=generations[entry.entry_id],
                 )
             except RecordingOff:

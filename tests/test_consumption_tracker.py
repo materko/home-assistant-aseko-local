@@ -371,3 +371,22 @@ def test_an_invalid_stored_counter_leaves_that_pump_to_its_sensor(counters):
     assert tracker.restored_keys == {"ph_minus"}
     assert tracker.get("cl", "total") == 0.0
     assert tracker.get("ph_minus", "total") == 10.0
+
+
+def test_a_refill_reset_touches_only_its_unit():
+    """Audit A2: the button of one unit leaves the other unit's canister alone."""
+    from .test_entity_growth import _coordinator
+
+    coordinator = _coordinator()
+    for serial, ml in ((1234, 100.0), (5678, 200.0)):
+        tracker = AsekoConsumptionTracker()
+        tracker.seed("ph_minus", total_ml=ml, canister_ml=ml)
+        coordinator._trackers[serial] = tracker  # noqa: SLF001
+
+    coordinator.reset_consumption("ph_minus", "canister", serial_number=1234)
+    assert coordinator.get_tracker(1234).get("ph_minus", "canister") == 0.0
+    assert coordinator.get_tracker(5678).get("ph_minus", "canister") == 200.0
+
+    coordinator.reset_consumption("ph_minus", "canister")  # the service without a unit
+    assert coordinator.get_tracker(5678).get("ph_minus", "canister") == 0.0
+    assert coordinator.get_tracker(5678).get("ph_minus", "total") == 200.0

@@ -173,7 +173,10 @@ class FrameLog:
         if since_last_frame:
             record["since"] = since_last_frame
         if extra:
-            record.update({key: value for key, value in extra.items() if value})
+            # None means "not given"; False (no frame came) must be kept
+            record.update(
+                {key: value for key, value in extra.items() if value is not None}
+            )
         self._append(received, record)
         self._markers.append({"t": received.isoformat(), **record})
         del self._markers[:-MAX_MARKERS]

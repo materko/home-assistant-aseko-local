@@ -78,10 +78,15 @@ class AsekoCloudMirror:
         """Loop: wait for a frame, connect lazily, send, reconnect on errors."""
 
         backoff = 1.0
+        # A frame that failed to go out is sent again before any newer one, so
+        # the cloud receives them in the order the unit sent them.
+        pending: bytes | None = None
         while True:
             try:
                 # Wait for the next frame — no connection is opened until data arrives
-                frame = await self._queue.get()
+                if pending is None:
+                    pending = await self._queue.get()
+                frame = pending
 
                 # Reconnect interval: force fresh connection periodically
                 if (
@@ -117,11 +122,7 @@ class AsekoCloudMirror:
                         )
                     except Exception as e:
                         _LOGGER.error("Mirror connect failed: %s", e)
-                        # Re-enqueue the frame so it is not lost
-                        try:
-                            self._queue.put_nowait(frame)
-                        except Exception:
-                            pass
+                        # keep the frame as pending: it goes out first next time
                         await asyncio.sleep(min(backoff, 10.0))
                         backoff = min(backoff * 2.0, 10.0)
                         continue
@@ -135,15 +136,12 @@ class AsekoCloudMirror:
                         frame.hex(" ", 1),
                     )
                     await self._writer.drain()
+                    pending = None
                     backoff = 1.0
                 except Exception as e:
                     _LOGGER.error("Mirror write failed: %s", e)
                     await self._close_writer()
-                    # Re-enqueue the frame so it is not lost
-                    try:
-                        self._queue.put_nowait(frame)
-                    except Exception:
-                        pass
+                    # keep the frame as pending: it goes out first next time
                     await asyncio.sleep(0)  # yield
 
             except asyncio.CancelledError:

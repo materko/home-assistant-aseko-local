@@ -624,10 +624,13 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         """Return the consumption tracker for a given device serial number."""
         return self._trackers.get(serial_number)
 
-    def reset_consumption(self, pump_key: str, counter: str) -> None:
-        """Reset consumption counters for all tracked devices and notify listeners."""
-        for tracker in self._trackers.values():
-            tracker.reset(pump_key=pump_key, counter=counter)
+    def reset_consumption(
+        self, pump_key: str, counter: str, serial_number: int | None = None
+    ) -> None:
+        """Reset consumption counters of one unit, or of every unit without a serial."""
+        for serial, tracker in self._trackers.items():
+            if serial_number is None or serial == serial_number:
+                tracker.reset(pump_key=pump_key, counter=counter)
         self._request_consumption_save(now=True)
         self.async_update_listeners()
 

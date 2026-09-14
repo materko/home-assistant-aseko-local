@@ -42,6 +42,7 @@ const STRINGS = {
     "not_downloaded": "NOT downloaded",
     "frames_kept": "frames kept",
     "frames_gone": "frames aged out",
+    "no_frame_flag": "no frame came",
     "no_note": "(no note)",
     "photo": "photo",
     "case_saved": "Case #{n} saved at {time}",
@@ -93,6 +94,7 @@ const STRINGS = {
     "not_downloaded": "NESTIAHNUT\u00c9",
     "frames_kept": "r\u00e1mce ulo\u017een\u00e9",
     "frames_gone": "r\u00e1mce u\u017e vypadli",
+    "no_frame_flag": "r\u00e1mec nepri\u0161iel",
     "no_note": "(bez pozn\u00e1mky)",
     "photo": "fotka",
     "case_saved": "Pokus #{n} ulo\u017een\u00fd o {time}",
@@ -144,6 +146,7 @@ const STRINGS = {
     "not_downloaded": "NESTA\u017dENO",
     "frames_kept": "r\u00e1mce ulo\u017eeny",
     "frames_gone": "r\u00e1mce u\u017e vypadly",
+    "no_frame_flag": "r\u00e1mec nep\u0159i\u0161el",
     "no_note": "(bez pozn\u00e1mky)",
     "photo": "fotka",
     "case_saved": "Pokus #{n} ulo\u017een v {time}",
@@ -195,6 +198,7 @@ const STRINGS = {
     "not_downloaded": "NICHT heruntergeladen",
     "frames_kept": "Frames vorhanden",
     "frames_gone": "Frames verfallen",
+    "no_frame_flag": "kein Frame gekommen",
     "no_note": "(keine Notiz)",
     "photo": "Foto",
     "case_saved": "Fall #{n} gespeichert um {time}",
@@ -246,6 +250,7 @@ const STRINGS = {
     "not_downloaded": "NON t\u00e9l\u00e9charg\u00e9",
     "frames_kept": "trames conserv\u00e9es",
     "frames_gone": "trames expir\u00e9es",
+    "no_frame_flag": "aucune trame re\u00e7ue",
     "no_note": "(sans note)",
     "photo": "photo",
     "case_saved": "Cas #{n} enregistr\u00e9 \u00e0 {time}",
@@ -733,7 +738,7 @@ class AsekoTestCasesCard extends HTMLElement {
     const fresh = entries.reduce((sum, e) => sum + (e.not_downloaded || 0), 0);
     this._el("heading").textContent = this._t("cases_count", { n: cases.length, f: fresh });
     this._el("export-new").textContent = `\u2B07 ${this._t("download_new")} (${fresh})`;
-    const key = JSON.stringify([several, cases.map((c) => [c.entryId, c.n, c.t, c.note, c.downloaded, c.frames, c.photo])]);
+    const key = JSON.stringify([several, cases.map((c) => [c.entryId, c.n, c.t, c.note, c.downloaded, c.frames, c.photo, c.waited_for_frame, c.serial_number])]);
     this._pruneThumbs(new Set(cases.map((c) => c.photo).filter(Boolean)));
     if (key === this._listKey) return;
     this._listKey = key;
@@ -752,7 +757,7 @@ class AsekoTestCasesCard extends HTMLElement {
           <div class="case-number" aria-hidden="true">#${c.n}</div>
           <div class="txt"><div class="note">${esc(c.note || this._t("no_note"))}</div>
           <div class="meta">#${c.n} \u00B7 ${esc(when)}${several ? ` \u00B7 ${esc(c.entry)}` : ""}</div>
-          <div class="case-flags"><span class="flag ${c.downloaded ? "" : "new"}">${esc(downloadFlag)}</span><span class="flag">${esc(framesFlag)}</span></div></div></article>`;
+          <div class="case-flags"><span class="flag ${c.downloaded ? "" : "new"}">${esc(downloadFlag)}</span><span class="flag">${esc(framesFlag)}</span>${c.waited_for_frame === false ? `<span class="flag new">${esc(this._t("no_frame_flag"))}</span>` : ""}${c.serial_number ? `<span class="flag">${esc(c.serial_number)}</span>` : ""}</div></div></article>`;
       })
       .join("");
     for (const img of list.querySelectorAll("img[data-photo]")) this._loadThumb(img);

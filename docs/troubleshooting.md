@@ -10,7 +10,7 @@ diagnostics**. The keys named below are keys of that JSON file.
 |---|---|
 | The unit sends to Home Assistant | the unit's **Serial Port** page: remote server = your HA address, port = the port set in the integration (see the README) |
 | The port matches the firmware | port **47524** for v7 (binary), **51050** for v8 (text) by default; both units of a mixed setup must send to the same port |
-| Frames arrive | the **Connection status** entity is `online` when a frame came in the last 60 seconds; the test cases card header shows *Last frame: N s ago* |
+| Frames arrive | the **Connection status** entity is `online` when a frame came in the last 5 minutes (the other entities keep their last values while it is `offline`); the test cases card header shows *Last frame: N s ago* |
 | Frames arrive but none decodes | `rejected_frames` (bytes that never aligned into a frame, by reason), and per unit `implausible_frames`, `partial_frame` |
 
 The integration log (**Settings → System → Logs**, filter `aseko`) names the

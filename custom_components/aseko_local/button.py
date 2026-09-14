@@ -145,4 +145,9 @@ class AsekoResetButtonEntity(AsekoLocalEntity, ButtonEntity):
 
     async def async_press(self) -> None:
         """Reset the canister counter for this pump."""
-        self.coordinator.reset_consumption(pump_key=self._pump_key, counter="canister")
+        # this unit's canister only: other units in the entry keep theirs
+        self.coordinator.reset_consumption(
+            pump_key=self._pump_key,
+            counter="canister",
+            serial_number=self.device.serial_number,
+        )

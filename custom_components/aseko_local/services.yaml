@@ -92,6 +92,16 @@ reset_consumption:
             - canister
             - total
             - all
+    serial_number:
+      name: Serial number
+      description: >
+        Reset only this unit. Leave empty to reset every unit.
+      required: false
+      example: 110071590
+      selector:
+        number:
+          min: 1
+          mode: box
 
 mark_dump:
   name: Mark dump

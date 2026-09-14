@@ -402,3 +402,22 @@ def test_a_failed_platform_setup_is_asked_again_on_the_next_frame() -> None:
         decode(_salt_frame(0xC3, flowrate_third_pump=40))
     )
     assert requested == [SERIAL, SERIAL]  # set up: not asked again
+
+
+def test_a_unit_is_offline_after_five_minutes_but_keeps_its_values():
+    """Audit A1: offline is a flag; the last values stay as they were."""
+    from datetime import timedelta
+
+    from homeassistant.util import dt as dt_util
+
+    from custom_components.aseko_local.decoding import decode
+
+    from .test_decode_v7 import _make_base_bytes
+
+    device = decode(bytes(_make_base_bytes()))
+    device.last_seen = dt_util.now() - timedelta(minutes=4)
+    assert device.online() is True  # a settings menu can keep it quiet for minutes
+    device.last_seen = dt_util.now() - timedelta(minutes=6)
+    assert device.online() is False
+    assert device.water_temperature == 24.5
+    assert "water_temperature" in device.present_features

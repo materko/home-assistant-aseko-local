@@ -481,3 +481,40 @@ async def test_a_photo_for_a_unit_no_entry_has_seen_is_refused(tmp_path) -> None
     )
     assert response.status == 409
     assert PhotoStore(tmp_path / "photos").files() == []
+
+
+@pytest.mark.asyncio
+async def test_a_case_keeps_its_unit_and_that_no_frame_came(
+    tmp_path, monkeypatch
+) -> None:
+    """Audit A3: after a refresh the case still says which unit, and the timeout."""
+    monkeypatch.setattr(views, "MARK_DUMP_WAIT_TIMEOUT", 0.01)
+    hass, (entry,) = _setup(tmp_path)
+    _frame_arrives(entry)
+
+    body = _body(
+        await views.AsekoPhotoView().post(
+            FakeRequest(
+                hass, parts={"serial_number": str(SERIAL).encode(), "photo": _jpeg()}
+            )
+        )
+    )
+    assert body["markers"][0]["waited_for_frame"] is False
+
+    coordinator = entry.runtime_data.coordinator
+    restored = type(coordinator.frame_log)()
+    restored.load_store(coordinator.frame_log.to_store())
+    (case,) = restored.markers()
+    assert case["serial_number"] == SERIAL
+    assert case["waited_for_frame"] is False
+
+
+@pytest.mark.asyncio
+async def test_a_case_without_waiting_stores_no_wait_result(tmp_path) -> None:
+    hass, (entry,) = _setup(tmp_path)
+    await views.AsekoPhotoView().post(
+        FakeRequest(hass, parts={"wait": b"0", "photo": _jpeg()})
+    )
+    (case,) = entry.runtime_data.coordinator.frame_log.markers()
+    assert "waited_for_frame" not in case
+    assert "serial_number" not in case

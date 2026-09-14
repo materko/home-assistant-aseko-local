@@ -122,3 +122,61 @@ async def test_multiple_frames_reuse_connection(monkeypatch) -> None:
     assert len(dummy_writer.data) == 5
 
     await mirror.stop()
+
+
+@pytest.mark.asyncio
+async def test_a_frame_that_failed_goes_out_before_newer_ones(monkeypatch) -> None:
+    """Audit A4: connect fails for A while B waits; the cloud still gets A, B."""
+    writer = DummyWriter()
+    attempts = {"n": 0}
+
+    async def flaky_open_connection(host: str, port: int):
+        attempts["n"] += 1
+        if attempts["n"] == 1:
+            raise OSError("cloud unreachable")
+        return None, writer
+
+    monkeypatch.setattr(asyncio, "open_connection", flaky_open_connection)
+    mirror = AsekoCloudMirror("localhost", 12345)
+    await mirror.start()
+    await mirror.enqueue(b"A")
+    await mirror.enqueue(b"B")
+    for _ in range(300):
+        if len(writer.data) == 2:
+            break
+        await asyncio.sleep(0.01)
+    await mirror.stop()
+
+    assert writer.data == [b"A", b"B"]
+
+
+@pytest.mark.asyncio
+async def test_a_frame_whose_write_failed_goes_out_first(monkeypatch) -> None:
+    class FailOnce(DummyWriter):
+        def __init__(self) -> None:
+            super().__init__()
+            self.failed = False
+
+        def write(self, frame: bytes) -> None:
+            if not self.failed:
+                self.failed = True
+                raise OSError("broken pipe")
+            super().write(frame)
+
+    writer = FailOnce()
+
+    async def open_connection(host: str, port: int):
+        return None, writer
+
+    monkeypatch.setattr(asyncio, "open_connection", open_connection)
+    mirror = AsekoCloudMirror("localhost", 12345)
+    await mirror.start()
+    await mirror.enqueue(b"A")
+    await mirror.enqueue(b"B")
+    for _ in range(300):
+        if len(writer.data) == 2:
+            break
+        await asyncio.sleep(0.01)
+    await mirror.stop()
+
+    assert writer.data == [b"A", b"B"]

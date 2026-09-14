@@ -143,6 +143,10 @@ class AsekoFiltrationSchedule(Enum):
     TIMER_PERIOD_1_AND_2 = "timer_period_1_and_2"
 
 
+# A unit that sent nothing for this long is offline (Connection status).
+OFFLINE_AFTER = timedelta(minutes=5)
+
+
 @dataclass
 class AsekoDevice:
     """Holds data received from Aseko device."""
@@ -366,10 +370,18 @@ class AsekoDevice:
     last_seen: datetime | None = None
 
     def online(self) -> bool:
-        """Return True if a frame was received within the last 60 seconds."""
-        return self.last_seen is not None and self.last_seen > datetime.now(
-            tz=homeassistant.util.dt.get_default_time_zone()
-        ) - timedelta(seconds=60)
+        """Return True if a frame was received within ``OFFLINE_AFTER``.
+
+        Five minutes, not one: with its settings menu open a unit sends
+        nothing for minutes.  The other entities keep their last values while
+        a unit is offline; this is the flag that says they are not fresh.
+        """
+        return (
+            self.last_seen is not None
+            and self.last_seen
+            > datetime.now(tz=homeassistant.util.dt.get_default_time_zone())
+            - OFFLINE_AFTER
+        )
 
 
 @dataclass

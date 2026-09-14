@@ -60,6 +60,8 @@ RESET_CONSUMPTION_SCHEMA = vol.Schema(
         vol.Optional("counter", default="canister"): vol.In(
             ["canister", "total", "all"]
         ),
+        # without it every unit is reset, as before
+        vol.Optional("serial_number"): cv.positive_int,
     }
 )
 
@@ -258,10 +260,11 @@ async def async_setup_entry(
         async def handle_reset_consumption(call: ServiceCall) -> None:
             pump = call.data.get("pump", "all")
             counter = call.data.get("counter", "canister")
+            serial_number = call.data.get("serial_number")
             for entry in hass.config_entries.async_entries(DOMAIN):
                 rd = getattr(entry, "runtime_data", None)
                 if rd:
-                    rd.coordinator.reset_consumption(pump, counter)
+                    rd.coordinator.reset_consumption(pump, counter, serial_number)
 
         hass.services.async_register(
             DOMAIN,
@@ -413,7 +416,9 @@ async def async_setup_entry(
                     )
                 try:
                     marker = coordinator.mark_dump(
-                        note, generation=generations[entry.entry_id]
+                        note,
+                        {"serial_number": serial_number, "waited_for_frame": waited},
+                        generation=generations[entry.entry_id],
                     )
                 except RecordingOff:
                     return None  # stopped or deleted while waiting
