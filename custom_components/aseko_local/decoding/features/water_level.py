@@ -11,8 +11,10 @@ byte positions (domin211, DomSchCoding #100, Issue #110):
     byte[105] = high alarm threshold (cm)
 
 NET carries unrelated non-0xFF data in bytes 102-104, so no NET profile
-lists these.  byte[103] doubles as algaecide_flow_rate on OXY and HOME, whose
-independent-port layout reads it for both; SALT ignores it there.
+lists these.  OXY has no level probe and sends its algicide flow rate in
+byte[103] instead.  HOME uses bytes 102-105 for the level thresholds like
+SALT (confirmed there against the unit, 2026-09-11); where HOME sends its
+algicide flow rate is not known.
 """
 
 from __future__ import annotations

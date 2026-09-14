@@ -14,7 +14,7 @@ The picture is generated from [`images/src/aseko-architecture.html`](images/src/
 | Package / module | Responsibility |
 |---|---|
 | `server.py` | One TCP server per host:port (`AsekoDeviceServer`). Aligns the stream into v7 (120 bytes) or v8 (`{v1 …}`) frames; a fragment is kept as a partial frame, bytes it cannot align are counted in diagnostics as `rejected` (and logged while recording). Optionally forwards every frame to Aseko Cloud (`forwarder.py`). |
-| `decoding/` | Bytes → `AsekoDevice`. Knows nothing about Home Assistant. |
+| `decoding/` | Bytes → `AsekoDevice`. No entities, no coordinator; from Home Assistant it uses only the time zone helpers, for the unit's clock and a missing timestamp. |
 | `coordinator.py` | Keeps the latest `AsekoDevice` per serial, merges feature sets, notifies platforms, owns the frame log and consumption store, waits for frames for `mark_dump`. |
 | `entity.py` + platforms | Entities for every value the model can have (see [Entity lifecycle](#entity-lifecycle)). |
 | `trackers/` | State the frame does not carry: backwash history, chemical consumption (exact ml, HA Store). |
@@ -139,8 +139,13 @@ everything the unit has shown since Home Assistant started.
   section stands; it and any missing `ins` / `ains` / `outs` / `areqs` section
   become `frame_problems`, which the server logs and counts. `crc16` is read as
   hex but not checked — its algorithm is not known.
-- An unfilled `0xFF` / `0xFFFF` is never a number: a measurement reads None, a
-  setting or an absent input reads `NOT_PRESENT`.
+- An unfilled `0xFF` / `0xFFFF` (v8: `-500`) is never a number. What it means
+  is decided per field in its feature file: a measurement or a setpoint of a
+  fitted probe reads None (unknown); a setting never made or an input not
+  fitted reads `NOT_PRESENT`. In v8 only `-500` marks a probe as absent — an
+  unreadable or missing value reads None.
+- A v8 frame that ends inside the first 120 bytes the server reads stops at
+  its newline; what follows starts the next frame.
 
 ## Entity lifecycle
 
@@ -166,10 +171,14 @@ automations survive an accessory being added or removed.
   `v7`, `v8`, `partial`, `rejected`, plus `mark` markers. Compressed ring buffer
   capped at 256 kB (chunks of 16 kB compressed or 384 kB raw), at most 500
   markers, saved across restarts, exported in an executor snapshot.
-- **Markers** (only while recording): `aseko_local.mark_dump` and the test cases card write a marker
-  only after the next whole frame arrives (at most 60 s), optionally for one
-  serial number — a change made on the unit may not be sent until its menu is
-  closed.
+- **Markers** (only while recording): `aseko_local.mark_dump` and the test
+  cases card write a marker after the next frame the decoder accepts — whole,
+  parseable, from the chosen unit if a serial number is given (an unmapped
+  model counts). A change made on the unit may not be sent until its menu is
+  closed. After 60 s without such a frame the marker is written anyway and
+  reported as not waited for. Stopping or deleting the recording while a mark
+  waits cancels it; a card photo of a cancelled mark is removed. With a serial
+  number, only the entries that have received that unit wait.
 - **Photos** (`recording/photos.py`): downscaled to 2048 px, at most 200 photos
   or 100 MB, written atomically under a lock.
 - **Views** (`recording/views.py`, admin only): `status` (frame ages, cases,

@@ -1,11 +1,12 @@
 """A ring buffer of raw frames and user markers, capped in compressed bytes.
 
-Every frame the server receives (v7 binary, v8 text, partial) is appended as
-one JSON line with the Home Assistant receive time.  A marker written by the
-``mark_dump`` service goes into the same stream, so frames and the photos a
-user takes of the unit's display right after tapping the button line up by
-position, without anyone comparing clocks.  Photos stay outside, attached to
-the GitHub issue by hand.
+While recording is on (the test cases card turns it on), every frame the
+server receives (v7 binary, v8 text, partial, rejected) is appended as one
+JSON line with the Home Assistant receive time.  A marker from ``mark_dump``
+or the card goes into the same stream once the next decoded frame arrives,
+so a change on the unit and the frames that carry it line up by position,
+without anyone comparing clocks.  A display photo is kept by ``photos`` and
+named in its marker; the zip export packs both.
 
 The ceiling is hard: the sealed compressed chunks, plus the compressed bytes
 of the chunk being written, plus the records not yet handed to its

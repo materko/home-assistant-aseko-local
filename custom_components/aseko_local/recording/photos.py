@@ -1,10 +1,11 @@
 """Photos of the unit's display that go with frame-log markers, and the zip export.
 
 The Aseko test cases card uploads a photo straight from the phone's camera.  The
-upload writes a marker into the frame log at the moment it arrives and keeps
-the photo here, named after that moment, so photo and frames line up without
-EXIF data, file names or anyone comparing clocks.  Messengers strip all of
-those; this path never leaves Home Assistant.
+photo is kept here at once, named after the upload time; its marker is written
+into the frame log after the next decoded frame and names the photo, so photo
+and frames line up without EXIF data, file names or anyone comparing clocks.
+Messengers strip all of those; this path never leaves Home Assistant.  A mark
+cancelled while it waited (recording stopped or deleted) removes its photo.
 
 Photos are downscaled (longest side ``MAX_SIDE`` px, JPEG) when Pillow can
 read them, and the folder is capped in bytes and count: the oldest photos go

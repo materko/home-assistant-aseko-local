@@ -34,7 +34,7 @@ happens next.
 
 | State | Meaning | Where to confirm |
 |---|---|---|
-| **disabled** (by the integration) | the model can have the value, but this unit has not sent it since Home Assistant started; it switches itself on when it does | `devices[].device.possible_features` has it, `features` does not |
+| **disabled** (by the integration) | the model can have the value, but this unit has never sent it; it switches itself on when it does and stays enabled after a restart | `devices[].device.possible_features` has it, `features` does not |
 | **unavailable** | the last frame did not carry it: the accessory is not fitted (any more), the shared pump port is routed to the other chemical, or the setting is off | `devices[].device.not_present_now` |
 | **unknown** | the unit has it, but the last frame could not say (e.g. `0xFF` "not filled in" at start-up, an unreadable v8 value) | `devices[].device.frame_problems` for v8 |
 | no entity at all | the model does not have the value | the [support matrix](support_matrix.md) shows — |
@@ -83,7 +83,8 @@ An entity you disabled yourself stays disabled.
 | Which frames go with case N? | `python scripts/frame_log_tool.py DIAGNOSTICS.json --around N` |
 | All frames as JSON lines | `python scripts/frame_log_tool.py DIAGNOSTICS.json --jsonl frames.jsonl` |
 | Case says *frames aged out* | the log no longer holds frames from that time |
-| Case marked with an error | no whole frame came within 60 s; the case was written without one |
+| Case marked with an error | no accepted frame came within 60 s; the case was written without one |
+| *Recording was stopped or deleted while waiting* | recording was turned off or deleted (maybe on another device) while the case waited; the case and its photo were not kept |
 
 In the zip from **Download new / all**, every file carries the entry's title
 and id (`frames-<title>-<entry_id>.jsonl`, `diagnostics-…`), so several

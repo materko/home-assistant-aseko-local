@@ -1,8 +1,10 @@
 """Whether the algicide dosing pump is running.
 
 v7: byte[29] bit 0x20 on SALT (confirmed: 27 algicide frames read 0x28 =
-0x08 | 0x20, PR #87) and HOME (uncertain), bit 0x10 on OXY (confirmed:
-2026-04-11 Winnetoux log, 0x08 -> 0x18 with the pump on).
+0x08 | 0x20, PR #87), bit 0x10 on OXY (confirmed: 2026-04-11 Winnetoux log,
+0x08 -> 0x18 with the pump on).  HOME has the same four independent pump
+ports as OXY and reads 0x10 too (``decode_v7_oxy``, assumed); its algicide
+flow rate is not located, so no HOME algicide state is reported yet.
 
 On SALT the same bit also means flocculant: one physical port, configured for
 either chemical.  Whether the port is set up for algicide at all is settled
@@ -24,8 +26,8 @@ if TYPE_CHECKING:
     from ..presence import NotPresent
 
 
-ALGICIDE_PUMP = 0x20  # SALT confirmed (PR #87), HOME uncertain
-ALGICIDE_PUMP_OXY = 0x10  # confirmed, 2026-04-11
+ALGICIDE_PUMP = 0x20  # SALT confirmed (PR #87)
+ALGICIDE_PUMP_OXY = 0x10  # OXY confirmed 2026-04-11; HOME assumed
 
 
 class AlgaecidePumpRunning(Feature):

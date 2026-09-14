@@ -30,9 +30,11 @@ analysis, using the common section layout.
   unit type byte in `_MODEL_BY_UNIT_TYPE` (`decoding/profile.py`), create
   `decoding/profiles/v7/<model>.py` and register it in `profiles/v7/__init__.py`
   (`BY_MODEL`) and `profiles/__init__.py` (`ALL_PROFILES`).
-- New v8 product line: extend `model_from_header_type` in
-  `profiles/v8/__init__.py` and add `profiles/v8/<model>.py`. A new firmware of
-  a known line needs nothing — it reads with the line's profile.
+- New v8 product line: add the enum value to `AsekoDeviceType` if the model
+  is new, extend `model_from_header_type` in `profiles/v8/__init__.py`, create
+  `profiles/v8/<model>.py` and register it in `profiles/v8/__init__.py`
+  (`BY_MODEL`) and `profiles/__init__.py` (`ALL_PROFILES`). A new firmware of a
+  known line needs nothing — it reads with the line's profile.
 
 A profile module is one `Profile(...)`:
 
@@ -74,5 +76,20 @@ python scripts/generate_support_matrix.py
 
 - Add the captured frame to `tests/test_decode_v7.py` (or `test_decode_v8.py`)
   with the values the unit showed.
+
+Running the tests:
+
+```bash
+# Linux (CI runs this): the full suite, Home Assistant fixtures included
+python -m pytest --timeout=10 tests
+```
+
+```bash
+# Windows: the Home Assistant pytest plugin does not load, so run the suites without it
+python -m pytest -q -p no:homeassistant -p no:pytest_homeassistant_custom_component --noconftest --no-cov tests/test_decode_v7.py tests/test_decode_v8.py tests/test_decoding_profiles.py tests/test_support_matrix.py tests/test_frame_log.py tests/test_recording_views.py tests/test_server.py
+```
+
+The diagrams in `docs/images/` are rendered from `docs/images/src/*.html`; the
+command is in the comment at the top of each file.
 - `tests/test_decoding_profiles.py` checks detection and profile consistency;
   `tests/test_support_matrix.py` checks the generated matrix is committed.

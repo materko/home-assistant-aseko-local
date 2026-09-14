@@ -72,7 +72,7 @@ Then, standing at the unit with your phone:
 
 | Button | What it does |
 |---|---|
-| **Recording on / off** | starts or stops the frame log; the recorded frames stay either way |
+| **Recording on / off** | starts or stops the frame log; the recorded frames stay either way. Stopping cancels a case still waiting for its frame |
 | **Photo + mark** / **Mark** | writes a case after the next frame, with or without a photo of the display |
 | **Download new** | a zip with the cases not downloaded yet; they count as downloaded once your browser has the whole zip |
 | **Download all** | every case again |
@@ -82,6 +82,8 @@ Then, standing at the unit with your phone:
 The card follows the Home Assistant language (English, Slovak, Czech, German, French; `language: en` overrides it). Photos are downscaled to 2048 px and kept in `<config>/aseko_local/photos`, at most 200 photos or 100 MB (the oldest go first). The card and its endpoints are for admin users, like the diagnostics download.
 
 > The frames and the unit's display carry its serial number; check the photos before you attach them to a public issue.
+
+> **Security:** the unit sends its data unencrypted to the port the integration listens on. Keep that port inside your trusted network — do not forward it from the internet. The diagnostics download and the zip export contain the unit's serial number.
 
 **Limits — what is kept and for how long**
 
