@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
 
 if TYPE_CHECKING:
@@ -12,9 +13,11 @@ if TYPE_CHECKING:
 
 
 class Salinity(Feature):
-    """v7: byte[20] / 10.  On a chlorine unit the same byte is free_chlorine_mv[hi]."""
+    """v7: byte[20] / 10; 0xFF (not filled in) reads unknown, not 25.5."""
 
     field = "salinity"
 
-    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> float:
+    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> float | None:
+        if frame[20] == UNSPECIFIED_VALUE:
+            return None
         return frame[20] / 10

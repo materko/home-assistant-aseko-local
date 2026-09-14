@@ -12,6 +12,9 @@ from dataclasses import dataclass, field
 from ...const import UNSPECIFIED_V8
 from .protocol import Protocol
 
+# The sections the features read; a frame without one of them is reported.
+EXPECTED_SECTIONS = ("ins", "ains", "outs", "areqs")
+
 # Matches "sectionname: <values>" up to the next section keyword or the end.
 _SECTION_RE = re.compile(r"(\w+):\s*(.*?)(?=\s+\w+:|$)", re.DOTALL)
 _HEADER_RE = re.compile(r"v1\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)")
@@ -94,6 +97,11 @@ def parse_v8(raw: bytes) -> V8Frame:
                 values.append(None)
                 problems.append(f"{name}[{index}]: {token[:20]!r} is not a number")
         sections[name] = values
+    problems.extend(
+        f"section {name!r} is missing"
+        for name in EXPECTED_SECTIONS
+        if name not in sections
+    )
 
     return V8Frame(
         raw=bytes(raw),

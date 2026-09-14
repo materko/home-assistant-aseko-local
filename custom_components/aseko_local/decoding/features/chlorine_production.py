@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
 
 if TYPE_CHECKING:
@@ -20,9 +21,11 @@ ELECTROLYZER_RUNNING = 0x10
 
 
 class ChlorineProduction(Feature):
-    """v7: byte[21] while byte[29] bit 0x10 is set, else 0."""
+    """v7: byte[21] while byte[29] bit 0x10 is set, else 0; 0xFF reads unknown."""
 
     field = "chlorine_production"
 
-    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int:
-        return frame[21] if frame[29] & ELECTROLYZER_RUNNING else 0
+    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | None:
+        if not frame[29] & ELECTROLYZER_RUNNING:
+            return 0
+        return None if frame[21] == UNSPECIFIED_VALUE else frame[21]

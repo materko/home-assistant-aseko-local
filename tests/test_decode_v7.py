@@ -1,5 +1,6 @@
 """Test the Aseko Decoder."""
 
+from dataclasses import fields
 from datetime import datetime, time
 
 import pytest
@@ -428,7 +429,7 @@ def test_decode_profi() -> None:
 def test_decode_net() -> None:
     """Test decoding of NET device data."""
 
-    data = _make_base_bytes(111)
+    data = _make_base_bytes()
     data[4] = 0x09  # NET device
     data[6] = 0xFF  # year
     data[7] = 0xFF  # month
@@ -2339,3 +2340,37 @@ def test_unfilled_setpoints_read_unknown_not_scaled_0xff() -> None:
     data[4] = 0x05  # OXY
     device = decode(bytes(data))
     assert device.oxygen_dose_target is None
+
+
+# ── frame edges ──────────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize("size", [0, 4, 50, 119, 121, 240])
+def test_anything_but_a_whole_v7_frame_is_refused(size: int) -> None:
+    """A fragment is the server's partial frame, never a frame to decode."""
+    with pytest.raises(ValueError, match="not 120"):
+        decode((bytes(_make_base_bytes()) * 2)[:size], Protocol.V7)
+
+
+_UNIT_TYPES = [0x02, 0x03, 0x05, 0x09, 0x0B, 0x0D, 0x0E, 0x10, 0x00]
+
+
+@pytest.mark.parametrize("unit_type", _UNIT_TYPES)
+def test_a_frame_of_unfilled_bytes_decodes_no_number(unit_type: int) -> None:
+    """0xFF everywhere: every numeric value reads unknown, none reads 255 or 25.5."""
+    raw = bytearray(b"\xff" * 120)
+    for start, segment in ((0, 1), (40, 3), (80, 2)):
+        raw[start : start + 4] = (1234).to_bytes(4, "big")
+        raw[start + 4] = unit_type
+        raw[start + 5] = segment
+
+    device = decode(bytes(raw))
+
+    numbers = {
+        f.name: getattr(device, f.name)
+        for f in fields(AsekoDevice)
+        if f.name != "serial_number"
+        and isinstance(getattr(device, f.name), int | float)
+        and not isinstance(getattr(device, f.name), bool)
+    }
+    assert numbers == {}, device.profile

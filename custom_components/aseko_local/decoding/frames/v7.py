@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 
+from ...const import MESSAGE_SIZE
 from .protocol import Protocol
 from .values import UNSPECIFIED_WORD
 
@@ -80,7 +81,11 @@ def parse_v7(raw: bytes) -> V7Frame:
     """Wrap a binary frame.  Alignment is the server's job, not this one's.
 
     A failed segment checksum is only logged: the frame is decoded as before.
+    Raises ValueError for anything but a whole frame -- the server keeps
+    fragments as partial frames and never decodes them.
     """
+    if len(raw) != MESSAGE_SIZE:
+        raise ValueError(f"v7 frame is {len(raw)} bytes, not {MESSAGE_SIZE}")
     frame = V7Frame(bytes(raw))
     bad = v7_bad_checksum_segments(frame.raw)
     if bad:

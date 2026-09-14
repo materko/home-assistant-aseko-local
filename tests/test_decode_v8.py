@@ -455,3 +455,22 @@ def test_device_names_the_profile_that_read_it():
     assert decode(REFERENCE_FRAME_105).profile == "v8 SALT"
     unknown = decode(REFERENCE_FRAME.replace(b" 804 ", b" 999 "))
     assert unknown.profile == "v8 unknown header type"
+
+
+def test_a_header_without_sections_reads_unknown_and_says_so():
+    """Nothing to read is not an error, but the missing sections are reported."""
+    device = decode(b"{v1 123456789 804 0 27}")
+    assert device.profile == "v8 NET"
+    assert device.ph is None
+    assert device.water_temperature is None
+    assert device.chlorine_pump_running is None
+    assert device.frame_problems == (
+        "section 'ins' is missing",
+        "section 'ains' is missing",
+        "section 'outs' is missing",
+        "section 'areqs' is missing",
+    )
+
+
+def test_a_complete_frame_reports_no_problem():
+    assert decode(REFERENCE_FRAME).frame_problems == ()
