@@ -597,7 +597,7 @@ class AsekoTestCasesCard extends HTMLElement {
             </div>
             <div class="action-row">
               <button id="photo"><ha-icon icon="mdi:camera-plus-outline" aria-hidden="true"></ha-icon>${esc(this._t("photo_mark"))}</button>
-              <button id="mark" class="secondary"><ha-icon icon="mdi:flag-checkered" aria-hidden="true"></ha-icon>${esc(this._t("mark"))}</button>
+              <button id="mark"><ha-icon icon="mdi:flag-checkered" aria-hidden="true"></ha-icon>${esc(this._t("mark"))}</button>
               <label class="wait-option" id="unit-option" hidden>${esc(this._t("unit"))} <select id="unit"></select></label>
             </div>
             <input id="file" type="file" accept="image/*" capture="environment" hidden>
