@@ -455,10 +455,6 @@ class AsekoDeviceServer:
             )
             await cls._instances[key].start()
         else:
-            # A server stopped by an unload that did not remove it stays in the
-            # registry; hand it back running, or the next setup gets a dead one.
-            if not cls._instances[key].running:
-                await cls._instances[key].start()
             if raw_sink:
                 cls._instances[key]._raw_sink = raw_sink
             if v8_raw_sink:
@@ -469,6 +465,11 @@ class AsekoDeviceServer:
                 cls._instances[key]._rejected_sink = rejected_sink
             if on_data:
                 cls._instances[key].on_data = on_data
+            # A server stopped by an unload that did not remove it stays in the
+            # registry; hand it back running -- after the new callbacks are in
+            # place, or the first frames would go to the old ones.
+            if not cls._instances[key].running:
+                await cls._instances[key].start()
         return cls._instances[key]
 
     @classmethod

@@ -450,3 +450,35 @@ async def test_bytes_that_never_align_are_kept_with_the_reason() -> None:
     assert len(rejected) == 1
     assert rejected[0][0] == garbage
     assert rejected[0][1].startswith("frame sync failed:")
+
+
+@pytest.mark.asyncio
+async def test_a_restarted_server_uses_the_new_callbacks(monkeypatch) -> None:
+    """R1: frames arriving right at the restart go to the new setup's on_data."""
+    old_calls: list = []
+    new_calls: list = []
+
+    async def quiet_start(handler, host, port) -> DummyServer:
+        return DummyServer()
+
+    monkeypatch.setattr(asyncio, "start_server", quiet_start)
+    await AsekoDeviceServer.remove(host="127.0.0.1", port=12355)
+    first = await AsekoDeviceServer.create(
+        host="127.0.0.1", port=12355, on_data=old_calls.append
+    )
+    await first.stop()
+
+    async def start_with_a_frame(handler, host, port) -> DummyServer:
+        reader = asyncio.StreamReader()
+        reader.feed_data(VALID_FRAME)
+        reader.feed_eof()
+        await handler(reader, DummyWriter(host, port))
+        return DummyServer()
+
+    monkeypatch.setattr(asyncio, "start_server", start_with_a_frame)
+    await AsekoDeviceServer.create(
+        host="127.0.0.1", port=12355, on_data=new_calls.append
+    )
+    assert old_calls == []
+    assert len(new_calls) == 1
+    await AsekoDeviceServer.remove(host="127.0.0.1", port=12355)

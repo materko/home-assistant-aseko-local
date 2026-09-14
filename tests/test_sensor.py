@@ -777,7 +777,8 @@ async def test_async_setup_profi_clf_redox(hass) -> None:
         getattr(e.entity_description, "key", None) != "required_rx"
         for e in added_entities
     )
-    assert not any(
+    # the PROFI setpoints screen has a flocculant dose (profile per manuals)
+    assert any(
         getattr(e.entity_description, "key", None) == "required_floc"
         for e in added_entities
     )
