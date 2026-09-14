@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ...models import AsekoElectrolyzerDirection
+from ...models import AsekoElectrodePolarity
 from ..feature import Feature
 
 if TYPE_CHECKING:
@@ -28,11 +28,9 @@ class ElectrodePolarity(Feature):
 
     field = "electrode_polarity"
 
-    def decode_v7(
-        self, frame: V7Frame, device: AsekoDevice
-    ) -> AsekoElectrolyzerDirection:
+    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> AsekoElectrodePolarity:
         if not frame[29] & RUNNING:
-            return AsekoElectrolyzerDirection.WAITING
+            return AsekoElectrodePolarity.WAITING
         if frame[29] & RIGHT:
-            return AsekoElectrolyzerDirection.RIGHT
-        return AsekoElectrolyzerDirection.LEFT
+            return AsekoElectrodePolarity.RIGHT
+        return AsekoElectrodePolarity.LEFT

@@ -30,7 +30,7 @@ from .coordinator import AsekoLocalDataUpdateCoordinator
 from .entity import AsekoLocalEntity
 from .models import (
     AsekoDevice,
-    AsekoElectrolyzerDirection,
+    AsekoElectrodePolarity,
     AsekoHeatingCondition,
     AsekoVariableSpeedPumpType,
 )
@@ -226,7 +226,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
         feature="electrode_polarity",
         translation_key="electrode_polarity",
         device_class=SensorDeviceClass.ENUM,
-        options=[direction.value for direction in AsekoElectrolyzerDirection],
+        options=[direction.value for direction in AsekoElectrodePolarity],
         icon="mdi:arrow-left-right-bold",
         value_fn=lambda device: (
             device.electrode_polarity.value

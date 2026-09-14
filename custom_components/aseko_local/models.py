@@ -59,8 +59,8 @@ class AsekoProbeType(Enum):
     OXY = "oxy"
 
 
-class AsekoElectrolyzerDirection(Enum):
-    """Enumeration of Aseko Electrolyzer direction."""
+class AsekoElectrodePolarity(Enum):
+    """Which way the salt electrolyser electrode is polarised (or waiting)."""
 
     LEFT = "left"
     RIGHT = "right"
@@ -169,7 +169,7 @@ class AsekoDevice:
     salinity: float | None = None  # byte 20
     chlorine_production: int | None = None  # byte 21
     electrolysis_running: bool | None = None  # byte 29 (4-th bit)
-    electrode_polarity: AsekoElectrolyzerDirection | None = (
+    electrode_polarity: AsekoElectrodePolarity | None = (
         None  # byte 29 (6-th bit for LEFT)
     )
     water_temperature: float | None = None  # byte 25 & 26

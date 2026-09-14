@@ -22,7 +22,7 @@ from custom_components.aseko_local.decoding.profiles import profile_for
 from custom_components.aseko_local.models import (
     AsekoDevice,
     AsekoDeviceType,
-    AsekoElectrolyzerDirection,
+    AsekoElectrodePolarity,
     AsekoFiltrationSchedule,
     AsekoProbeType,
 )
@@ -368,7 +368,7 @@ def test_decode_electrolyzer_data() -> None:
     assert device.salinity == 3.2
     assert device.chlorine_production == 80
     assert device.electrolysis_running is True
-    assert device.electrode_polarity == AsekoElectrolyzerDirection.RIGHT
+    assert device.electrode_polarity == AsekoElectrodePolarity.RIGHT
 
 
 def test_decode_electrolyzer_data_left_direction() -> None:
@@ -381,7 +381,7 @@ def test_decode_electrolyzer_data_left_direction() -> None:
     data[29] = 0x10  # electrolysis running, polarity bit clear = left
 
     device = decode(bytes(data))
-    assert device.electrode_polarity == AsekoElectrolyzerDirection.LEFT
+    assert device.electrode_polarity == AsekoElectrodePolarity.LEFT
 
 
 def test_decode_electrolyzer_data_waiting_direction() -> None:
@@ -394,7 +394,7 @@ def test_decode_electrolyzer_data_waiting_direction() -> None:
     data[29] = 0  # neither running nor left
 
     device = decode(bytes(data))
-    assert device.electrode_polarity == AsekoElectrolyzerDirection.WAITING
+    assert device.electrode_polarity == AsekoElectrodePolarity.WAITING
 
 
 def test_decode_profi() -> None:
@@ -678,7 +678,7 @@ def test_decode_issue_28() -> None:
     assert device.salinity == 3.5
     assert device.chlorine_production == 0
     assert device.electrolysis_running is False
-    assert device.electrode_polarity == AsekoElectrolyzerDirection.WAITING
+    assert device.electrode_polarity == AsekoElectrodePolarity.WAITING
     assert device.water_temperature == 28.4
 
 
@@ -755,7 +755,7 @@ def test_decode_salt_pump_states() -> None:
     device = decode(bytes(data))
     assert device.filtration_running is False
     assert device.electrolysis_running is True
-    assert device.electrode_polarity == AsekoElectrolyzerDirection.RIGHT
+    assert device.electrode_polarity == AsekoElectrodePolarity.RIGHT
     assert device.chlorine_pump_running is None  # SALT has no CL pump
 
     # Electrolyzer running, left polarity
@@ -763,13 +763,13 @@ def test_decode_salt_pump_states() -> None:
     device = decode(bytes(data))
     assert device.filtration_running is True
     assert device.electrolysis_running is True
-    assert device.electrode_polarity == AsekoElectrolyzerDirection.LEFT
+    assert device.electrode_polarity == AsekoElectrodePolarity.LEFT
 
     # Electrolyzer off
     data[29] = 0x08  # filtration only
     device = decode(bytes(data))
     assert device.electrolysis_running is False
-    assert device.electrode_polarity == AsekoElectrolyzerDirection.WAITING
+    assert device.electrode_polarity == AsekoElectrodePolarity.WAITING
 
 
 def test_decode_salt_algicide_pump_running() -> None:
