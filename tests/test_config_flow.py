@@ -32,7 +32,7 @@ async def test_form(hass: HomeAssistant, mock_setup_entry: AsyncMock) -> None:
             result["flow_id"],
             {
                 CONF_HOST: "1.1.1.1",
-                CONF_PORT: 12345,
+                CONF_PORT: "12345",  # the port picker sends text
             },
         )
         await hass.async_block_till_done()
@@ -61,7 +61,7 @@ async def test_form_cannot_connect(
             result["flow_id"],
             {
                 CONF_HOST: "1.1.1.1",
-                CONF_PORT: 12345,
+                CONF_PORT: "12345",  # the port picker sends text
             },
         )
     assert result.get("type") is FlowResultType.FORM
@@ -79,7 +79,7 @@ async def test_form_cannot_connect(
             result["flow_id"],
             {
                 CONF_HOST: "1.1.1.1",
-                CONF_PORT: 12345,
+                CONF_PORT: "12345",  # the port picker sends text
             },
         )
         await hass.async_block_till_done()
@@ -121,3 +121,17 @@ async def test_options_flow(
 
     assert result2["type"] == FlowResultType.CREATE_ENTRY
     assert result2["data"] == options
+
+
+async def test_form_refuses_a_port_that_is_not_a_number(
+    hass: HomeAssistant, mock_setup_entry: AsyncMock
+) -> None:
+    """A typed port that is no number shows an error on the port field."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_HOST: "1.1.1.1", CONF_PORT: "not a port"}
+    )
+    assert result.get("type") is FlowResultType.FORM
+    assert result.get("errors") == {CONF_PORT: "invalid_port"}
