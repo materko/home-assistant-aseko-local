@@ -379,8 +379,8 @@ HOME-specific pumps (algicide, flocculant) are **not yet confirmed** by live cap
 | 1    | `0x02`| water-filling active        | ✓ confirmed (Issue #100; on SALT 2026-09-06 against the refill thresholds) |
 | 2    | `0x04`| heating active              | ⚠ unconfirmed — see Open Item 9                |
 | 3    | `0x08`| filtration pump running     | ✓ confirmed (every model with filtration)     |
-| 4    | `0x10`| algicide pump running       | see Open Item 7        |
-| 5    | `0x20`| flocculant pump running     | see Open Item 7        |
+| 4    | `0x10`| algicide pump running       | assumed as on OXY (same four ports); read once the algicide flow rate is located |
+| 5    | `0x20`| flocculant pump running     | assumed as on OXY (confirmed there) |
 | 6    | `0x40`| cl pump running             | see Open Item 7        |
 | 7    | `0x80`| pH− pump running            | see Open Item 7        |
 
@@ -429,7 +429,7 @@ meaning is unknown.
 | 3 | `water_temperature_target` vs app "---" — partially resolved by Issue #135: `byte[55]` is confirmed as the heating setpoint on serial 110175608 (REDOX HOME, heating ON frame). A frame from a device where the app actively shows a target temperature (not "---") would further validate this. |
 | 7 | `byte[29]` per-pump bits for HOME (algicide, flocculant, cl, pH−) are unconfirmed. The HOME profile reads them with the OXY/NET bit positions, which are placeholders here. Capturing frames with a single HOME pump running (e.g. algicide only) would pin down the per-pump bit. Until then, `algaecide_pump_running` and `flocculant_pump_running` may report incorrectly on HOME. |
 | 8 | ~~`max_refill_time` overlap with `ph_minus_flow_rate`~~ — resolved: `max_refill_time` is bytes 76–77 in seconds (verified on SALT against Aseko Live, v1.9); bytes 94–95 are back to unknown. |
-| 12 | `byte[103]` is read both as `algaecide_flow_rate` (33 ml/min) and as `water_level_refill_start` (33 cm) on serial 110128063. One byte cannot carry both; a frame where the two settings differ in the app would show which mapping is right. |
+| 12 | `byte[103]` was read both as `algaecide_flow_rate` (33 ml/min) and as `water_level_refill_start` (33 cm) on serial 110128063. Decided for the threshold: bytes 102-105 are the level thresholds on SALT (confirmed against the unit) and 13 / 33 / 55 / 100 cm are in order here; OXY sends its algicide flow rate on byte[103] only because it has no level sensor. HOME's algicide flow rate is **not located** (entity unknown), so neither the algicide pump state nor its consumption is computed until it is found. Before, bit `0x20` counted algicide and flocculant for one running pump; the pump bits now follow OXY (algicide `0x10`, flocculant `0x20`). |
 | 9 | `heating_running` binary sensor (`byte[29]` bit `0x04`) — needs a frame captured while the heat pump / electric heater is actually running. The `heating_control_enabled` field (byte[37] bit 3) is the **master enable**, separate from the actual heating output state in byte[29] bit 2. A frame with `byte[29]` bit 2 set would confirm this as the running-state indicator. |
 | 10 | Bytes 31, 38, 65 in the `0x35` manual OFF frame all rise by ~1 (0x00→0x02, 0x02→0x03, 0xa3→0xa4) — possible additional "manual override active" sub-flags, not used by the decoder today. Single observation, no meaning assigned. |
 | 11 | ~~`byte[78]` brand ID or pump parameter~~ — resolved: bits `0x0C` are the pump type group (Speck/Uwe, Pentair/Dab, Hayward), confirmed on SALT. `0x20` is still unknown. |
