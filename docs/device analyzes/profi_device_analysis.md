@@ -58,8 +58,8 @@ No representative frame exists. The test fixture (CLF + REDOX, synthetic) sets `
 | Byte | Field | Decoding | Evidence | Notes |
 |---|---|---|---|---|
 | 52 | `ph_target` | / 10 | assumed | |
-| 53 | `free_chlorine_target` / `chlorine_dose_target` | / 10 with CLF; raw with DOSE and neither CLF nor REDOX | assumed | `redox_target` is not read on PROFI (see §5) |
-| 54 | `flocculant_dose_target` | only while `byte[37]` routes the shared output to flocculant | assumed | ml/24 h m³ on the manual's setpoints |
+| 53 | `free_chlorine_target` / `chlorine_dose_target` | / 10 with CLF | assumed | the DOSE reading of `chlorine_dose_target` is not reachable today: the PROFI configuration has no DOSE bit (`decode_v7_without_dose`); `redox_target` is not read on PROFI (see §5) |
+| 54 | `flocculant_dose_target` | only while `byte[37]` routes the shared output to flocculant | assumed | unit unresolved: the manual's setpoints read ml/24 h m³, its dosing outputs ml/h — see §8 |
 | 55 | `water_temperature_target` | °C | assumed | |
 | 56–57 | `filtration_period_1_start` | HH:MM | assumed | |
 | 58–59 | `filtration_period_1_end` | HH:MM | assumed | |
@@ -159,7 +159,7 @@ PROFI has the water-level input and refill valve (PR #120 review, manual), so th
 
 ### Backwash
 
-Backwash settings use bytes 68-71; the relay is `byte[29]` `0x01`, combined with `0x02` for the filling state in [`trackers/backwash.py`](../../custom_components/aseko_local/trackers/backwash.py). `last_backwash` and `next_backwash` are derived by the `BackwashTracker` across coordinator updates, not read from the frame.
+Backwash settings use bytes 68-71; the relay is `byte[29]` `0x01` (`backwash_running`), which [`trackers/backwash.py`](../../custom_components/aseko_local/trackers/backwash.py) watches. `last_backwash` and `next_scheduled_backwash` are derived by the `BackwashTracker` across coordinator updates, not read from the frame.
 
 ## 6. Ground truth
 
@@ -182,6 +182,7 @@ All need a real PROFI frame. A useful capture set: all pumps off, filtration onl
 7. Water-level bytes 27 and 102-105. — a frame with a non-`0xFF` level, thresholds compared with the app.
 8. Heating relay `byte[29]` `0x04`. — a frame while the heat pump runs.
 9. Backwash bytes 68-71 and `byte[29]` `0x01`. — a frame while backwash is active.
+10. **Flocculant dose unit** — the PROFI manual gives ml/24 h m³ for the flocculant setpoint and ml/h for the flocculant output; a frame with a known setpoint on a real PROFI would settle what `byte[54]` carries.
 
 ## 9. History
 

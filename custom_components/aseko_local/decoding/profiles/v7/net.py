@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from ....models import AsekoDeviceType
 from ...features import (
+    Redox,
     AlarmMaxDisinfectionDose,
     AlarmNoFlowToProbes,
     AlarmPhDosingIneffective,
@@ -68,6 +69,7 @@ NET = Profile(
         AlarmRapidPhChange: "unconfirmed: byte[13] 0x08 from error_codes.md; never set on NET",
         FreeChlorine: "confirmed: bytes 16-17 / 100",
         FreeChlorineMv: "confirmed: bytes 20-21",
+        Redox: "assumed: protocol default, bytes 18-19 (16-17 when 18-19 are 0xFFFF); no REDOX NET frame captured",
         ChlorinePumpRunning: "confirmed: byte[29] 0x02 (Issue #66)",
         Configuration: "confirmed: byte[4] missing-probe bits (0x09 CLF, 0x0A REDOX, 0x0B DOSE)",
         DosingDelay: "observed: bytes 106-107 on the Issue #66 NET; not compared with the app",

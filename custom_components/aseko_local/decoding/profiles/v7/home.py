@@ -8,6 +8,9 @@ from __future__ import annotations
 
 from ....models import AsekoDeviceType
 from ...features import (
+    Redox,
+    RedoxTarget,
+    ChlorineDoseTarget,
     AirTemperature,
     AlarmMaxDisinfectionDose,
     AlarmNoFlowToProbes,
@@ -135,7 +138,7 @@ HOME = Profile(
         FlowDetectionEnabled: "confirmed on SALT: byte[37] 0x02 (2026-09-13); on HOME 0x43 / 0x53 have it set and Issue #135's 0x41 / 0x45 / 0x49 clear",
         VariableSpeedPumpType: "confirmed: byte[78] 0x22 / 0x26 / 0x2a for Speck-Uwe / Pentair-Dab / Hayward (Issue #137); the same bits on an ASIN AQUA Salt (2026-09-13/14)",
         WaterLevelSensorEnabled: "confirmed on SALT: byte[37] 0x40 (2026-09-13); set in every frame of the level-meter HOME units (once 'firmware A'), clear on serial 110169464 (once 'firmware B')",
-        AirTemperature: "unverified: bytes 23-24 = 0xFE70 (no air probe, the SALT marker) in every captured HOME frame, so no entity yet; the Aseko Live app shows air temperature on HOME units",
+        AirTemperature: "unverified: bytes 23-24 = 0xFE70 (no air probe, the SALT marker) in every captured HOME frame, so its entity has stayed disabled; the Aseko Live app shows air temperature on HOME units",
         AlarmNoFlowToProbes: "confirmed on NET: byte[13] 0x04 (DomSchCoding, NET frame)",
         AlarmMaxDisinfectionDose: "confirmed on HOME: byte[12] 0x20 (Issue #134), byte[13] 0x01 (Issue #151)",
         AlarmPhDosingIneffective: "confirmed on HOME: byte[12] 0x40 (Issue #134); byte[13] 0x02 inferred",
@@ -161,6 +164,9 @@ HOME = Profile(
         PhMinusFlowRate: "confirmed: byte[95] = 60, Aseko Live lists the pH- pump, serial 110128063",
         HeatingRunning: "assumed: byte[29] 0x04 per JS-DE-Tech relay_byte bit 2; no HOME frame with the heater running (open item 9)",
         HeatingControlEnabled: "confirmed: byte[37] 0x08, serial 110175608 (Issue #135); the same bit on an ASIN AQUA Salt (2026-09-13)",
+        Redox: "assumed: bytes 16-19 as on SALT (bytes 18-19 when not 0xFFFF); no REDOX HOME frame with the app's value",
+        RedoxTarget: "assumed: byte[53] x 10 mV as on SALT; no REDOX HOME frame compared",
+        ChlorineDoseTarget: "assumed: byte[53] with a DOSE unit type, as on NET; no DOSE HOME frame captured",
         HeatingLinkedToFiltration: "assumed: byte[38] 0x10 as on SALT (confirmed there, 2026-09-14); no HOME frame compared",
         MaxRefillTime: "assumed: bytes 76-77 = 10800 s on serial 110128063, plausible (180 min); verified on SALT only",
         MaxPhDoses: "observed: byte[115] = 20 on serial 110128063; the position is confirmed on SALT, the HOME setting was never compared",

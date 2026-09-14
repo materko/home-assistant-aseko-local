@@ -1,3 +1,11 @@
+> **Historical, superseded — do not implement from this table.** This was the first
+> byte map, written before the per-model analyses. Several rows are wrong today
+> (e.g. `max_refill_time` is bytes 76–77, not 94–95; the chlorine and pH− flow
+> rates are the other way round), and bytes it lists as unknown have since been
+> located. The current truth is the profiles, the [support matrix](../support_matrix.md)
+> and the [device analyses](../device%20analyzes/). "Aqua Pro" in this table is not the
+> ASIN Aqua Profi.
+
 # Record definition coming from Aseko Asin Aqua
 
 Name Decoder               | used bytes [^1] | note

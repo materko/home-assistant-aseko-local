@@ -38,7 +38,7 @@ Many setpoint and schedule bytes are `0xFF` (unspecified) on NET because the dev
 | 14–15 | `ph` | value / 100 | confirmed | Issue #66 frames |
 | 16–17 | `free_chlorine` | value / 100 (mg/L) | confirmed | still a live reading in DOSE mode (e.g. `0x006A` = 1.06 mg/L) |
 | 18–19 | `redox` | mV; bytes 16–17 when 18–19 are `0xFFFF` | assumed | protocol default; no REDOX NET frame captured |
-| 20–21 | `free_chlorine_mv` | mV, signed 16-bit | confirmed | SALT uses `byte[20]` for salinity and `byte[21]` for electrolyzer power |
+| 20–21 | `free_chlorine_mv` | mV, uint16 BE (read unsigned; no negative value captured) | confirmed | SALT uses `byte[20]` for salinity and `byte[21]` for electrolyzer power |
 | 25–26 | `water_temperature` | value / 10 (°C) | confirmed | Issue #66 frames |
 | 28 | `water_flow_to_probes` | `0xAA` = flowing | confirmed | Issue #66 frames |
 | 29 | pump outputs | bitmask, see section 4 | confirmed | override `decode_v7_net` |

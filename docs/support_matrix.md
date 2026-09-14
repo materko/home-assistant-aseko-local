@@ -2,7 +2,7 @@
 
 What each decoding profile reads, and how sure we are.  Generated from `custom_components/aseko_local/decoding/profiles/` by `scripts/generate_support_matrix.py`; do not edit by hand.
 
-A **profile** is one (protocol, model, firmware) combination.  A **feature** is one field on `AsekoDevice`, i.e. one value the integration can read.
+A **profile** is one (protocol, model) combination.  A **feature** is one field on `AsekoDevice`, i.e. one value the integration can read.
 
 | Mark | Meaning |
 |---|---|
@@ -118,12 +118,12 @@ Every entry below is read today without a confirming capture.  If you own one of
 
 ### v7 HOME
 
-- `air_temperature` — unverified: bytes 23-24 = 0xFE70 (no air probe, the SALT marker) in every captured HOME frame, so no entity yet; the Aseko Live app shows air temperature on HOME units
+- `air_temperature` — unverified: bytes 23-24 = 0xFE70 (no air probe, the SALT marker) in every captured HOME frame, so its entity has stayed disabled; the Aseko Live app shows air temperature on HOME units
 - `alarm_no_flow_to_probes` — confirmed on NET: byte[13] 0x04 (DomSchCoding, NET frame)
 - `alarm_rapid_ph_change` — unconfirmed: byte[13] 0x08 was set on serial 110128063 with no matching alarm known in the app
 - `algaecide_pump_running` — assumed: byte[29] 0x10 as on OXY, which has the same four independent pump ports (0x20 is the flocculant); read only once the algicide flow rate is located, so no state yet
 - `backwash_running` — assumed: byte[29] 0x01, confirmed on SALT
-- `chlorine_dose_target` — no evidence recorded
+- `chlorine_dose_target` — assumed: byte[53] with a DOSE unit type, as on NET; no DOSE HOME frame captured
 - `chlorine_pump_running` — uncertain: byte[29] 0x40, port may be chlorine or OXY Pure
 - `flocculant_pump_running` — assumed: byte[29] 0x20 as on OXY (confirmed there)
 - `flow_detection_enabled` — confirmed on SALT: byte[37] 0x02 (2026-09-13); on HOME 0x43 / 0x53 have it set and Issue #135's 0x41 / 0x45 / 0x49 clear
@@ -131,8 +131,8 @@ Every entry below is read today without a confirming capture.  If you own one of
 - `heating_running` — assumed: byte[29] 0x04 per JS-DE-Tech relay_byte bit 2; no HOME frame with the heater running (open item 9)
 - `max_refill_time` — assumed: bytes 76-77 = 10800 s on serial 110128063, plausible (180 min); verified on SALT only
 - `ph_minus_pump_running` — uncertain: byte[29] 0x80 assumed
-- `redox` — no evidence recorded
-- `redox_target` — no evidence recorded
+- `redox` — assumed: bytes 16-19 as on SALT (bytes 18-19 when not 0xFFFF); no REDOX HOME frame with the app's value
+- `redox_target` — assumed: byte[53] x 10 mV as on SALT; no REDOX HOME frame compared
 - `water_level_refill_start` — confirmed on SALT: byte[103], bytes 102-105 are the level thresholds (SALT 2026-09-11 against the unit); 33 cm on serial 110128063 sits between the low alarm 13 and the refill stop 55
 - `water_level_sensor_enabled` — confirmed on SALT: byte[37] 0x40 (2026-09-13); set in every frame of the level-meter HOME units (once 'firmware A'), clear on serial 110169464 (once 'firmware B')
 
@@ -147,7 +147,7 @@ Every entry below is read today without a confirming capture.  If you own one of
 
 ### v7 OXY
 
-- `air_temperature` — unverified: bytes 23-24 = 0xFE70 (no air probe, the SALT marker) in every captured OXY frame, so no entity yet; the Aseko Live app shows air temperature on Oxygen units
+- `air_temperature` — unverified: bytes 23-24 = 0xFE70 (no air probe, the SALT marker) in every captured OXY frame, so its entity has stayed disabled; the Aseko Live app shows air temperature on Oxygen units
 - `alarm_max_disinfection_dose` — unconfirmed: bytes 12-13 were 0x00 in every OXY frame; HOME encoding assumed
 - `alarm_no_flow_to_probes` — unconfirmed: byte[13] was 0x00 in every OXY frame; confirmed on NET and HOME only
 - `alarm_ph_dosing_ineffective` — unconfirmed: bytes 12-13 were 0x00 in every OXY frame; HOME encoding assumed
@@ -160,10 +160,10 @@ Every entry below is read today without a confirming capture.  If you own one of
 - `refilling` — assumed: byte[29] 0x02, confirmed on HOME and SALT
 - `variable_speed_pump_enabled` — assumed: byte[22] 0x08, confirmed on HOME
 - `water_level` — assumed: byte[27], confirmed on HOME
-- `water_level_high_alarm` — no evidence recorded
-- `water_level_low_alarm` — no evidence recorded
+- `water_level_high_alarm` — assumed: byte[105] as on SALT; the captured OXY has no level sensor
+- `water_level_low_alarm` — assumed: byte[102] as on SALT; the captured OXY has no level sensor
 - `water_level_refill_start` — unconfirmed: byte[103] is algaecide_flow_rate on OXY (confirmed, 60 ml/min); reading it as a level threshold too cannot be right
-- `water_level_refill_stop` — no evidence recorded
+- `water_level_refill_stop` — assumed: byte[104] as on SALT; the captured OXY has no level sensor
 - `water_level_sensor_enabled` — assumed: byte[37] 0x40 as on SALT; clear in the OXY frames (0x03), which fits byte[27] = 0xFE (no level sensor)
 
 ### v7 NET
@@ -171,7 +171,7 @@ Every entry below is read today without a confirming capture.  If you own one of
 - `alarm_max_disinfection_dose` — unconfirmed: byte[12] is 0x00 on NET; HOME encodings assumed
 - `alarm_ph_dosing_ineffective` — unconfirmed: byte[12] is 0x00 on NET; HOME encodings assumed
 - `alarm_rapid_ph_change` — unconfirmed: byte[13] 0x08 from error_codes.md; never set on NET
-- `redox` — no evidence recorded
+- `redox` — assumed: protocol default, bytes 18-19 (16-17 when 18-19 are 0xFFFF); no REDOX NET frame captured
 - `redox_target` — unverified: byte[53] * 10 on a REDOX NET; no such frame captured
 - `startup_delay` — unverified: bytes 74-75 = 0xFFFF (not filled in) on the Issue #66 NET frame and on the ChemDoserProxy NET frame
 - `timestamp` — n/a: bytes 6-11 are 0xFF on every NET frame, Home Assistant's clock is used instead

@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from ....models import AsekoDeviceType
 from ...features import (
+    WaterLevelLowAlarm,
+    WaterLevelRefillStop,
+    WaterLevelHighAlarm,
     AirTemperature,
     AlarmMaxDisinfectionDose,
     AlarmNoFlowToProbes,
@@ -110,7 +113,7 @@ OXY = Profile(
     evidence={
         FlowDetectionEnabled: "assumed: byte[37] 0x02 as on SALT; set in the OXY frames (0x03)",
         WaterLevelSensorEnabled: "assumed: byte[37] 0x40 as on SALT; clear in the OXY frames (0x03), which fits byte[27] = 0xFE (no level sensor)",
-        AirTemperature: "unverified: bytes 23-24 = 0xFE70 (no air probe, the SALT marker) in every captured OXY frame, so no entity yet; the Aseko Live app shows air temperature on Oxygen units",
+        AirTemperature: "unverified: bytes 23-24 = 0xFE70 (no air probe, the SALT marker) in every captured OXY frame, so its entity has stayed disabled; the Aseko Live app shows air temperature on Oxygen units",
         AlarmNoFlowToProbes: "unconfirmed: byte[13] was 0x00 in every OXY frame; confirmed on NET and HOME only",
         AlarmMaxDisinfectionDose: "unconfirmed: bytes 12-13 were 0x00 in every OXY frame; HOME encoding assumed",
         AlarmPhDosingIneffective: "unconfirmed: bytes 12-13 were 0x00 in every OXY frame; HOME encoding assumed",
@@ -156,6 +159,9 @@ OXY = Profile(
         Refilling: "assumed: byte[29] 0x02, confirmed on HOME and SALT",
         WaterFlowToProbes: "observed: byte[28] = 0xAA on the Winnetoux OXY (serial 110157165); not compared with the app",
         WaterLevel: "assumed: byte[27], confirmed on HOME",
+        WaterLevelLowAlarm: "assumed: byte[102] as on SALT; the captured OXY has no level sensor",
+        WaterLevelRefillStop: "assumed: byte[104] as on SALT; the captured OXY has no level sensor",
+        WaterLevelHighAlarm: "assumed: byte[105] as on SALT; the captured OXY has no level sensor",
         WaterLevelRefillStart: "unconfirmed: byte[103] is algaecide_flow_rate on OXY (confirmed, 60 ml/min); reading it as a level threshold too cannot be right",
         WaterTemperature: "observed: bytes 25-26 = 9.5 C on the Winnetoux OXY (serial 110157165); not compared with the app",
     },

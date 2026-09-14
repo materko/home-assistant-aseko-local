@@ -213,8 +213,7 @@ frame's value not being None.
 **HOME firmware A / B.** HOME was thought to have two firmwares, told apart by
 `byte[37]` bit `0x40`, with a `firmware_variant` on the device and two
 profiles. The bit turned out to be the Waterlevel setting; there is one HOME
-profile and the bit is a value of its own (see
-[research note](research/home-firmware-a-b.md)).
+profile and the bit is a value of its own.
 
 **Entities.** First version: entities only for features the unit had shown,
 added late by new-features listeners, never removed. Now: every possible

@@ -11,7 +11,7 @@
 | Model | ASIN AQUA Salt |
 | Firmware | 5.x – 7.x (Issue #84 unit: v5.0) |
 | Hardware | integrated salt-water electrolysis cell (chlorine production, reversible electrode polarity), probes pH plus REDOX or CLF, pH− pump, one shared third pump port (algicide **or** flocculant), filtration and backwash relays, refill valve, level meter, air and water temperature inputs, heating control, variable speed (VS) pump support, programmable relay |
-| Identification | v7 `byte[4]` = `0x0E` (REDOX), `0x0D` (CLF) or `0x0F` (DOSE); `(byte[4] & 0x0C) == 0x0C` → SALT |
+| Identification | v7 `byte[4]` = `0x0E` (REDOX), `0x0D` (CLF) or `0x0F` (DOSE), matched exactly → SALT |
 | Sources | PR #87 live captures 2026-04-04; earlier frames 2026-04-02 and 2026-04-03; PR #122; Issues #84, #110, #115, #133, #155; the maintainer's two units (one REDOX, one CLF): 37 diagnostics dumps 2026-08-08..28, an Aseko Live app and unit display comparison 2026-09-11, and test cases marked in the frame log on the REDOX unit 2026-09-13/14 (one setting changed at a time, a marker after the next frame) |
 
 ## 2. Frame structure
@@ -24,7 +24,7 @@
 | 40–79 | `0x03` | setpoints and schedule |
 | 80–119 | `0x02` | parameters and flow rates |
 
-The last byte of each segment (39, 79, 119) changes with every frame: a checksum, but not a plain sum of the segment payload.
+The last byte of each segment (39, 79, 119) is a checksum: 0xAA XOR the 39 bytes before it. The decoder checks it and only logs a mismatch.
 
 No representative hex frame is recorded in this document.
 
@@ -55,7 +55,7 @@ No representative hex frame is recorded in this document.
 | 32–36 | — | always 0 | observed | |
 | 37 | settings / routing | bitmask | confirmed | see [§4](#byte37--settings-menu-filtration-mode-and-third-pump-routing) |
 | 38 | settings / state flags | bitmask | — | `0x10` heating linked to filtration → `heating_linked_to_filtration` (confirmed; offered only while heating control is on); `0x01` unknown, see [Open questions](#8-open-questions); `0x20`, `0xA1` around winter mode |
-| 39 | — | checksum | observed | |
+| 39 | — | checksum, 0xAA XOR bytes 0–38 | confirmed | |
 
 ### Bytes 40–79 — setpoints and schedule
 
@@ -80,7 +80,7 @@ No representative hex frame is recorded in this document.
 | 74–75 | `startup_delay` | s | confirmed | |
 | 76–77 | `max_refill_time` | s | confirmed | |
 | 78 | live state / VS pump type | bitmask | confirmed | see [§4](#byte78--live-state-and-vs-pump-type) |
-| 79 | — | checksum | observed | |
+| 79 | — | checksum, 0xAA XOR bytes 40–78 | confirmed | |
 
 ### Bytes 80–119 — parameters and flow rates
 
@@ -104,7 +104,7 @@ No representative hex frame is recorded in this document.
 | 114 | — | varies frame to frame | observed | |
 | 115 | `max_ph_doses` | count | confirmed | 20 on the REDOX unit (moved with the setting), 40 on the CLF unit |
 | 116, 117, 118 | — | constant on both SALT units: 0xFF, 252, 1 | observed | differ on HOME/OXY; settings or model constants |
-| 119 | — | checksum | observed | |
+| 119 | — | checksum, 0xAA XOR bytes 80–118 | confirmed | |
 
 ## 4. Bit fields
 
@@ -224,7 +224,7 @@ The filtration times in bytes 56–63 are reported unchanged in every mode, so t
 
 ### Air temperature
 
-Bytes 23–24: int16 BE two's complement / 10 °C, the same encoding as the water temperature after it.
+Bytes 23–24: int16 BE two's complement / 10 °C. The water temperature after it is read unsigned (/ 10 °C): no capture with water below 0 °C exists to tell whether it is signed too.
 
 - Two dumps from a SALT (`byte[4]` = `0x0D`, Issue #155), both matching the unit: 2026-08-11 10:33 air `0x0168` = 36.0 °C, water `0x0128` = 29.6 °C; 2026-08-17 18:50 air `0x0134` = 30.8 °C, water `0x0122` = 29.0 °C. Both fields move independently and each raw air value occurs once in its frame, so the offset is unambiguous. `byte[22]` stayed `0x18`, so it is a plain 16-bit field.
 - Without an air probe: `0xFE70` (−40.0 °C) and `0xFDC4` (−57.2 °C) — open-circuit values (unsigned they would read 6513.6 / 6502.8 °C). The decoder discards anything outside −30.0 … 60.0 °C. `0xFFFF` (protocol-wide "unspecified") is rejected up front, since signed it would pass as −0.1 °C.

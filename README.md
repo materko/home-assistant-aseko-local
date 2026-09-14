@@ -150,14 +150,14 @@ You need to re-configure your Aseko unit to send data to your Home Assistant ins
 2. Go to **Serial Port** configuration
 
    ![Aseko unit initial configuration](images/aseko-init.png)
-   You can see the default **Remote Srver Address** is **pool.aseko.com** (or something similar) and **Local/Remote Port Number** is **47524** or **51050** - make note of that if you would like to keep sending the data there as well - see [Optional: Keep data to Aseko Cloud](#optional-keep-data-to-aseko-cloud)
+   You can see the default **Remote Srver Address** is **pool.aseko.com** (or something similar) and **Local/Remote Port Number** is **47524** or **51050** - make note of that if you would like to keep sending the data there as well - see [Optional: Send data to Aseko Cloud](#optional-send-data-to-aseko-cloud)
 
    The port shown here tells you which firmware version your device is running:
    - **Port 47524** → firmware v7 or older (120-byte binary frame) — fully supported
    - **Port 51050** → firmware v8 (463-byte text frame) — supported
    But you could change it to whatever you want as long as it matches the port you set in the integration settings.
 
-3. Change **Remote Server Addr** to the IP address or DNS record of your **Home Assistant** instance on your local network (or your TCP mirror - see [Optional: Keep data to Aseko Cloud](#optional-keep-data-to-aseko-cloud))
+3. Change **Remote Server Addr** to the IP address or DNS record of your **Home Assistant** instance on your local network (or your TCP mirror - see [Optional: Send data to Aseko Cloud](#optional-send-data-to-aseko-cloud))
 
    ![Aseko unit changed configuration](images/aseko-changed.png)
 
@@ -324,10 +324,12 @@ measured, which is why it is the one carrying "(estimated)" in its name.
 
 A cycle is **recorded** when the backwash valve stays open for at least 60 seconds — short activations (menu navigation, output test mode) are ignored. That part is a direct observation: `sensor.last_backwash` means the valve really did run a full cycle.
 
-The device does **not** report *why* the valve opened. So the split into scheduled and manual is a guess based on the only signal available — the time the valve opened:
+The device does **not** report *why* the valve opened. Two signals decide:
 
-* within **±15 minutes** of `backwash_time`, on a unit whose schedule is enabled → **scheduled**;
-* anything else, including any cycle on a unit with `backwash_every_n_days = 0` → **manual**.
+* **the settings menu** (ASIN Aqua Salt): a manual backwash is started from the unit's menu, and the frame says when that menu is open. A cycle that runs while it is open is **manual** — an observation, not a guess, whatever the time;
+* otherwise **the time the valve opened**: within **±15 minutes** of `backwash_time`, on a unit whose schedule is enabled → **scheduled**; anything else, including any cycle on a unit with `backwash_every_n_days = 0` → **manual**.
+
+On other models the menu bit means something else (on HOME it is a standing pump override), so only the time is used there.
 
 The tolerance absorbs drift between the unit's clock and Home Assistant's, plus up to one transmit interval (~30 s) of lag before the frame reports the valve as open.
 
@@ -395,7 +397,7 @@ cycle is never second-guessed.
 
 ### Known ways the estimate gets it wrong
 
-* A cycle you start **by hand near the scheduled time** is reported as scheduled.
+* A cycle you start **by hand near the scheduled time** is reported as scheduled — except on an ASIN Aqua Salt, where the open menu gives it away.
 * Only the **time of day** is checked, not the day itself. A manual cycle at exactly `backwash_time` on a day the interval does not fall on still counts as scheduled. (Checking the day would require knowing the schedule phase — which is exactly what this is trying to establish — and would break whenever you change the interval.)
 * If the unit's **clock drifts** more than 15 minutes from Home Assistant's, its own scheduled cycles are reported as manual.
 * A cycle the unit runs on its own **for some other reason** (e.g. after a fault) is reported as manual.

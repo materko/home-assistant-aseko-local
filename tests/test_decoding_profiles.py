@@ -612,3 +612,15 @@ def test_a_profile_cannot_be_changed_in_memory() -> None:
         v7.HOME.overrides[FiltrationSchedule] = "decode_v7"  # type: ignore[index]
     with pytest.raises(TypeError):
         v7.HOME.evidence[FiltrationSchedule] = "confirmed: nothing"  # type: ignore[index]
+
+
+def test_every_feature_of_a_model_profile_has_evidence() -> None:
+    """docs/evidence-rules.md: every listed feature says why it is believed."""
+    from custom_components.aseko_local.decoding.profiles import FALLBACK_PROFILES
+
+    missing = {
+        profile.name: [f.field for f in profile.features if f not in profile.evidence]
+        for profile in ALL_PROFILES
+        if profile not in FALLBACK_PROFILES
+    }
+    assert {name: fields for name, fields in missing.items() if fields} == {}

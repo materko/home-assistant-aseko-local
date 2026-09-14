@@ -98,7 +98,7 @@ def render() -> str:
     )
     w("")
     w(
-        "A **profile** is one (protocol, model, firmware) combination.  A **feature** "
+        "A **profile** is one (protocol, model) combination.  A **feature** "
         "is one field on `AsekoDevice`, i.e. one value the integration can read."
     )
     w("")

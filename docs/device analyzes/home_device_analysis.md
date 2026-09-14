@@ -62,7 +62,7 @@ Example values are from the representative frame unless stated otherwise.
 | 32–36 | unknown | — | — | `0x00` |
 | 37 | settings / schedule | bit field, §4 | confirmed | `0x43` |
 | 38 | unknown | — | — | `0x0a`; see §8 |
-| 39 | unknown | — | — | `0x85`, checksum? |
+| 39 | checksum | 0xAA XOR bytes 0–38 | confirmed | `0x85`; the decoder checks it |
 
 ### Segment 2 — bytes 40–79, setpoints and schedule
 
@@ -89,7 +89,7 @@ Example values are from the representative frame unless stated otherwise.
 | 74–75 | `startup_delay` | u16 s | confirmed | 480 s |
 | 76–77 | `max_refill_time` | u16 s | assumed | 10800 s = 180 min, plausible; verified on SALT only |
 | 78 | live state | bit field, §4 | confirmed | `0xa0` here |
-| 79 | unknown | — | — | `0xd8` |
+| 79 | checksum | 0xAA XOR bytes 40–78 | confirmed | `0xd8`; the decoder checks it |
 
 ### Segment 3 — bytes 80–119, parameters and flow rates
 
@@ -120,7 +120,8 @@ Example values are from the representative frame unless stated otherwise.
 | 115 | `max_ph_doses` | count | observed | 20; position confirmed on SALT (2026-09-12), HOME setting never compared |
 | 116 | — | padding | — | `0xff` |
 | 117 | unknown | — | — | `0xbc` |
-| 118–119 | unknown | — | — | `0x0271`, checksum? |
+| 118 | unknown | — | — | `0x02` |
+| 119 | checksum | 0xAA XOR bytes 80–118 | confirmed | `0x71`; the decoder checks it |
 
 ## 4. Bit fields
 
@@ -277,7 +278,7 @@ Serial 110128063, frame 2026-04-28 08:27:07, against the Aseko Live app; pH and 
 | 2026-04-28 | `ph_minus_flow_rate` | 60 | pH− pump listed | match |
 | 2026-04-28 | `chlorine_flow_rate` | 60 | Chlor Pure listed | match |
 | 2026-04-28 | `flocculant_flow_rate` | 10 | Floc+c listed | match |
-| 2026-04-28 | `ph_minus_concentration` | 5 % | 5 % | match |
+| 2026-04-28 | `ph_minus_concentration` | 15 % (raw `0x0f`) | 5 % | **mismatch**, unresolved — see §8 |
 | Issue #135 | `heating_control_enabled` | True / False | app setting | match (110175608) |
 | Issue #135 | `water_temperature_target` | heating setpoint | app setting | match (110175608) |
 | Issue #136 | `freeze_protection_enabled` | True / False | app setting | match (110175608) |

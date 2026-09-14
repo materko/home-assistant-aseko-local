@@ -44,10 +44,15 @@ Unlike fw v7 (120-byte binary), fw v8 sends a human-readable text frame over TCP
 
 - Starts with `{v1`, which distinguishes it from binary frames.
 - Terminated with `}\n`; the `\n` must be forwarded to Aseko Cloud (line-based protocol).
-- Observed size: ~463 bytes.
+- Observed size: ~463 bytes in these frames; the length varies, the frame ends at its newline.
 - Sentinel `-500` = probe absent or measurement unavailable → decoded as `None`.
 
 ### Representative frames
+
+> The frames below are **illustrative excerpts**: some sections are shortened with `...`, and
+> the serial numbers may have been anonymised when they were shared (the two frames carry
+> different serials although they were described as one unit). They are not replay fixtures;
+> the complete frames used by the tests are in `tests/test_decode_v8.py`.
 
 **2025-09-16, 22:27 CEST** (Issue #49 comment):
 ```
@@ -170,7 +175,7 @@ Mostly zeros; non-zero values are the same in both frames.
 
 | Byte | Field | Decoding | Evidence | Notes |
 |---|---|---|---|---|
-| `crc16` | checksum | hex string, not parsed as integer | observed | `C3C8` in both frames; validation not implemented |
+| `crc16` | checksum | hex, parsed as an integer | observed | `C3C8` in both frames; not validated — the algorithm is not known |
 
 ## 4. Bit fields
 
