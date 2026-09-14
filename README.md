@@ -45,43 +45,47 @@ Sensors that cannot be mapped reliably are **not shown** by default to avoid mis
 
 ### Help wanted — expanding device support
 
-If you own an Aseko device that is not listed above as fully supported, you can help by sharing a diagnostics snapshot:
+If you own an Aseko unit that is not listed above as fully supported, or the [support matrix](docs/support_matrix.md) shows ❓ for a value on your model, you can help. What we need is simple: the frames your unit sent, and what the unit showed at that moment. The integration can collect both for you.
 
-1. In Home Assistant go to **Settings → Devices & Services → Aseko Local**
-2. Click on your device, then click **Download Diagnostics** (3-dots menu beside settings symbol)
-3. Open a new issue at [github.com/hopkins-tk/home-assistant-aseko-local](https://github.com/hopkins-tk/home-assistant-aseko-local/issues/new) and attach the downloaded JSON file
+#### 1. Record test cases with the card (recommended)
 
-The diagnostics file contains an annotated table of every byte in the raw data frame sent by your device.
+![Aseko test cases card](images/aseko_test_cases_card.png)
 
-It also carries a **frame log**: every frame received over roughly the last five days, kept compressed and capped at 256 kB so it never grows past that, and kept across Home Assistant restarts. To show which frames go with what the unit displayed:
+**How it works.** The integration keeps a *frame log*: every frame the unit sends, compressed and capped at 256 kB (about five days of frames), kept across Home Assistant restarts. Each time you record a test case, the card writes a *marker* into that log, with your note and, if you like, a photo of the unit's display. Every change you make on the unit then sits right next to the frames that carry it — nobody has to compare clocks, and messengers cannot strip the time from the photos.
 
-1. Change the setting on the unit.
-2. Call the `aseko_local.mark_dump` action (for example from a dashboard button on your phone), optionally with a short `note` such as "Heating control ON". With `wait_for_next_frame: true` it writes the marker only once the next frame has arrived (at most 60 seconds), so the marker lands right after the first frame that can carry the change. It returns the marker number and how many seconds ago each unit's last frame arrived, and a Home Assistant notification (the bell, also on the phone) shows the state as it goes: *waiting for a frame* while the marker is not written yet, then *written* with the marker number -- only then change the unit again.
-3. Photograph the unit's display right after.
-4. Repeat for each change, then download diagnostics and attach it to the issue together with the photos.
-
-Each marker sits in the log between the frames received before and after it, and records how long before it the last frame arrived, so frames and photos line up without comparing clocks. `python scripts/frame_log_tool.py DIAGNOSTICS.json --around 1` prints the frames around marker 1.
-
-#### Test cases card: photos of the display straight into the log
-
-Messengers strip the time and rename photos, so the integration can take them itself. Add this card to a dashboard (the card is loaded automatically, no resource to add):
+Add the card to any dashboard (it is loaded automatically, no resource to add):
 
 ```yaml
 type: custom:aseko-test-cases-card
 ```
 
-It follows the Home Assistant language (English, Slovak, Czech, German, French; `language: en` overrides it), shows how many seconds ago the last frame arrived and has:
+Then, standing at the unit with your phone:
 
-- **📷 Photo + mark** — opens the phone camera; the photo is stored in Home Assistant and a marker is written the moment the upload arrives, with the note from the text field. The photo is named after that time, so it lines up with the frames without EXIF data.
-- **🏁 Mark** — a marker without a photo; tick *wait for next frame* to write it right after the next frame, and the card says when it is written.
-- **Cases** — every marker kept in Home Assistant with its photo, so the same list shows on a phone and a PC, with the cases not downloaded yet highlighted.
-- **⬇ Download new / Download all** — frames, markers, diagnostics and the photos as one zip to attach to the issue; **Clear list** empties the list, frames and photos stay.
+1. Check the header: **Last frame: N s ago** shows the unit is sending (a v7 unit sends about every 10 seconds).
+2. Change **one** setting on the unit.
+3. Type what you changed, e.g. *Heating control ON*, and tap **Photo + mark** to photograph the display, or **Mark** without a photo. With **wait for next frame** ticked the card waits for the next frame first and then says *frame received, go on with the next change* — only then change the next setting.
+4. Repeat for as many changes as you like; switching a setting back is a useful case too. The cases stay in Home Assistant, so the list is the same on the phone and on a PC, and the ones not downloaded yet are highlighted.
+5. On any device tap **Download new**: one zip with the frames, the markers, the diagnostics and the photos. Open a new issue at [github.com/hopkins-tk/home-assistant-aseko-local](https://github.com/hopkins-tk/home-assistant-aseko-local/issues/new), say which model and firmware you have, and attach the zip.
 
-Photos are downscaled to 2048 px and kept in `<config>/aseko_local/photos`, at most 200 photos or 100 MB (the oldest go first). The card and its endpoints are for admin users, like the diagnostics download.
+**Download all** exports every case again; **Clear list** empties the list while frames and photos stay. The card follows the Home Assistant language (English, Slovak, Czech, German, French; `language: en` overrides it). Photos are downscaled to 2048 px and kept in `<config>/aseko_local/photos`, at most 200 photos or 100 MB (the oldest go first). The card and its endpoints are for admin users, like the diagnostics download.
 
-Which values are read on which model, and which of them still lack a confirming capture, is listed per model in the [support matrix](docs/support_matrix.md). It is generated from the decoder's device profiles, so it is always current; every ❓ in it is a value a diagnostics download from that model would settle.
+> The frames and the unit's display carry its serial number; check the photos before you attach them to a public issue.
 
-How the decoder is put together (one decoder file per value, one profile per model and firmware) is described in [Decoding by device profile](docs/decoding-by-device-profile.md).
+#### 2. Diagnostics only
+
+1. In Home Assistant go to **Settings → Devices & Services → Aseko Local**
+2. Click on your device, then click **Download Diagnostics** (3-dots menu beside settings symbol)
+3. Open a new issue at [github.com/hopkins-tk/home-assistant-aseko-local](https://github.com/hopkins-tk/home-assistant-aseko-local/issues/new) and attach the downloaded JSON file
+
+The diagnostics file contains an annotated table of every byte in the raw data frame sent by your device, and the frame log with its markers.
+
+#### 3. Without the card: the `aseko_local.mark_dump` action
+
+The card is a front end for this action, so an automation or a dashboard button can write markers too. Call `aseko_local.mark_dump`, optionally with a short `note`. With `wait_for_next_frame: true` it writes the marker only once the next frame has arrived (at most 60 seconds). It returns the marker number and how many seconds ago each unit's last frame arrived, and a Home Assistant notification shows *waiting for a frame* and then *written*. `python scripts/frame_log_tool.py DIAGNOSTICS.json --around 1` prints the frames around marker 1.
+
+Which values are read on which model, and which of them still lack a confirming capture, is listed per model in the [support matrix](docs/support_matrix.md). It is generated from the decoder's device profiles, so it is always current; every ❓ in it is a value a recorded test case from that model would settle.
+
+How the decoder is put together (one feature file per value, one profile per model) is described in [Decoding by device profile](docs/decoding-by-device-profile.md).
 
 ## Installation
 
