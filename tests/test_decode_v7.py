@@ -2374,3 +2374,22 @@ def test_a_frame_of_unfilled_bytes_decodes_no_number(unit_type: int) -> None:
         and not isinstance(getattr(device, f.name), bool)
     }
     assert numbers == {}, device.profile
+
+
+@pytest.mark.parametrize(
+    ("byte37", "byte38", "expected", "present"),
+    [
+        (0xD3 | 0x08, 0x10, True, True),  # heating on, linked to filtration
+        (0xD3 | 0x08, 0x01, False, True),  # heating on, not linked (0x01 is unrelated)
+        (0xD3, 0x10, None, False),  # heating off: the setting is not offered
+    ],
+)
+def test_heating_linked_to_filtration(byte37, byte38, expected, present) -> None:
+    """byte[38] 0x10, confirmed on a SALT 2026-09-14; only while heating control is on."""
+    data = _make_base_bytes()  # SALT REDOX
+    data[37] = byte37
+    data[38] = byte38
+    device = decode(bytes(data))
+    assert device.heating_control_enabled is (byte37 & 0x08 == 0x08)
+    assert device.heating_linked_to_filtration is expected
+    assert ("heating_linked_to_filtration" in device.present_features) is present

@@ -66,7 +66,7 @@ _BYTE_LABELS: dict[int, str] = {
     35: "unknown",
     36: "unknown",
     37: "settings (0x02 flow detection, 0x04 menu open, 0x08 heating control, 0x10/0x20 filtration periods, 0x40 waterlevel, 0x80 SALT algicide routing / HOME antifreeze)",
-    38: "unknown (changes with heating and winter mode settings)",
+    38: "flags (0x10 heating linked to filtration; 0x01 unknown; 0x20 / 0xA1 around winter mode)",
     39: "checksum of bytes 0-38 (0xAA xor)",
     45: "segment marker",
     52: "ph_target  (÷10 = pH)",

@@ -47,6 +47,7 @@ from .freeze_protection_enabled import FreezeProtectionEnabled
 from .heating_allowed import HeatingAllowed
 from .heating_condition import HeatingCondition
 from .heating_control_enabled import HeatingControlEnabled
+from .heating_linked_to_filtration import HeatingLinkedToFiltration
 from .heating_running import HeatingRunning
 from .max_ph_doses import MaxPhDoses
 from .max_refill_time import MaxRefillTime
@@ -123,6 +124,7 @@ ALL_FEATURES: tuple[type[Feature], ...] = (
     PhPlusFlowRate,
     HeatingRunning,
     HeatingControlEnabled,
+    HeatingLinkedToFiltration,
     MaxRefillTime,
     MaxPhDoses,
     OxygenPumpRunning,
@@ -198,6 +200,7 @@ __all__ = [
     "PhPlusFlowRate",
     "HeatingRunning",
     "HeatingControlEnabled",
+    "HeatingLinkedToFiltration",
     "MaxRefillTime",
     "MaxPhDoses",
     "OxygenPumpRunning",

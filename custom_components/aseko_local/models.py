@@ -196,6 +196,7 @@ class AsekoDevice:
     filtration_running: bool | None = None  # byte 29 (3-rd bit)
     heating_running: bool | None = None  # byte 29 (2-nd bit, 0x04)
     heating_control_enabled: bool | None = None  # byte 37 bit 3 (0x08) on HOME
+    heating_linked_to_filtration: bool | None = None  # byte 38 bit 0x10 (setting)
     freeze_protection_enabled: bool | None = None  # byte 37 bit 7 (0x80) on HOME
     variable_speed_pump_enabled: bool | None = None  # byte 22 bit 0x08 (setting)
     variable_speed_pump_type: AsekoVariableSpeedPumpType | None = None  # byte 78 0x0C

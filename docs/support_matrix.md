@@ -57,6 +57,7 @@ Further profiles exist that no unit is meant to decode with and that the tables 
 | `heating_allowed` | — | ✅ | — | — | — |
 | `heating_condition` | — | ✅ | — | — | — |
 | `heating_control_enabled` | ✅ | ✅ | 🔍 | — | — |
+| `heating_linked_to_filtration` | ❓ | ✅ | — | — | — |
 | `heating_running` | ❓ | ❓ | ❓ | — | ❓ |
 | `max_ph_doses` | 👁 | ✅ | 👁 | — | ❓ |
 | `max_refill_time` | ❓ | ✅ | ❓ | — | ❓ |
@@ -126,6 +127,7 @@ Every entry below is read today without a confirming capture.  If you own one of
 - `chlorine_pump_running` — uncertain: byte[29] 0x40, port may be chlorine or OXY Pure
 - `flocculant_pump_running` — assumed: byte[29] 0x20 as on OXY (confirmed there)
 - `flow_detection_enabled` — confirmed on SALT: byte[37] 0x02 (2026-09-13); on HOME 0x43 / 0x53 have it set and Issue #135's 0x41 / 0x45 / 0x49 clear
+- `heating_linked_to_filtration` — assumed: byte[38] 0x10 as on SALT (confirmed there, 2026-09-14); no HOME frame compared
 - `heating_running` — assumed: byte[29] 0x04 per JS-DE-Tech relay_byte bit 2; no HOME frame with the heater running (open item 9)
 - `max_refill_time` — assumed: bytes 76-77 = 10800 s on serial 110128063, plausible (180 min); verified on SALT only
 - `ph_minus_pump_running` — uncertain: byte[29] 0x80 assumed
@@ -307,7 +309,7 @@ Fields that exist on `AsekoDevice` but that nothing knows how to read yet.
 
 ## Totals
 
-- features known: 71
-- with a v7 reading: 69
+- features known: 72
+- with a v7 reading: 70
 - with a v8 reading: 17
 - profiles: 9

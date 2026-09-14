@@ -53,6 +53,9 @@
       "heating_control_enabled": {
         "name": "Heizungssteuerung"
       },
+      "heating_linked_to_filtration": {
+        "name": "Heizung an Filtration gekoppelt"
+      },
       "freeze_protection_enabled": {
         "name": "Frostschutz"
       },

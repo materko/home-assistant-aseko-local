@@ -53,6 +53,9 @@
       "heating_control_enabled": {
         "name": "Contrôle du chauffage"
       },
+      "heating_linked_to_filtration": {
+        "name": "Chauffage lié à la filtration"
+      },
       "freeze_protection_enabled": {
         "name": "Antigel"
       },

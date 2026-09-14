@@ -54,7 +54,7 @@ No representative hex frame is recorded in this document.
 | 30, 31 | — | varies frame to frame | observed | one of the few bytes left that could carry a live value |
 | 32–36 | — | always 0 | observed | |
 | 37 | settings / routing | bitmask | confirmed | see [§4](#byte37--settings-menu-filtration-mode-and-third-pump-routing) |
-| 38 | settings / state flags | bitmask | — | `0x10` heating control parent to filtration (confirmed, not decoded); `0x01` unknown, see [Open questions](#8-open-questions); `0x20`, `0xA1` around winter mode |
+| 38 | settings / state flags | bitmask | — | `0x10` heating linked to filtration → `heating_linked_to_filtration` (confirmed; offered only while heating control is on); `0x01` unknown, see [Open questions](#8-open-questions); `0x20`, `0xA1` around winter mode |
 | 39 | — | checksum | observed | |
 
 ### Bytes 40–79 — setpoints and schedule
@@ -280,7 +280,7 @@ Switching winter mode on (2026-09-13, twice):
 | 2026-09-12 19:47 | `max_ph_doses` | `0x14` → `0x11` | setting 20 → 17 | ✓ the only 17 in the frame |
 | 2026-09-13/14 | `max_ph_doses` | moved | 17 → 20 | ✓ |
 | 2026-09-14 05:00 | `alarm_no_flow_to_probes` (`byte[13]` 0x04) | on for one second after filtration start, off with the flow | unit: *there is no flow to probes* | ✓ raw frames of the frame log |
-| 2026-09-14 20:16–20:17 | `byte[38]` 0x10 | set with *heating control parent to filtration* ON, cleared with it OFF | setting on the unit | ✓ one clean on/off pair, heating control on throughout |
+| 2026-09-14 20:16–20:17 | `heating_linked_to_filtration` (`byte[38]` 0x10) | set with *heating control parent to filtration* ON, cleared with it OFF | setting on the unit | ✓ one clean on/off pair, heating control on throughout |
 | 2026-09-14 20:19–20:23 | `variable_speed_pump_enabled` / `variable_speed_pump_type` | `byte[22]` 0x08 on/off with each switch; `byte[78]` 0x0C Speck/Uwe 0x00, Dab/Pentair 0x04, Hayward 0x08 | VS pump on/off, brand chosen | ✓ four cycles, one per brand |
 | 2026-09-14 20:24–20:25 | `water_level_high_alarm` threshold (`byte[105]`) | 73 → 26 cm with the level at 30 cm for 58 s | no alarm on the unit or in the app | `byte[12]` / `byte[13]` unchanged — see open question 3 |
 | 2026-09-13/14 | `ph_minus_concentration` (`byte[112]`) | moved | 15 → 21 % | ✓ |

@@ -53,6 +53,9 @@
       "heating_control_enabled": {
         "name": "Heating control"
       },
+      "heating_linked_to_filtration": {
+        "name": "Heating linked to filtration"
+      },
       "freeze_protection_enabled": {
         "name": "Freeze protection"
       },
