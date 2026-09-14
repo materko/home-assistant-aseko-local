@@ -27,6 +27,7 @@ const STRINGS = {
     "photo_mark": "Photo + mark",
     "mark": "Mark",
     "wait": "wait for next frame",
+    "unit": "Unit",
     "intro": "Mark each change; download the cases whenever you like.",
     "cases": "Cases",
     "cases_count": "Cases ({n}, not downloaded: {f})",
@@ -66,6 +67,7 @@ const STRINGS = {
     "photo_mark": "Fotka + z\u00e1znam",
     "mark": "Z\u00e1znam",
     "wait": "po\u010dka\u0165 na \u010fal\u0161\u00ed r\u00e1mec",
+    "unit": "Jednotka",
     "intro": "Zaznamenaj ka\u017ed\u00fa zmenu; pokusy si stiahni kedyko\u013evek.",
     "cases": "Pokusy",
     "cases_count": "Pokusy ({n}, nestiahnut\u00e9: {f})",
@@ -105,6 +107,7 @@ const STRINGS = {
     "photo_mark": "Fotka + z\u00e1znam",
     "mark": "Z\u00e1znam",
     "wait": "po\u010dkat na dal\u0161\u00ed r\u00e1mec",
+    "unit": "Jednotka",
     "intro": "Zaznamenejte ka\u017edou zm\u011bnu; pokusy si st\u00e1hn\u011bte kdykoli.",
     "cases": "Pokusy",
     "cases_count": "Pokusy ({n}, nesta\u017eeno: {f})",
@@ -144,6 +147,7 @@ const STRINGS = {
     "photo_mark": "Foto + Markierung",
     "mark": "Markieren",
     "wait": "auf n\u00e4chsten Frame warten",
+    "unit": "Ger\u00e4t",
     "intro": "Jede \u00c4nderung markieren; die F\u00e4lle jederzeit herunterladen.",
     "cases": "F\u00e4lle",
     "cases_count": "F\u00e4lle ({n}, nicht heruntergeladen: {f})",
@@ -183,6 +187,7 @@ const STRINGS = {
     "photo_mark": "Photo + marque",
     "mark": "Marquer",
     "wait": "attendre la trame suivante",
+    "unit": "Appareil",
     "intro": "Marquez chaque changement ; t\u00e9l\u00e9chargez les cas quand vous voulez.",
     "cases": "Cas",
     "cases_count": "Cas ({n}, non t\u00e9l\u00e9charg\u00e9s : {f})",
@@ -418,6 +423,8 @@ class AsekoTestCasesCard extends HTMLElement {
           user-select: none;
         }
         .wait-option input { width: 17px; height: 17px; margin: 0; accent-color: var(--aseko-accent); }
+        .wait-option[hidden] { display: none; }
+        .wait-option select { min-height: 30px; border: 1px solid var(--aseko-border); border-radius: 8px; background: var(--card-background-color); color: var(--primary-text-color); font: inherit; }
         .status {
           display: flex;
           align-items: flex-start;
@@ -521,7 +528,7 @@ class AsekoTestCasesCard extends HTMLElement {
             <div class="action-row">
               <button id="photo"><ha-icon icon="mdi:camera-plus-outline" aria-hidden="true"></ha-icon>${esc(this._t("photo_mark"))}</button>
               <button id="mark" class="secondary"><ha-icon icon="mdi:flag-checkered" aria-hidden="true"></ha-icon>${esc(this._t("mark"))}</button>
-              <label class="wait-option"><input id="wait" type="checkbox" checked> ${esc(this._t("wait"))}</label>
+              <label class="wait-option" id="unit-option" hidden>${esc(this._t("unit"))} <select id="unit"></select></label>
             </div>
             <input id="file" type="file" accept="image/*" capture="environment" hidden>
             <div class="status" id="status" role="status" aria-live="polite">${esc(this._t("intro"))}</div>
@@ -566,7 +573,7 @@ class AsekoTestCasesCard extends HTMLElement {
   _busy(busy) {
     for (const id of ["photo", "mark", "export-new", "export-all", "forget"]) this._el(id).disabled = busy;
     this._el("note").disabled = busy;
-    this._el("wait").disabled = busy;
+    this._el("unit").disabled = busy;
     this._el("status").setAttribute("aria-busy", String(busy));
   }
 
@@ -583,6 +590,7 @@ class AsekoTestCasesCard extends HTMLElement {
         : esc(this._t("last_frame_none"));
       this._el("age").dataset.state = youngest == null ? "unknown" : youngest <= 15 ? "fresh" : "stale";
       this._renderCases(data.entries);
+      this._renderUnits(data.entries);
     } catch (err) {
       this._el("age").textContent = this._t("last_frame_error", { e: err.message });
       this._el("age").dataset.state = "error";
@@ -650,6 +658,34 @@ class AsekoTestCasesCard extends HTMLElement {
     }
   }
 
+  _reportMarkers(markers, extra) {
+    const late = markers.some((m) => !m.waited_for_frame);
+    this._setStatus(
+      late
+        ? this._t("no_frame", { cases: this._describe(markers, extra) })
+        : this._describe(markers, extra) + this._t("frame_received"),
+      late ? "error" : "done",
+    );
+  }
+
+  _unit() {
+    const select = this._el("unit");
+    return select && !this._el("unit-option").hidden && select.value ? Number(select.value) : null;
+  }
+
+  _renderUnits(entries) {
+    const serials = [...new Set(entries.flatMap((e) => Object.keys(e.seconds_since_last_frame || {})))].sort();
+    const option = this._el("unit-option");
+    const select = this._el("unit");
+    option.hidden = serials.length < 2;
+    const key = serials.join(",");
+    if (select.dataset.key === key) return;
+    const current = select.value;
+    select.dataset.key = key;
+    select.innerHTML = serials.map((s) => `<option value="${esc(s)}">${esc(s)}</option>`).join("");
+    if (serials.includes(current)) select.value = current;
+  }
+
   _note() {
     return this._el("note").value.trim();
   }
@@ -665,15 +701,17 @@ class AsekoTestCasesCard extends HTMLElement {
     input.value = "";
     if (!file) return;
     this._busy(true);
-    this._setStatus(this._t("uploading"), "waiting");
+    this._setStatus(this._t("waiting"), "waiting");
     try {
       const form = new FormData();
       form.append("note", this._note());
+      form.append("wait", "1");
+      if (this._unit()) form.append("serial_number", String(this._unit()));
       form.append("photo", file, file.name || "photo.jpg");
       const response = await this._hass.fetchWithAuth(PHOTO_URL, { method: "POST", body: form });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
-      this._setStatus(this._describe(data.markers, this._t("with_photo")), "done");
+      this._reportMarkers(data.markers, this._t("with_photo"));
       this._el("note").value = "";
       this._poll();
     } catch (err) {
@@ -684,14 +722,11 @@ class AsekoTestCasesCard extends HTMLElement {
   }
 
   async _mark() {
-    const wait = this._el("wait").checked;
     this._busy(true);
-    this._setStatus(
-      this._t(wait ? "waiting" : "saving"),
-      "waiting",
-    );
+    this._setStatus(this._t("waiting"), "waiting");
     try {
-      const serviceData = { wait_for_next_frame: wait };
+      const serviceData = { wait_for_next_frame: true };
+      if (this._unit()) serviceData.serial_number = this._unit();
       if (this._note()) serviceData.note = this._note();
       const result = await this._hass.callWS({
         type: "call_service",
@@ -700,14 +735,7 @@ class AsekoTestCasesCard extends HTMLElement {
         service_data: serviceData,
         return_response: true,
       });
-      const markers = result.response.markers;
-      const late = wait && markers.some((m) => !m.waited_for_frame);
-      this._setStatus(
-        late
-          ? this._t("no_frame", { cases: this._describe(markers) })
-          : this._describe(markers) + (wait ? this._t("frame_received") : ""),
-        late ? "error" : "done",
-      );
+      this._reportMarkers(result.response.markers, "");
       this._el("note").value = "";
       this._poll();
     } catch (err) {

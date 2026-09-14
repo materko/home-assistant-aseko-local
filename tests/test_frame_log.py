@@ -332,3 +332,29 @@ def test_a_damaged_store_leaves_the_log_empty_instead_of_raising(damage) -> None
     restored.load_store(stored)  # must not raise
     assert restored.records() == []
     assert restored.markers() == []
+
+
+@pytest.mark.asyncio
+async def test_a_fragment_or_another_unit_does_not_end_the_wait() -> None:
+    """R8: only a whole frame from the unit being waited for writes the marker."""
+    import asyncio
+
+    from .test_entity_growth import _coordinator
+
+    coordinator = _coordinator()
+    coordinator.hass.loop = asyncio.get_running_loop()
+
+    waiting = asyncio.create_task(
+        coordinator.async_wait_for_frame(5, serial_number=123456789)
+    )
+    await asyncio.sleep(0)
+    coordinator.store_raw_frame(b"\x00\x00\x04\xd2")  # four bytes, no measurements
+    other = bytearray(120)
+    other[0:4] = (1234).to_bytes(4, "big")
+    coordinator.store_raw_frame(bytes(other))  # a whole frame, another unit
+    await asyncio.sleep(0)
+    assert not waiting.done()
+
+    coordinator.store_v8_frame(REFERENCE_FRAME)  # serial 123456789
+    assert await waiting is True
+    assert coordinator._frame_waiters == []  # noqa: SLF001

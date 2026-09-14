@@ -17,6 +17,7 @@ download they extend:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from pathlib import Path
 from typing import Any
@@ -29,7 +30,7 @@ from homeassistant.exceptions import Unauthorized
 from homeassistant.helpers.http import KEY_HASS
 from homeassistant.util import dt as dt_util
 
-from ..const import DOMAIN
+from ..const import DOMAIN, MARK_DUMP_WAIT_TIMEOUT
 from .photos import PhotoStore, build_export_zip
 
 _LOGGER = logging.getLogger(__name__)
@@ -87,7 +88,12 @@ def _require_admin(request: web.Request) -> HomeAssistant:
 
 
 class AsekoPhotoView(HomeAssistantView):
-    """Store a display photo and write a marker at upload time."""
+    """Store a display photo at once, and its marker after the next frame.
+
+    The photo can exist before the unit has sent the change -- a unit with its
+    settings menu open sends nothing until the menu is closed -- so the marker
+    is written only once the next whole frame has arrived, like mark_dump.
+    """
 
     url = f"/api/{DOMAIN}/photo"
     name = f"api:{DOMAIN}:photo"
@@ -100,11 +106,18 @@ class AsekoPhotoView(HomeAssistantView):
             return self.json_message("No Aseko Local entry is loaded", 409)
 
         note: str | None = None
+        wait = True
+        serial_number: int | None = None
         data = b""
         reader = await request.multipart()
         while (part := await reader.next()) is not None:
             if part.name == "note":
                 note = (await part.text()).strip()[:200] or None
+            elif part.name == "wait":
+                wait = (await part.text()).strip() not in ("0", "false")
+            elif part.name == "serial_number":
+                text = (await part.text()).strip()
+                serial_number = int(text) if text.isdigit() else None
             elif part.name == "photo":
                 data = await part.read(decode=False)
                 if len(data) > MAX_UPLOAD_BYTES:
@@ -115,19 +128,26 @@ class AsekoPhotoView(HomeAssistantView):
         saved = await hass.async_add_executor_job(
             photo_store(hass).save, data, received, note
         )
-        markers = []
-        for entry in entries:
-            marker = entry.runtime_data.coordinator.mark_dump(
+
+        async def mark(entry: Any) -> dict[str, Any]:
+            coordinator = entry.runtime_data.coordinator
+            waited = None
+            if wait:
+                waited = await coordinator.async_wait_for_frame(
+                    MARK_DUMP_WAIT_TIMEOUT, serial_number
+                )
+            marker = coordinator.mark_dump(
                 note, {"photo": saved.file, "captured": saved.captured}
             )
-            markers.append(
-                {
-                    "entry": entry.title,
-                    "marker": marker["marker"],
-                    "time": dt_util.as_local(marker["time"]).isoformat(),
-                    "seconds_since_last_frame": marker["seconds_since_last_frame"],
-                }
-            )
+            return {
+                "entry": entry.title,
+                "marker": marker["marker"],
+                "time": dt_util.as_local(marker["time"]).isoformat(),
+                "seconds_since_last_frame": marker["seconds_since_last_frame"],
+                "waited_for_frame": waited,
+            }
+
+        markers = list(await asyncio.gather(*(mark(entry) for entry in entries)))
         _LOGGER.info("Aseko display photo %s stored with %s", saved.file, markers)
         return self.json(
             {"photo": saved.file, "bytes": saved.bytes, "markers": markers}

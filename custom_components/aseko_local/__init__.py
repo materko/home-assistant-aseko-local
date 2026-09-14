@@ -27,6 +27,7 @@ from .const import (
     DEFAULT_FORWARDER_PORT_V7,
     DEFAULT_FORWARDER_PORT_V8,
     DOMAIN,
+    MARK_DUMP_WAIT_TIMEOUT,
 )
 from .coordinator import AsekoLocalDataUpdateCoordinator
 from .forwarder import AsekoCloudMirror
@@ -77,11 +78,10 @@ CLEAR_LAST_SCHEDULED_BACKWASH_SCHEMA = vol.Schema(
 MARK_DUMP_SCHEMA = vol.Schema(
     {
         vol.Optional("note"): vol.All(cv.string, vol.Length(max=200)),
-        vol.Optional("wait_for_next_frame", default=False): cv.boolean,
+        vol.Optional("wait_for_next_frame", default=True): cv.boolean,
+        vol.Optional("serial_number"): cv.positive_int,
     }
 )
-# A unit sends every ten seconds or so; give up well after a missed frame.
-MARK_DUMP_WAIT_TIMEOUT = 60
 # One notification, rewritten as a mark_dump call progresses, so the phone
 # shows whether the marker is written yet before the setting is changed back.
 MARK_DUMP_NOTIFICATION_ID = f"{DOMAIN}_mark_dump"
@@ -343,7 +343,8 @@ async def async_setup_entry(
             after, so frames and photos line up without comparing clocks.
             """
             note = call.data.get("note")
-            wait = call.data.get("wait_for_next_frame", False)
+            wait = call.data.get("wait_for_next_frame", True)
+            serial_number = call.data.get("serial_number")
             loaded = [
                 entry
                 for entry in hass.config_entries.async_entries(DOMAIN)
@@ -369,7 +370,7 @@ async def async_setup_entry(
                 waited = None
                 if wait:
                     waited = await coordinator.async_wait_for_frame(
-                        MARK_DUMP_WAIT_TIMEOUT
+                        MARK_DUMP_WAIT_TIMEOUT, serial_number
                     )
                 marker = coordinator.mark_dump(note)
                 return {

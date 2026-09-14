@@ -63,7 +63,7 @@ Then, standing at the unit with your phone:
 
 1. Check the header: **Last frame: N s ago** shows the unit is sending (a v7 unit sends about every 10 seconds).
 2. Change **one** setting on the unit.
-3. Type what you changed, e.g. *Heating control ON*, and tap **Photo + mark** to photograph the display, or **Mark** without a photo. With **wait for next frame** ticked the card waits for the next frame first and then says *frame received, go on with the next change* — only then change the next setting.
+3. Type what you changed, e.g. *Heating control ON*, and tap **Photo + mark** to photograph the display, or **Mark** without a photo. Either way the case is **not** written at the tap: the photo is stored at once, but the marker waits for the next whole frame from the unit (at most 60 seconds), because the unit may not have sent the change yet — with its settings menu open it sends nothing until the menu is closed. The card then says *frame received, go on with the next change*; only then change the next setting. When several units send to the same entry, pick the one you are testing in the **Unit** list.
 4. Repeat for as many changes as you like; switching a setting back is a useful case too. The cases stay in Home Assistant, so the list is the same on the phone and on a PC, and the ones not downloaded yet are highlighted.
 5. On any device tap **Download new**: one zip with the frames, the markers, the diagnostics and the photos. Open a new issue at [github.com/hopkins-tk/home-assistant-aseko-local](https://github.com/hopkins-tk/home-assistant-aseko-local/issues/new), say which model and firmware you have, and attach the zip.
 
@@ -81,7 +81,7 @@ The diagnostics file contains an annotated table of every byte in the raw data f
 
 #### 3. Without the card: the `aseko_local.mark_dump` action
 
-The card is a front end for this action, so an automation or a dashboard button can write markers too. Call `aseko_local.mark_dump`, optionally with a short `note`. With `wait_for_next_frame: true` it writes the marker only once the next frame has arrived (at most 60 seconds). It returns the marker number and how many seconds ago each unit's last frame arrived, and a Home Assistant notification shows *waiting for a frame* and then *written*. `python scripts/frame_log_tool.py DIAGNOSTICS.json --around 1` prints the frames around marker 1.
+The card is a front end for this action, so an automation or a dashboard button can write markers too. Call `aseko_local.mark_dump`, optionally with a short `note`. It writes the marker only once the next whole frame has arrived (at most 60 seconds); `wait_for_next_frame: false` writes it at once, and `serial_number` waits for one unit's frame when several send to the same entry. It returns the marker number and how many seconds ago each unit's last frame arrived, and a Home Assistant notification shows *waiting for a frame* and then *written*. `python scripts/frame_log_tool.py DIAGNOSTICS.json --around 1` prints the frames around marker 1.
 
 Which values are read on which model, and which of them still lack a confirming capture, is listed per model in the [support matrix](docs/support_matrix.md). It is generated from the decoder's device profiles, so it is always current; every ❓ in it is a value a recorded test case from that model would settle.
 

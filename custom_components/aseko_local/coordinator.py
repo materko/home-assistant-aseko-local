@@ -74,7 +74,8 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         # When each unit's last frame arrived, and mark_dump calls waiting for
         # the next one
         self._last_frame_at: dict[int, datetime] = {}
-        self._frame_waiters: list[asyncio.Future[None]] = []
+        # (future, serial number or None for any unit) of mark_dump waits
+        self._frame_waiters: list[tuple[asyncio.Future[None], int | None]] = []
         # Why the server found a unit's frames implausible, by serial number
         # and reason -- for diagnostics
         self._frame_warnings: dict[int, dict[str, dict[str, Any]]] = {}
@@ -420,23 +421,39 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         self.frame_log.append_frame(received, kind, raw_frame)
         if serial is not None:
             self._last_frame_at[serial] = received
-        for waiter in self._frame_waiters:
-            if not waiter.done():
-                waiter.set_result(None)
-        self._frame_waiters.clear()
+        # A fragment, or a frame whose serial number could not be read, says
+        # nothing about the unit's state: only a whole frame releases a wait,
+        # and only one from the unit being waited for.
+        if kind in (KIND_V7, KIND_V8) and serial is not None:
+            still_waiting = []
+            for waiter, wanted in self._frame_waiters:
+                if waiter.done():
+                    continue
+                if wanted is None or wanted == serial:
+                    waiter.set_result(None)
+                else:
+                    still_waiting.append((waiter, wanted))
+            self._frame_waiters = still_waiting
         self._request_frame_log_save()
 
-    async def async_wait_for_frame(self, timeout: float) -> bool:
-        """Wait for the next frame from any unit; False if none came in time."""
+    async def async_wait_for_frame(
+        self, timeout: float, serial_number: int | None = None
+    ) -> bool:
+        """Wait for the next whole frame; False if none came in time.
+
+        With ``serial_number`` only a frame from that unit counts; without it,
+        a frame from any unit of this entry.
+        """
         waiter: asyncio.Future[None] = self.hass.loop.create_future()
-        self._frame_waiters.append(waiter)
+        item = (waiter, serial_number)
+        self._frame_waiters.append(item)
         try:
             await asyncio.wait_for(waiter, timeout)
         except TimeoutError:
             return False
         finally:
-            if waiter in self._frame_waiters:
-                self._frame_waiters.remove(waiter)
+            if item in self._frame_waiters:
+                self._frame_waiters.remove(item)
         return True
 
     def seconds_since_last_frame(self, now: datetime) -> dict[int, float]:

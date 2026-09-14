@@ -15,6 +15,9 @@ DEFAULT_FORWARDER_PORT_V8 = 51050
 # Year offset and message sizes
 YEAR_OFFSET = 2000
 MESSAGE_SIZE = 120
+# How long mark_dump and the photo upload wait for the next frame.  A unit
+# sends every ten seconds or so, but not while its settings menu is open.
+MARK_DUMP_WAIT_TIMEOUT = 60
 MAX_CLF_LIMIT = 100
 
 # Connection timeout in seconds (3x normal 10s interval)
