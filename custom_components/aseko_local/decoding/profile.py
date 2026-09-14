@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
 from ..const import (
@@ -61,6 +62,10 @@ class Profile:
     feature_names: frozenset[str] = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
+        # read-only copies: the plan below is built from them once, so a
+        # change in memory later could only make it disagree with them
+        object.__setattr__(self, "overrides", MappingProxyType(dict(self.overrides)))
+        object.__setattr__(self, "evidence", MappingProxyType(dict(self.evidence)))
         self._validate()
         plan = []
         for feature_cls in _ordered(self.features):

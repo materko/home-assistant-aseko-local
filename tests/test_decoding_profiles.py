@@ -604,3 +604,11 @@ def test_an_optional_dependency_may_be_left_out() -> None:
         features=(FiltrationRunning,),
     )
     assert profile.feature_names == {"filtration_running"}
+
+
+def test_a_profile_cannot_be_changed_in_memory() -> None:
+    """The plan is built once from overrides and evidence; they stay read-only."""
+    with pytest.raises(TypeError):
+        v7.HOME.overrides[FiltrationSchedule] = "decode_v7"  # type: ignore[index]
+    with pytest.raises(TypeError):
+        v7.HOME.evidence[FiltrationSchedule] = "confirmed: nothing"  # type: ignore[index]
