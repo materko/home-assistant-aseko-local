@@ -109,6 +109,11 @@ class PhotoStore:
             key=lambda p: (p.stat().st_mtime, p.name),
         )
 
+    def delete(self, name: str) -> None:
+        """Delete one stored photo, if it is still there."""
+        with self.lock:
+            (self.directory / name).unlink(missing_ok=True)
+
     def clear(self) -> int:
         """Delete every stored photo; return how many."""
         with self.lock:

@@ -29,6 +29,10 @@ class Ph(Feature):
         raw = frame.word_or_none(14)  # 0xFFFF: installed but unreadable
         return None if raw is None else raw / 100
 
-    def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> float | NotPresent:
-        raw = frame.value("ains", 0)
-        return raw / 100 if raw is not None else NOT_PRESENT
+    def decode_v8(
+        self, frame: V8Frame, device: AsekoDevice
+    ) -> float | NotPresent | None:
+        if frame.unspecified("ains", 0):  # -500: no pH probe
+            return NOT_PRESENT
+        raw = frame.value("ains", 0)  # None: unreadable or not sent
+        return None if raw is None else raw / 100

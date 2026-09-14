@@ -36,6 +36,7 @@ from homeassistant.helpers.http import KEY_HASS
 from homeassistant.util import dt as dt_util
 
 from ..const import DOMAIN, MARK_DUMP_WAIT_TIMEOUT
+from ..coordinator import RecordingOff
 from .photos import PhotoStore, build_export_zip
 
 _LOGGER = logging.getLogger(__name__)
@@ -137,21 +138,41 @@ class AsekoPhotoView(HomeAssistantView):
                     return self.json_message("Photo too large", 413)
         if not data:
             return self.json_message("No photo in the upload", 400)
+        if serial_number is not None:
+            # wait only where that unit sends, not for a timeout elsewhere
+            entries = [
+                e
+                for e in entries
+                if e.runtime_data.coordinator.knows_serial(serial_number)
+            ]
+            if not entries:
+                return self.json_message(
+                    f"No recording entry has received a frame from {serial_number}",
+                    409,
+                )
 
-        saved = await hass.async_add_executor_job(
-            photo_store(hass).save, data, received, note
-        )
+        store = photo_store(hass)
+        generations = {
+            e.entry_id: e.runtime_data.coordinator.recording_generation for e in entries
+        }
+        saved = await hass.async_add_executor_job(store.save, data, received, note)
 
-        async def mark(entry: Any) -> dict[str, Any]:
+        async def mark(entry: Any) -> dict[str, Any] | None:
             coordinator = entry.runtime_data.coordinator
             waited = None
             if wait:
                 waited = await coordinator.async_wait_for_frame(
                     MARK_DUMP_WAIT_TIMEOUT, serial_number
                 )
-            marker = coordinator.mark_dump(
-                note, {"photo": saved.file, "captured": saved.captured}
-            )
+            try:
+                marker = coordinator.mark_dump(
+                    note,
+                    {"photo": saved.file, "captured": saved.captured},
+                    generation=generations[entry.entry_id],
+                )
+            except RecordingOff:
+                # stopped or deleted while this upload waited
+                return None
             return {
                 "entry": entry.title,
                 "marker": marker["marker"],
@@ -160,7 +181,15 @@ class AsekoPhotoView(HomeAssistantView):
                 "waited_for_frame": waited,
             }
 
-        markers = list(await asyncio.gather(*(mark(entry) for entry in entries)))
+        results = await asyncio.gather(*(mark(entry) for entry in entries))
+        markers = [m for m in results if m is not None]
+        if not markers:
+            await hass.async_add_executor_job(store.delete, saved.file)
+            return self.json_message(
+                "Recording was stopped or deleted while waiting; the case and "
+                "its photo were not kept",
+                409,
+            )
         _LOGGER.info("Aseko display photo %s stored with %s", saved.file, markers)
         return self.json(
             {"photo": saved.file, "bytes": saved.bytes, "markers": markers}

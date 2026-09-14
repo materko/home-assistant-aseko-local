@@ -442,12 +442,12 @@ def test_one_unreadable_value_does_not_blank_its_section():
     frame = parse_v8(REFERENCE_FRAME.replace(b"ains: 708 ", b"ains: 7x8 "))
     assert frame.sections["ains"][0] is None
     assert frame.sections["ains"][1] == 708
-    assert frame.problems == ("ains[0]: '7x8' is not a number",)
+    assert frame.problems == ("ains[0] is not a number",)
 
     device = decode(REFERENCE_FRAME.replace(b"ains: 708 ", b"ains: 7x8 "))
     assert device.ph is None
     assert device.redox == 779
-    assert device.frame_problems == ("ains[0]: '7x8' is not a number",)
+    assert device.frame_problems == ("ains[0] is not a number",)
 
 
 def test_device_names_the_profile_that_read_it():
@@ -474,3 +474,25 @@ def test_a_header_without_sections_reads_unknown_and_says_so():
 
 def test_a_complete_frame_reports_no_problem():
     assert decode(REFERENCE_FRAME).frame_problems == ()
+
+
+def test_an_unreadable_probe_value_is_unknown_not_absent():
+    """Audit N6: only -500 says the probe is missing; a bad token reads unknown."""
+    bad = decode(REFERENCE_FRAME.replace(b"ains: 708 ", b"ains: 7x8 "))
+    assert bad.ph is None
+    assert "ph" in bad.present_features  # the entity stays available, reads unknown
+
+    absent = decode(REFERENCE_FRAME.replace(b"ains: 708 ", b"ains: -500 "))
+    assert absent.ph is None
+    assert "ph" not in absent.present_features
+
+
+def test_changing_bad_tokens_are_one_problem():
+    """Audit N5: the problem names the place, so it is counted, not multiplied."""
+    problems = {
+        decode(
+            REFERENCE_FRAME.replace(b"ains: 708 ", f"ains: bad{i} ".encode())
+        ).frame_problems
+        for i in range(50)
+    }
+    assert problems == {("ains[0] is not a number",)}

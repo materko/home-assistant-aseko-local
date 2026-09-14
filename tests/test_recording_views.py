@@ -193,6 +193,7 @@ async def test_photo_is_stored_at_once_and_marked_after_the_next_frame(
 ) -> None:
     hass, (entry,) = _setup(tmp_path)
     coordinator = entry.runtime_data.coordinator
+    _frame_arrives(entry)  # the unit is known to this entry
     upload = asyncio.ensure_future(
         views.AsekoPhotoView().post(
             FakeRequest(
@@ -239,6 +240,7 @@ async def test_a_fragment_or_another_unit_does_not_release_the_wait(
 ) -> None:
     hass, (entry,) = _setup(tmp_path)
     coordinator = entry.runtime_data.coordinator
+    _frame_arrives(entry)  # the unit is known to this entry
     upload = asyncio.ensure_future(
         views.AsekoPhotoView().post(
             FakeRequest(
@@ -254,6 +256,7 @@ async def test_a_fragment_or_another_unit_does_not_release_the_wait(
     for start in (0, 40, 80):
         other[start : start + 4] = (9999).to_bytes(4, "big")
     coordinator.store_raw_frame(bytes(other))  # a whole frame, another unit
+    coordinator.devices_update_callback(decode(bytes(other)))
     for _ in range(20):
         await asyncio.sleep(0)
     assert not upload.done()
@@ -411,3 +414,70 @@ async def test_switch_and_delete_are_admin_only(tmp_path, view, method) -> None:
     hass, _ = _setup(tmp_path)
     with pytest.raises(Unauthorized):
         await getattr(view(), method)(FakeRequest(hass, admin=False))
+
+
+# ── audit N3: stop / delete while a photo waits; N7: the unit's own entry ───
+
+
+async def _waiting_upload(hass: MagicMock) -> asyncio.Future:
+    upload = asyncio.ensure_future(
+        views.AsekoPhotoView().post(
+            FakeRequest(
+                hass,
+                parts={"serial_number": str(SERIAL).encode(), "photo": _jpeg()},
+            )
+        )
+    )
+    for _ in range(20):
+        await asyncio.sleep(0)
+    assert not upload.done()
+    return upload
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("action", ["stop", "delete"])
+async def test_stopping_or_deleting_cancels_a_waiting_photo(tmp_path, action) -> None:
+    hass, (entry,) = _setup(tmp_path)
+    coordinator = entry.runtime_data.coordinator
+    _frame_arrives(entry)
+    upload = await _waiting_upload(hass)
+
+    if action == "stop":
+        await views.AsekoRecordingView().post(
+            FakeRequest(hass, body={"enabled": False})
+        )
+        coordinator.set_recording(True)  # and on again before the frame comes
+    else:
+        await views.AsekoDeleteRecordingView().post(FakeRequest(hass))
+    _frame_arrives(entry)
+    response = await asyncio.wait_for(upload, 5)
+
+    assert response.status == 409
+    assert coordinator.frame_log.markers() == []  # no case from the old recording
+    assert PhotoStore(tmp_path / "photos").files() == []  # and no stray photo
+
+
+@pytest.mark.asyncio
+async def test_a_photo_for_a_unit_waits_only_in_the_entry_that_knows_it(
+    tmp_path,
+) -> None:
+    hass, (first, second) = _setup(tmp_path, entries=2)
+    _frame_arrives(first)  # only the first entry receives the unit
+    upload = await _waiting_upload(hass)
+
+    _frame_arrives(first)
+    body = _body(await asyncio.wait_for(upload, 5))
+
+    assert [m["entry"] for m in body["markers"]] == ["Aseko 0"]
+    assert body["markers"][0]["waited_for_frame"] is True
+    assert second.runtime_data.coordinator.frame_log.markers() == []
+
+
+@pytest.mark.asyncio
+async def test_a_photo_for_a_unit_no_entry_has_seen_is_refused(tmp_path) -> None:
+    hass, _ = _setup(tmp_path)
+    response = await views.AsekoPhotoView().post(
+        FakeRequest(hass, parts={"serial_number": b"4242", "photo": _jpeg()})
+    )
+    assert response.status == 409
+    assert PhotoStore(tmp_path / "photos").files() == []

@@ -29,6 +29,7 @@ class Redox(Feature):
             return frame.word_or_none(16)  # 0xFFFF: installed but unreadable
         return frame.word_or_none(18)
 
-    def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> int | NotPresent:
-        raw = frame.value("ains", 6)
-        return NOT_PRESENT if raw is None else raw
+    def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> int | NotPresent | None:
+        if frame.unspecified("ains", 6):  # -500: no redox probe
+            return NOT_PRESENT
+        return frame.value("ains", 6)  # None: unreadable or not sent

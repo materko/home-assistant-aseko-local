@@ -22,6 +22,10 @@ class WaterTemperature(Feature):
         raw = frame.word_or_none(25)  # 0xFFFF: probe unreadable
         return None if raw is None else raw / 10
 
-    def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> float | NotPresent:
-        raw = frame.value("ins", 0)
-        return raw / 10 if raw is not None else NOT_PRESENT
+    def decode_v8(
+        self, frame: V8Frame, device: AsekoDevice
+    ) -> float | NotPresent | None:
+        if frame.unspecified("ins", 0):  # -500: no temperature probe
+            return NOT_PRESENT
+        raw = frame.value("ins", 0)  # None: unreadable or not sent
+        return None if raw is None else raw / 10

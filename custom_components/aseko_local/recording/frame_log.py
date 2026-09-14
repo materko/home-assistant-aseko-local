@@ -84,6 +84,20 @@ def decode_lines(lines: Iterable[bytes]) -> Iterator[dict[str, Any]]:
         yield record
 
 
+def _valid_marker(marker: Any) -> bool:
+    """A stored case the list can show: an integer number and a readable time."""
+    if not isinstance(marker, dict):
+        return False
+    number = marker.get("n")
+    if not isinstance(number, int) or isinstance(number, bool):
+        return False
+    try:
+        datetime.fromisoformat(marker["t"])
+    except (KeyError, TypeError, ValueError):
+        return False
+    return True
+
+
 class FrameLog:
     """Append-only stream of frames and markers with a hard compressed-size cap."""
 
@@ -338,6 +352,12 @@ class FrameLog:
             markers = data.get("markers", [])
             if not isinstance(markers, list):
                 raise TypeError("markers is not a list")
+            # every open record needs its absolute time before anything is
+            # replayed, so a bad one cannot leave the log half restored
+            replay = [
+                (datetime.fromisoformat(record.pop("t")), record)
+                for record in open_records
+            ]
         except (ValueError, TypeError, KeyError, AttributeError, zlib.error) as err:
             _LOGGER.warning("Discarding an unreadable Aseko frame log: %s", err)
             return
@@ -346,19 +366,15 @@ class FrameLog:
         self._sealed_bytes = sum(len(chunk) for chunk in chunks)
         self._dropped_chunks = dropped_chunks
         self._next_marker = next_marker
-        self._markers = [
-            m
-            for m in markers
-            if isinstance(m, dict) and "n" in m and isinstance(m.get("t"), str)
-        ][-MAX_MARKERS:]
+        # a damaged marker is dropped on its own; the rest of the log stays
+        self._markers = [m for m in markers if _valid_marker(m)][-MAX_MARKERS:]
         self._exported_through = exported_through
         self.enabled = enabled
         backfill = "markers" not in data
         self._start_chunk()
         # Re-encode rather than replay the lines: a chunk sealed on the way
         # must start again with an absolute time.
-        for record in open_records:
-            received = datetime.fromisoformat(record.pop("t"))
+        for received, record in replay:
             self._append(received, record)
         self._enforce_cap()
         if backfill:

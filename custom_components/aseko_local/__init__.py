@@ -30,7 +30,7 @@ from .const import (
     DOMAIN,
     MARK_DUMP_WAIT_TIMEOUT,
 )
-from .coordinator import AsekoLocalDataUpdateCoordinator
+from .coordinator import AsekoLocalDataUpdateCoordinator, RecordingOff
 from .forwarder import AsekoCloudMirror
 from .models import AsekoDevice
 from .recording.views import async_setup_recording
@@ -376,6 +376,16 @@ async def async_setup_entry(
                 raise ServiceValidationError(
                     "Recording is off: turn it on in the Aseko test cases card first"
                 )
+            if serial_number is not None:
+                loaded = [
+                    e
+                    for e in loaded
+                    if e.runtime_data.coordinator.knows_serial(serial_number)
+                ]
+                if not loaded:
+                    raise ServiceValidationError(
+                        f"No recording entry has received a frame from {serial_number}"
+                    )
 
             tapped = dt_util.utcnow()
             label = f" ({note})" if note else ""
@@ -389,14 +399,24 @@ async def async_setup_entry(
                     notification_id=MARK_DUMP_NOTIFICATION_ID,
                 )
 
-            async def mark(entry: ConfigEntry) -> dict:
+            generations = {
+                e.entry_id: e.runtime_data.coordinator.recording_generation
+                for e in loaded
+            }
+
+            async def mark(entry: ConfigEntry) -> dict | None:
                 coordinator = entry.runtime_data.coordinator
                 waited = None
                 if wait:
                     waited = await coordinator.async_wait_for_frame(
                         MARK_DUMP_WAIT_TIMEOUT, serial_number
                     )
-                marker = coordinator.mark_dump(note)
+                try:
+                    marker = coordinator.mark_dump(
+                        note, generation=generations[entry.entry_id]
+                    )
+                except RecordingOff:
+                    return None  # stopped or deleted while waiting
                 return {
                     "entry": entry.title,
                     "marker": marker["marker"],
@@ -408,7 +428,13 @@ async def async_setup_entry(
                     ),
                 }
 
-            markers = list(await asyncio.gather(*(mark(entry) for entry in loaded)))
+            results = await asyncio.gather(*(mark(entry) for entry in loaded))
+            markers = [m for m in results if m is not None]
+            if not markers:
+                persistent_notification.async_dismiss(hass, MARK_DUMP_NOTIFICATION_ID)
+                raise ServiceValidationError(
+                    "Recording was stopped or deleted while waiting; no marker was written"
+                )
             persistent_notification.async_create(
                 hass,
                 _mark_dump_message(markers, wait, label),

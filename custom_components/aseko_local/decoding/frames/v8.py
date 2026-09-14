@@ -56,6 +56,10 @@ class V8Frame:
         values = self.sections.get(section, [])
         return values[index] if index < len(values) else None
 
+    def unspecified(self, section: str, index: int) -> bool:
+        """True when the unit sent the -500 "not fitted / not measured" marker."""
+        return self.get(section, index) == UNSPECIFIED_V8
+
     def value(self, section: str, index: int) -> int | None:
         """Like ``get`` but also None for the v8 sentinel (-500)."""
         v = self.get(section, index)
@@ -95,7 +99,9 @@ def parse_v8(raw: bytes) -> V8Frame:
                 # One unreadable value must not blank the whole section: the
                 # others are still good, and this one reads as unknown.
                 values.append(None)
-                problems.append(f"{name}[{index}]: {token[:20]!r} is not a number")
+                # the place only: a changing bad token must not make a new
+                # kind of problem every frame (the raw frame keeps the token)
+                problems.append(f"{name}[{index}] is not a number")
         sections[name] = values
     problems.extend(
         f"section {name!r} is missing"

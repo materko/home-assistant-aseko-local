@@ -506,6 +506,4 @@ async def test_unreadable_v8_value_is_reported_and_the_frame_still_delivered() -
 
     assert len(received) == 1
     assert received[0].ph is None
-    assert warnings == [
-        (123456789, "v8 value unreadable: ains[0]: '7x8' is not a number")
-    ]
+    assert warnings == [(123456789, "v8 value unreadable: ains[0] is not a number")]

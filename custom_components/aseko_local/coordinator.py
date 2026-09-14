@@ -86,6 +86,9 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         # Every frame received plus mark_dump markers, capped in compressed
         # bytes, for the diagnostics download; persisted across restarts
         self.frame_log = FrameLog()
+        # Raised whenever recording stops or the recording is deleted: a mark
+        # that started waiting under an older generation must not be written.
+        self.recording_generation = 0
         self._frame_log_store: Store[dict[str, Any]] | None = None
         # exact consumption counters per serial number, saved across restarts
         self._consumption_store: Store[dict[str, Any]] | None = None
@@ -112,8 +115,33 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
             Callable[[AsekoDevice, frozenset[str]], None]
         ] = []
 
+    def _release_frame_waiters(self, serial: int | None) -> None:
+        """End the waits a decoded frame from ``serial`` answers.
+
+        Raw bytes are logged before they are decoded; only a frame the decoder
+        accepted -- whole, parseable, from the unit being waited for -- says
+        the unit's state has been sent.  A frame of a model nobody has mapped
+        counts: it is exactly what a new model's test cases are made of.
+        """
+        if serial is None:
+            return
+        still_waiting = []
+        for waiter, wanted in self._frame_waiters:
+            if waiter.done():
+                continue
+            if wanted is None or wanted == serial:
+                waiter.set_result(None)
+            else:
+                still_waiting.append((waiter, wanted))
+        self._frame_waiters = still_waiting
+
+    def knows_serial(self, serial_number: int) -> bool:
+        """True once a frame from this unit reached this entry."""
+        return serial_number in self._last_frame_at
+
     def devices_update_callback(self, device: AsekoDevice) -> None:
         """Receive callback with device update."""
+        self._release_frame_waiters(getattr(device, "serial_number", None))
 
         # A frame from a unit type nobody has mapped.  It gets no entities --
         # nothing about it is verified -- but it is kept aside so the
@@ -463,19 +491,6 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
             self.frame_log.append_frame(received, kind, raw_frame)
         if serial is not None:
             self._last_frame_at[serial] = received
-        # A fragment, or a frame whose serial number could not be read, says
-        # nothing about the unit's state: only a whole frame releases a wait,
-        # and only one from the unit being waited for.
-        if kind in (KIND_V7, KIND_V8) and serial is not None:
-            still_waiting = []
-            for waiter, wanted in self._frame_waiters:
-                if waiter.done():
-                    continue
-                if wanted is None or wanted == serial:
-                    waiter.set_result(None)
-                else:
-                    still_waiting.append((waiter, wanted))
-            self._frame_waiters = still_waiting
         if self.frame_log.enabled:
             self._request_frame_log_save()
 
@@ -526,7 +541,10 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         self._frame_log_store.async_delay_save(self.frame_log.to_store, delay)
 
     def mark_dump(
-        self, note: str | None = None, extra: dict[str, Any] | None = None
+        self,
+        note: str | None = None,
+        extra: dict[str, Any] | None = None,
+        generation: int | None = None,
     ) -> dict[str, Any]:
         """Write a numbered marker into the frame log and describe it.
 
@@ -534,8 +552,14 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         arrived, so a reader can tell whether the change it marks could
         already be in that frame.  Raises ``RecordingOff`` while the frame log
         is off: a marker with no frames around it says nothing.
+
+        ``generation`` is ``recording_generation`` from before a wait: when
+        recording was stopped or deleted since, the mark raises
+        ``RecordingOff`` instead of landing in a different recording.
         """
-        if not self.frame_log.enabled:
+        if not self.frame_log.enabled or (
+            generation is not None and generation != self.recording_generation
+        ):
             raise RecordingOff
         received = dt_util.utcnow()
         since = self.seconds_since_last_frame(received)
@@ -566,12 +590,15 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
 
     def set_recording(self, enabled: bool) -> None:
         """Turn the frame log on or off; what it holds stays."""
+        if not enabled:
+            self.recording_generation += 1
         self.frame_log.enabled = enabled
         _LOGGER.info("Aseko frame log recording %s", "on" if enabled else "off")
         self._request_frame_log_save(delay=5)
 
     def clear_recording(self) -> None:
         """Delete every recorded frame and case of this entry."""
+        self.recording_generation += 1
         self.frame_log.clear()
         self._request_frame_log_save(delay=5)
 

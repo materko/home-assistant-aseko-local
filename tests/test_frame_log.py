@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import json
 import random
 import zlib
 from datetime import UTC, datetime, timedelta
@@ -10,6 +11,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from homeassistant.util import dt as dt_util
 
+from custom_components.aseko_local.decoding import decode
 from custom_components.aseko_local.recording.frame_log import (
     KIND_MARK,
     KIND_V7,
@@ -197,8 +199,10 @@ async def test_waiting_for_the_next_frame() -> None:
 
     waiting = asyncio.create_task(coordinator.async_wait_for_frame(5))
     await asyncio.sleep(0)
+    coordinator.store_v8_frame(REFERENCE_FRAME)  # logged, not decoded yet
+    await asyncio.sleep(0)
     assert not waiting.done()
-    coordinator.store_v8_frame(REFERENCE_FRAME)
+    coordinator.devices_update_callback(decode(REFERENCE_FRAME))
     assert await waiting is True
 
     assert await coordinator.async_wait_for_frame(0.01) is False
@@ -354,10 +358,12 @@ async def test_a_fragment_or_another_unit_does_not_end_the_wait() -> None:
     other = bytearray(120)
     other[0:4] = (1234).to_bytes(4, "big")
     coordinator.store_raw_frame(bytes(other))  # a whole frame, another unit
+    coordinator.devices_update_callback(decode(bytes(other)))
     await asyncio.sleep(0)
     assert not waiting.done()
 
     coordinator.store_v8_frame(REFERENCE_FRAME)  # serial 123456789
+    coordinator.devices_update_callback(decode(REFERENCE_FRAME))
     assert await waiting is True
     assert coordinator._frame_waiters == []  # noqa: SLF001
 
@@ -446,3 +452,74 @@ def test_clear_drops_frames_and_cases_but_keeps_counting() -> None:
     assert log.not_downloaded() == 0
     assert log.enabled is True
     assert log.append_marker(T0, "three") == 3
+
+
+@pytest.mark.asyncio
+async def test_a_frame_the_decoder_rejects_does_not_end_the_wait() -> None:
+    """Audit N2: raw bytes are logged first, but only a decoded frame answers a wait."""
+    import asyncio
+
+    from custom_components.aseko_local.server import AsekoDeviceServer
+
+    from .test_entity_growth import _coordinator
+    from .test_server import V8_FULL_FRAME, DummyWriter
+
+    coordinator = _coordinator()
+    coordinator.set_recording(True)
+    coordinator.hass.loop = asyncio.get_running_loop()
+    server = AsekoDeviceServer(
+        host="127.0.0.1",
+        port=12360,
+        on_data=coordinator.devices_update_callback,
+        v8_raw_sink=coordinator.store_v8_frame,
+    )
+
+    waiting = asyncio.create_task(coordinator.async_wait_for_frame(5))
+    await asyncio.sleep(0)
+    reader = asyncio.StreamReader()
+    reader.feed_data(V8_FULL_FRAME)  # readable serial, header the decoder rejects
+    reader.feed_eof()
+    await server._handle_client(reader, DummyWriter("127.0.0.1", 12360))  # noqa: SLF001
+    await asyncio.sleep(0)
+
+    assert [r["k"] for r in coordinator.frame_log.records()] == ["v8"]
+    assert not waiting.done()
+    waiting.cancel()
+
+
+@pytest.mark.parametrize(
+    "marker",
+    [
+        {"n": "bad", "t": T0.isoformat(), "k": "mark"},
+        {"n": 1, "t": "broken", "k": "mark"},
+        {"n": True, "t": T0.isoformat(), "k": "mark"},
+        {"t": T0.isoformat(), "k": "mark"},
+        "not a marker",
+    ],
+)
+def test_a_damaged_marker_is_dropped_and_the_list_still_works(marker) -> None:
+    """Audit N4: one bad case must not break status or export."""
+    log = FrameLog()
+    for received, raw in _v8_frames(5):
+        log.append_frame(received, KIND_V8, raw)
+    good = log.append_marker(T0, "good")
+    stored = log.to_store()
+    stored["markers"] = [marker, *stored["markers"]]
+
+    restored = FrameLog()
+    restored.load_store(stored)
+
+    assert [m["n"] for m in restored.markers()] == [good]
+    assert restored.not_downloaded() == 1
+
+
+def test_an_open_record_without_a_time_leaves_the_log_empty() -> None:
+    """Audit N4: the replay runs only after every open record has its time."""
+    line = json.dumps({"dt": 1.0, "k": "v8", "d": "{v1 1 804 0 27}"}).encode() + b"\n"
+    stored = {
+        **FrameLog().to_store(),
+        "open": base64.b64encode(zlib.compress(line)).decode(),
+    }
+    restored = FrameLog()
+    restored.load_store(stored)  # must not raise
+    assert restored.records() == []
