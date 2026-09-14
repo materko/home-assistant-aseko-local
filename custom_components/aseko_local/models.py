@@ -95,15 +95,20 @@ class AsekoBackwashTrigger(Enum):
     SCHEDULED — the cycle started within the tolerance window around the
         configured ``backwash_start_time`` on a device whose backwash schedule is
         enabled, so the unit ran it on its own.
-    MANUAL — anything else: the cycle started outside that window, or the
-        schedule is disabled/unconfigured, so a human started it.
+    MANUAL — somebody started it by hand.  On units that report their
+        settings menu (SALT) only a cycle run while the menu was open; on the
+        others, any cycle outside the window or with no usable schedule.
+    UNKNOWN — a unit that reports its menu ran a cycle outside the window
+        with the menu closed: neither the schedule nor a person explains it.
 
     The device does not transmit *why* the valve opened, so this is derived
-    from the observed start time.  See ``trackers/backwash.py``.
+    from the observed start time and, where reported, the menu.  See
+    ``trackers/backwash.py``.
     """
 
     SCHEDULED = "scheduled"
     MANUAL = "manual"
+    UNKNOWN = "unknown"
 
 
 class AsekoBackwashSource(Enum):

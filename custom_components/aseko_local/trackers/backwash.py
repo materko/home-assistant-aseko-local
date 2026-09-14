@@ -13,6 +13,10 @@ moment the relay opened against the unit's configured ``backwash_start_time``:
       whose schedule is enabled  →  SCHEDULED (the unit ran it itself)
     * anything else                                    →  MANUAL
 
+— except on units that report their settings menu (below), where MANUAL
+needs the menu to have been open and a cycle that neither the schedule nor
+the menu explains is UNKNOWN.
+
 The device does not transmit *why* the valve opened, nor when it last ran, so
 on most units the start time is the only signal available and the
 classification is a guess that can be wrong — ``_classify`` lists the specific
@@ -24,7 +28,9 @@ Units whose profile carries ``AsekoProfileFlag.MENU_BIT_IS_PRESENCE_ONLY``
 (SALT today) are the exception: byte[37] bit 0x04 marks their settings menu
 being open, and that is the menu a backwash is started by hand from — so a
 cycle that runs while the bit is set is manual as a matter of observation
-rather than inference.  See ``_service_menu_open``.
+rather than inference.  With the menu closed a cycle is scheduled when it
+started in the schedule window and UNKNOWN otherwise: nobody was at the menu
+and the schedule does not explain it.  See ``_service_menu_open``.
 
 Nothing is guessed before the first observation, though: every value starts out
 as ``None``: until a cycle has actually been seen, the honest answer is
@@ -406,6 +412,7 @@ class BackwashTracker:
         if (
             self._last_scheduled_backwash is not None
             or self._last_manual_backwash is not None
+            or self._last_trigger is not None
         ):
             return
         if device.backwash_start_time is None:
@@ -420,10 +427,9 @@ class BackwashTracker:
         if trigger is AsekoBackwashTrigger.SCHEDULED:
             self._last_scheduled_backwash = self._last_backwash
             self._last_scheduled_source = AsekoBackwashSource.OBSERVED
-        else:
+        elif trigger is AsekoBackwashTrigger.MANUAL:
             self._last_manual_backwash = self._last_backwash
-        if self._last_trigger is None:
-            self._last_trigger = trigger
+        self._last_trigger = trigger
 
         _LOGGER.info(
             "Classified pre-existing backwash record for serial=%s as %s (%s)",
@@ -474,8 +480,9 @@ class BackwashTracker:
             # covered the gap until a real cycle showed up; it has.
             self._last_scheduled_backwash = recorded_at
             self._last_scheduled_source = AsekoBackwashSource.OBSERVED
-        else:
+        elif trigger is AsekoBackwashTrigger.MANUAL:
             self._last_manual_backwash = recorded_at
+        # UNKNOWN: only last_backwash — neither bucket can claim it
 
         _LOGGER.info(
             "Backwash detected for serial=%s: %s (duration %s, trigger %s)",
@@ -530,17 +537,23 @@ class BackwashTracker:
             # Observed fact rather than inference: a person was at the unit.
             return AsekoBackwashTrigger.MANUAL
 
+        # A unit that reports its menu and did not have it open: nobody
+        # started the cycle by hand, so it is scheduled or unexplained.
+        not_by_hand = AsekoBackwashTrigger.MANUAL
+        if AsekoProfileFlag.MENU_BIT_IS_PRESENCE_ONLY in device.flags:
+            not_by_hand = AsekoBackwashTrigger.UNKNOWN
+
         scheduled_time = device.backwash_start_time
         interval = device.backwash_interval
         if scheduled_time is None or interval is None or interval <= 0:
             # No usable schedule (0xFF in the config bytes, or interval 0 =
             # "automatic backwash disabled") — the unit cannot have started
-            # this on its own, so somebody did.
-            return AsekoBackwashTrigger.MANUAL
+            # this on its own.
+            return not_by_hand
 
         if _within_tolerance(started_at, scheduled_time, SCHEDULED_MATCH_TOLERANCE):
             return AsekoBackwashTrigger.SCHEDULED
-        return AsekoBackwashTrigger.MANUAL
+        return not_by_hand
 
     def next_scheduled_backwash(
         self, device: "AsekoDevice", now: datetime

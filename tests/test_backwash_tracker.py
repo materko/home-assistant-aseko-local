@@ -868,3 +868,70 @@ def test_service_menu_flag_does_not_leak_into_the_next_cycle():
     _run_service_menu_cycle(tracker, later, False)
 
     assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
+
+
+# ── units that report their settings menu (SALT) ─────────────────────────────
+
+
+def test_salt_cycle_outside_the_window_with_the_menu_closed_is_unknown():
+    """Nobody at the menu and not the schedule: the cycle is not attributed."""
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    started = T0 + timedelta(hours=2)
+
+    _run_service_menu_cycle(tracker, started, False)
+
+    assert tracker.last_trigger is AsekoBackwashTrigger.UNKNOWN
+    assert tracker.last_backwash == started + timedelta(seconds=45)
+    assert tracker.last_manual_backwash is None
+    assert tracker.last_scheduled_backwash is None
+
+
+def test_salt_cycle_outside_the_window_with_the_menu_open_is_manual():
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    started = T0 + timedelta(hours=2)
+
+    _run_service_menu_cycle(tracker, started, True)
+
+    assert tracker.last_trigger is AsekoBackwashTrigger.MANUAL
+    assert tracker.last_manual_backwash == started + timedelta(seconds=45)
+
+
+def test_salt_cycle_with_the_schedule_disabled_and_the_menu_closed_is_unknown():
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+
+    def _disabled(active, menu=False):
+        dev = _salt_device(active, menu)
+        dev.backwash_interval = 0
+        return dev
+
+    tracker.update(_disabled(True), T0)
+    tracker.update(_disabled(False), T0 + timedelta(seconds=90))
+
+    assert tracker.last_trigger is AsekoBackwashTrigger.UNKNOWN
+    assert tracker.last_manual_backwash is None
+
+
+def test_unknown_cycle_keeps_earlier_manual_and_scheduled_records():
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    _run_service_menu_cycle(tracker, T0, False)  # scheduled
+    _run_service_menu_cycle(tracker, T0 + timedelta(hours=1), True)  # manual
+    manual = tracker.last_manual_backwash
+
+    _run_service_menu_cycle(tracker, T0 + timedelta(hours=3), False)  # unknown
+
+    assert tracker.last_scheduled_backwash == T0 + timedelta(seconds=45)
+    assert tracker.last_manual_backwash == manual
+    assert tracker.last_trigger is AsekoBackwashTrigger.UNKNOWN
+
+
+def test_backfill_of_an_unexplained_salt_record_runs_once():
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    off_schedule = T0 + timedelta(hours=4)
+    tracker._last_backwash = off_schedule  # type: ignore[attr-defined]
+
+    tracker.update(_salt_device(False, False), off_schedule + timedelta(minutes=5))
+    tracker.update(_salt_device(False, False), off_schedule + timedelta(minutes=6))
+
+    assert tracker.last_trigger is AsekoBackwashTrigger.UNKNOWN
+    assert tracker.last_manual_backwash is None
+    assert tracker._hass.async_create_task.call_count == 1  # type: ignore[attr-defined]
