@@ -54,7 +54,7 @@ No representative hex frame is recorded in this document.
 | 30, 31 | — | varies frame to frame | observed | one of the few bytes left that could carry a live value |
 | 32–36 | — | always 0 | observed | |
 | 37 | settings / routing | bitmask | confirmed | see [§4](#byte37--settings-menu-filtration-mode-and-third-pump-routing) |
-| 38 | — | mostly 0; `0x10`, `0x20`, `0xA1`, `0x01` around heating and winter-mode changes | observed | not decoded; see [Open questions](#8-open-questions) |
+| 38 | settings / state flags | bitmask | — | `0x10` heating control parent to filtration (confirmed, not decoded); `0x01` unknown, see [Open questions](#8-open-questions); `0x20`, `0xA1` around winter mode |
 | 39 | — | checksum | observed | |
 
 ### Bytes 40–79 — setpoints and schedule
@@ -279,7 +279,10 @@ Switching winter mode on (2026-09-13, twice):
 | 2026-09-06 | `refilling` (`byte[29]` 0x02) | set 08:12 → 08:21 | level fell to 10 cm (refill on), rose only while set, cleared at 25 cm (refill off) | ✓ from the Home Assistant history |
 | 2026-09-12 19:47 | `max_ph_doses` | `0x14` → `0x11` | setting 20 → 17 | ✓ the only 17 in the frame |
 | 2026-09-13/14 | `max_ph_doses` | moved | 17 → 20 | ✓ |
-| 2026-09-14 05:00 | `alarm_no_flow_to_probes` (`byte[13]` 0x04) | on for one second after filtration start, off with the flow | unit: *there is no flow to probes* | ✓ from the Home Assistant history |
+| 2026-09-14 05:00 | `alarm_no_flow_to_probes` (`byte[13]` 0x04) | on for one second after filtration start, off with the flow | unit: *there is no flow to probes* | ✓ raw frames of the frame log |
+| 2026-09-14 20:16–20:17 | `byte[38]` 0x10 | set with *heating control parent to filtration* ON, cleared with it OFF | setting on the unit | ✓ one clean on/off pair, heating control on throughout |
+| 2026-09-14 20:19–20:23 | `variable_speed_pump_enabled` / `variable_speed_pump_type` | `byte[22]` 0x08 on/off with each switch; `byte[78]` 0x0C Speck/Uwe 0x00, Dab/Pentair 0x04, Hayward 0x08 | VS pump on/off, brand chosen | ✓ four cycles, one per brand |
+| 2026-09-14 20:24–20:25 | `water_level_high_alarm` threshold (`byte[105]`) | 73 → 26 cm with the level at 30 cm for 58 s | no alarm on the unit or in the app | `byte[12]` / `byte[13]` unchanged — see open question 3 |
 | 2026-09-13/14 | `ph_minus_concentration` (`byte[112]`) | moved | 15 → 21 % | ✓ |
 | 2026-09-13/14 | `water_temperature_target` (`byte[55]`) | moved | 25 → 15 °C | ✓ |
 | 2026-08-11, 2026-08-17 | `air_temperature` | 36.0 / 30.8 °C | unit readings | ✓ see §5 |
@@ -300,9 +303,9 @@ Visible in the unit or the app, not located yet: the **water flow meter** toggle
 
 1. **pH− pump bit** — `byte[29]` 0x80 assumed (as HOME/OXY); a frame captured while the pH− pump doses.
 2. **"Low pH under 6,7" alarm bit** — `byte[13]` 0x08 or 0x20: the HOME frame with pH 6.29 (see `home_device_analysis.md`) carried `byte[13]` = 0x28, while 0x08 is currently read as rapid pH change on the strength of error_codes.md alone; a download while the app shows this alarm.
-3. **"Water level too high" alarm bit** — unknown (the level bytes are thresholds and the live level); a download while the level is above `water_level_high_alarm`, bytes 12–13.
+3. **"Water level too high" alarm** — with the level 4 cm above the high threshold for 58 s (2026-09-14) the unit raised no alarm and bytes 12–13 stayed 0; a longer test (5–10 min above the threshold) would show whether the unit waits or compares differently.
 4. **Other SALT alarms** (low salt) — a marked test case while the alarm is shown.
-5. **`byte[38]` 0x10 = heating control parent to filtration?** — seen once in a session that also changed other heating settings; `byte[38]` also takes `0x20`, `0xA1`, `0x01` around winter mode. A clean test of that one setting.
+5. **`byte[38]` 0x01** — on in runs of seconds to minutes, around setting changes but also for minutes without any (e.g. 2026-09-14 07:54–08:02); `byte[31]` takes different values meanwhile. Unknown.
 6. **Water flow meter toggle and pool flow type** — toggle each with a marker after the next frame.
 7. **`byte[37]` routing on older firmware** — Issue #84 (v5.0) `0x13` = algicide with bit 7 clear; a v5.x frame with the third port switched between chemicals.
 8. **`heating_running`** — `byte[29]` 0x04 assumed; a frame with heating control on and the heater running.
