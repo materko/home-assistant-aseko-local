@@ -358,3 +358,19 @@ async def test_a_fragment_or_another_unit_does_not_end_the_wait() -> None:
     coordinator.store_v8_frame(REFERENCE_FRAME)  # serial 123456789
     assert await waiting is True
     assert coordinator._frame_waiters == []  # noqa: SLF001
+
+
+def test_rejected_bytes_are_logged_with_their_reason_and_counted() -> None:
+    from .test_entity_growth import _coordinator
+
+    coordinator = _coordinator()
+    coordinator.store_rejected_frame(bytes(range(120)), "frame sync failed: IndexError")
+    coordinator.store_rejected_frame(bytes(range(120)), "frame sync failed: IndexError")
+
+    records = coordinator.frame_log.records()
+    assert [r["k"] for r in records] == ["rejected", "rejected"]
+    assert records[0]["why"] == "frame sync failed: IndexError"
+    assert records[0]["d"] == bytes(range(120)).hex()
+    assert (
+        coordinator.get_rejected_frames()["frame sync failed: IndexError"]["count"] == 2
+    )

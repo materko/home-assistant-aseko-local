@@ -326,8 +326,9 @@ def test_an_entity_is_unavailable_while_its_quantity_is_not_present() -> None:
 
 def test_growth_enables_the_entities_the_integration_disabled(monkeypatch) -> None:
     """R7: only integration-disabled entries are enabled; a user's choice stays."""
-    from custom_components.aseko_local import entity as entity_module
     from homeassistant.helpers import entity_registry as er
+
+    from custom_components.aseko_local import entity as entity_module
 
     class _Entry:
         def __init__(self, disabled_by):

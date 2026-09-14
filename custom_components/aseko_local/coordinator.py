@@ -17,7 +17,13 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
 from .models import AsekoData, AsekoDevice
-from .recording.frame_log import KIND_PARTIAL, KIND_V7, KIND_V8, FrameLog
+from .recording.frame_log import (
+    KIND_PARTIAL,
+    KIND_REJECTED,
+    KIND_V7,
+    KIND_V8,
+    FrameLog,
+)
 from .trackers.backwash import BackwashTracker
 from .trackers.consumption import AsekoConsumptionTracker
 
@@ -79,6 +85,9 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         # Why the server found a unit's frames implausible, by serial number
         # and reason -- for diagnostics
         self._frame_warnings: dict[int, dict[str, dict[str, Any]]] = {}
+        # Bytes that never became a frame (no serial number to file them
+        # under), by reason -- for diagnostics
+        self._rejected_frames: dict[str, dict[str, Any]] = {}
         # Unsubscribe handle for the periodic stale-check
         self._stale_check_unsub: Callable[[], None] | None = None
         # Per-platform listeners called whenever a brand-new device is discovered
@@ -374,6 +383,21 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         )
         entry["count"] += 1
         entry["last_seen"] = now
+
+    def store_rejected_frame(self, raw_frame: bytes, reason: str) -> None:
+        """Log bytes the server could not align into a frame, and count the reason."""
+        received = dt_util.utcnow()
+        self.frame_log.append_frame(received, KIND_REJECTED, raw_frame, reason)
+        entry = self._rejected_frames.setdefault(
+            reason, {"count": 0, "first_seen": received.isoformat()}
+        )
+        entry["count"] += 1
+        entry["last_seen"] = received.isoformat()
+        self._request_frame_log_save()
+
+    def get_rejected_frames(self) -> dict[str, dict[str, Any]]:
+        """Why the server rejected bytes it could not align, for diagnostics."""
+        return self._rejected_frames
 
     def get_frame_warnings(self, serial_number: int) -> dict[str, dict[str, Any]]:
         """Return the implausible-frame reasons recorded for a serial number."""

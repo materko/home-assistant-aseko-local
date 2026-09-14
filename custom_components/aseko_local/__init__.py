@@ -189,6 +189,7 @@ async def async_setup_entry(
         raw_sink=raw_sink,
         v8_raw_sink=coordinator.store_v8_frame,
         frame_warning_sink=coordinator.store_frame_warning,
+        rejected_sink=coordinator.store_rejected_frame,
     )
 
     if not server.running:

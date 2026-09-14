@@ -58,6 +58,8 @@ FLUSH_EVERY = 32
 KIND_V7 = "v7"
 KIND_V8 = "v8"
 KIND_PARTIAL = "partial"
+# bytes the server could not align into a frame; the record carries "why"
+KIND_REJECTED = "rejected"
 KIND_MARK = "mark"
 
 
@@ -118,13 +120,18 @@ class FrameLog:
         self._current_first: datetime | None = None  # time of its first record
         self._last_time: datetime | None = None  # None: next record carries ``t``
 
-    def append_frame(self, received: datetime, kind: str, raw: bytes) -> None:
-        """Record one frame as it arrived from a unit."""
+    def append_frame(
+        self, received: datetime, kind: str, raw: bytes, why: str | None = None
+    ) -> None:
+        """Record one frame as it arrived from a unit (``why``: a rejection's reason)."""
         if kind == KIND_V8:
             data = raw.decode("ascii", errors="replace").strip()
         else:
             data = bytes(raw).hex()
-        self._append(received, {"k": kind, "d": data})
+        body: dict[str, Any] = {"k": kind, "d": data}
+        if why:
+            body["why"] = why
+        self._append(received, body)
 
     def append_marker(
         self,

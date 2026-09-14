@@ -428,6 +428,9 @@ async def async_get_config_entry_diagnostics(
         ),
         "devices": devices_info,
         "unrecognised_devices": unrecognised_info,
+        # bytes the server could not align into a frame; they are in the
+        # frame log as kind "rejected" with the reason
+        "rejected_frames": getattr(coordinator, "get_rejected_frames", dict)(),
         "frame_log": await hass.async_add_executor_job(
             coordinator.frame_log.snapshot().export
         ),

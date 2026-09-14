@@ -39,6 +39,7 @@ class AsekoDeviceServer:
         raw_sink: Optional[Callable[[bytes], Any]] = None,
         v8_raw_sink: Optional[Callable[[bytes], Any]] = None,
         frame_warning_sink: Optional[Callable[[int, str], Any]] = None,
+        rejected_sink: Optional[Callable[[bytes, str], Any]] = None,
     ) -> None:
         self.host = host
         self.port = port
@@ -46,6 +47,8 @@ class AsekoDeviceServer:
         self._raw_sink = raw_sink
         self._v8_raw_sink = v8_raw_sink
         self._frame_warning_sink = frame_warning_sink
+        # bytes that could not be aligned into a frame, with the reason
+        self._rejected_sink = rejected_sink
         # (serial, reason) pairs already logged as a warning; repeats go to
         # debug so a unit that keeps sending them does not flood the log.
         self._warned: set[tuple[int, str]] = set()
@@ -153,6 +156,13 @@ class AsekoDeviceServer:
         except Exception:
             _LOGGER.error("Frame warning sink raised an exception", exc_info=True)
 
+    async def _call_rejected_sink(self, data: bytes, reason: str) -> None:
+        if self._rejected_sink:
+            try:
+                await self._maybe_await(self._rejected_sink(data, reason))
+            except Exception:
+                _LOGGER.error("Rejected sink raised an exception", exc_info=True)
+
     async def _call_v8_raw_sink(self, data: bytes) -> None:
         if self._v8_raw_sink:
             try:
@@ -235,11 +245,15 @@ class AsekoDeviceServer:
                 # Detect frame type, assemble and rewind if necessary
                 try:
                     frame, offset, frame_type = await self._sync_frame(reader, initial)
-                except Exception:
+                except Exception as exc:
                     _LOGGER.error(
                         "Frame sync error from %s → closing connection",
                         addr,
                         exc_info=True,
+                    )
+                    # Keep the bytes: they are what a new layout would look like.
+                    await self._call_rejected_sink(
+                        initial, f"frame sync failed: {type(exc).__name__}: {exc}"
                     )
                     break
 
@@ -426,11 +440,18 @@ class AsekoDeviceServer:
         raw_sink: Optional[Callable[[bytes], Any]] = None,
         v8_raw_sink: Optional[Callable[[bytes], Any]] = None,
         frame_warning_sink: Optional[Callable[[int, str], Any]] = None,
+        rejected_sink: Optional[Callable[[bytes, str], Any]] = None,
     ) -> "AsekoDeviceServer":
         key = f"{host}:{port}"
         if key not in cls._instances:
             cls._instances[key] = AsekoDeviceServer(
-                host, port, on_data, raw_sink, v8_raw_sink, frame_warning_sink
+                host,
+                port,
+                on_data,
+                raw_sink,
+                v8_raw_sink,
+                frame_warning_sink,
+                rejected_sink,
             )
             await cls._instances[key].start()
         else:
@@ -444,6 +465,8 @@ class AsekoDeviceServer:
                 cls._instances[key]._v8_raw_sink = v8_raw_sink
             if frame_warning_sink:
                 cls._instances[key]._frame_warning_sink = frame_warning_sink
+            if rejected_sink:
+                cls._instances[key]._rejected_sink = rejected_sink
             if on_data:
                 cls._instances[key].on_data = on_data
         return cls._instances[key]

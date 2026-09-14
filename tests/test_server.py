@@ -428,3 +428,25 @@ async def test_rejected_v8_frame_still_reaches_the_frame_log() -> None:
     assert len(warnings) == 1
     assert warnings[0][0] == 12345678
     assert warnings[0][1].startswith("v8 frame rejected:")
+
+
+@pytest.mark.asyncio
+async def test_bytes_that_never_align_are_kept_with_the_reason() -> None:
+    """R5: a frame sync failure no longer drops the bytes silently."""
+    rejected: list[tuple[bytes, str]] = []
+    server = AsekoDeviceServer(
+        host="127.0.0.1",
+        port=12354,
+        on_data=None,
+        rejected_sink=lambda data, reason: rejected.append((data, reason)),
+    )
+    garbage = bytes(range(120))  # no segment markers anywhere: cannot be aligned
+    reader = asyncio.StreamReader()
+    writer = DummyWriter("127.0.0.1", 12354)
+    reader.feed_data(garbage)
+    reader.feed_eof()
+    await server._handle_client(reader, writer)
+
+    assert len(rejected) == 1
+    assert rejected[0][0] == garbage
+    assert rejected[0][1].startswith("frame sync failed:")
