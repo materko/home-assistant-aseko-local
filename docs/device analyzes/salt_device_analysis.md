@@ -358,6 +358,7 @@ from different days and are listed only to show the encoding, not the number.
 | `max_ph_doses` (byte[115]) | 20 | the unit's Safety Functions setting, 20 | ✓ — and changing it to 17 on 2026-09-12 moved the byte to 0x11 |
 | `heating_running` | False | display "Heating control OFF", app "Heating ---" | consistent; the running state itself never captured |
 | `water_level` | 31 cm (Aug) | 30 cm, "Filling OFF – Level OK" | ✓ encoding; the status text is derived from the thresholds |
+| `refilling` (byte[29] bit 0x02) | set 2026-09-06 08:12 → 08:21 | the level fell to 10 cm (Filling ON), rose only while the bit was set and it cleared at 25 cm (Filling OFF) | ✓ from the Home Assistant history of that refill |
 
 ### What the remaining unknown bytes do (28 frames from one SALT, Aug–Sep 2026)
 

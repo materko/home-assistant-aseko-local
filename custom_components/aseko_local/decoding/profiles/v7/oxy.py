@@ -153,7 +153,7 @@ OXY = Profile(
         FiltrationPeriod2End: "observed: bytes 62-63 = 22:00 in every frame on the Winnetoux OXY (serial 110157165); not compared with the app",
         Timestamp: "confirmed: bytes 6-11",
         VariableSpeedPumpEnabled: "assumed: byte[22] 0x08, confirmed on HOME",
-        Refilling: "assumed: byte[29] 0x02, confirmed on HOME",
+        Refilling: "assumed: byte[29] 0x02, confirmed on HOME and SALT",
         WaterFlowToProbes: "observed: byte[28] = 0xAA on the Winnetoux OXY (serial 110157165); not compared with the app",
         WaterLevel: "assumed: byte[27], confirmed on HOME",
         WaterLevelRefillStart: "unconfirmed: byte[103] is algaecide_flow_rate on OXY (confirmed, 60 ml/min); reading it as a level threshold too cannot be right",

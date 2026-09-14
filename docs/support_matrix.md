@@ -71,7 +71,7 @@ Two further profiles exist that no unit is meant to decode with and that the tab
 | `pool_volume` | ✅ | ✅ | 👁 | 👁 | ❓ |
 | `redox` | ❓ | ✅ | — | ❓ | ❓ |
 | `redox_target` | ❓ | ✅ | — | ❓ | — |
-| `refilling` | ✅ | ❓ | ❓ | — | ❓ |
+| `refilling` | ✅ | ✅ | ❓ | — | ❓ |
 | `salinity` | — | ✅ | — | — | — |
 | `serial_number` | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `service_menu_open` | ✅ | ✅ | 👁 | — | ❓ |
@@ -137,7 +137,6 @@ Every entry below is read today without a confirming capture.  If you own one of
 - `chlorine_dose_target` — unverified: byte[53] for a DOSE unit; neither unit of the own SALT dumps, 37 frames 2026-08-08..28 is one
 - `heating_running` — assumed: byte[29] 0x04 per JS-DE-Tech relay_byte bit 2; never set in the own SALT dumps, whose unit has heating control OFF
 - `ph_minus_pump_running` — unconfirmed: byte[29] 0x80; the bit was never set in the own SALT dumps, 37 frames 2026-08-08..28
-- `refilling` — assumed: byte[29] 0x02, confirmed on HOME only; never set in the own SALT dumps, 37 frames 2026-08-08..28
 
 ### v7 OXY
 
@@ -151,7 +150,7 @@ Every entry below is read today without a confirming capture.  If you own one of
 - `heating_running` — assumed: byte[29] 0x04 per JS-DE-Tech relay_byte bit 2
 - `max_refill_time` — assumed: bytes 76-77 = 3600 s on the Winnetoux OXY, plausible (60 min); verified on SALT only
 - `ph_minus_concentration` — assumed: byte[112], confirmed on HOME
-- `refilling` — assumed: byte[29] 0x02, confirmed on HOME
+- `refilling` — assumed: byte[29] 0x02, confirmed on HOME and SALT
 - `variable_speed_pump_enabled` — assumed: byte[22] 0x08, confirmed on HOME
 - `water_level` — assumed: byte[27], confirmed on HOME
 - `water_level_high_alarm` — no evidence recorded

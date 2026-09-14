@@ -186,7 +186,7 @@ SALT = Profile(
         FiltrationPeriod2End: "confirmed: bytes 62-63 changed 22:00 -> 23:55 with the timer settings during the own SALT dumps, 37 frames 2026-08-08..28, checked against the unit by the maintainer; matches the app and unit display, 2026-09-11",
         Timestamp: "confirmed: bytes 6-11",
         VariableSpeedPumpEnabled: "confirmed: byte[22] 0x08 is the VS Pump setting, not the run state; confirmed on the own SALT by toggling it on the unit with a frame-log marker after each change, 2026-09-13/14",
-        Refilling: "assumed: byte[29] 0x02, confirmed on HOME only; never set in the own SALT dumps, 37 frames 2026-08-08..28",
+        Refilling: "confirmed: byte[29] 0x02 on the own SALT, 2026-09-06 08:12-08:21: set when the water level fell to the unit's refill start (10) and cleared when it reached the refill stop (25), the level rising only while it was set; not in the earlier dumps, which caught no refill",
         WaterFlowToProbes: "confirmed: byte[28] == 0xAA",
         WaterLevel: "confirmed: byte[27] 14..25 cm across the own SALT dumps, 37 frames 2026-08-08..28, checked against the unit by the maintainer",
         WaterLevelRefillStop: "confirmed: byte[104] = 25 and 35 cm on the two units of the own SALT dumps, 37 frames 2026-08-08..28, checked against the unit by the maintainer; matches the app and unit display, 2026-09-11",
