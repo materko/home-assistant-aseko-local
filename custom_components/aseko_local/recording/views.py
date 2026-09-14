@@ -180,6 +180,7 @@ class AsekoStatusView(HomeAssistantView):
                 "entries": [
                     {
                         "entry": entry.title,
+                        "entry_id": entry.entry_id,
                         "seconds_since_last_frame": {
                             str(serial): age
                             for serial, age in entry.runtime_data.coordinator.seconds_since_last_frame(
@@ -219,10 +220,12 @@ class AsekoExportView(HomeAssistantView):
             markers = [m for m in log.markers() if not (only_new and m["downloaded"])]
             wanted_photos.update(m["photo"] for m in markers if m.get("photo"))
             newest[entry.entry_id] = max((m["n"] for m in log.markers()), default=0)
+            snapshot = log.snapshot()
             entries.append(
                 {
                     "title": entry.title,
-                    "records": log.records(),
+                    "entry_id": entry.entry_id,
+                    "records": await hass.async_add_executor_job(snapshot.records),
                     "cases": markers,
                     "diagnostics": await async_get_config_entry_diagnostics(
                         hass, entry

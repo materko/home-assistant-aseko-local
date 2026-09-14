@@ -20,6 +20,17 @@ logging.disable(logging.CRITICAL)
 SERIAL = 1234
 
 
+def _diagnostics_hass() -> MagicMock:
+    """A hass whose executor runs the job inline, as diagnostics hands work to it."""
+
+    async def run_inline(job, *args):
+        return job(*args)
+
+    hass = MagicMock()
+    hass.async_add_executor_job = run_inline
+    return hass
+
+
 def _unknown_frame() -> bytes:
     data = _make_base_bytes()
     data[4] = 0x00  # maps to no model
@@ -82,7 +93,7 @@ def test_diagnostics_report_the_unrecognised_unit_with_its_frame() -> None:
     entry.options = {}
     entry.runtime_data.coordinator = coordinator
 
-    dump = asyncio.run(async_get_config_entry_diagnostics(MagicMock(), entry))
+    dump = asyncio.run(async_get_config_entry_diagnostics(_diagnostics_hass(), entry))
 
     assert dump["devices"] == []
     assert len(dump["unrecognised_devices"]) == 1
@@ -106,7 +117,7 @@ def test_diagnostics_still_report_a_known_unit_the_same_way() -> None:
     entry.options = {}
     entry.runtime_data.coordinator = coordinator
 
-    dump = asyncio.run(async_get_config_entry_diagnostics(MagicMock(), entry))
+    dump = asyncio.run(async_get_config_entry_diagnostics(_diagnostics_hass(), entry))
 
     assert dump["unrecognised_devices"] == []
     (info,) = dump["devices"]

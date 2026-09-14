@@ -270,3 +270,41 @@ def test_an_older_store_gets_its_cases_rebuilt_from_the_frames() -> None:
     restored.load_store(old_store)
     assert [m["note"] for m in restored.markers()] == ["heating on"]
     assert restored.not_downloaded() == 1
+
+
+def test_open_chunk_is_sealed_by_uncompressed_size_too() -> None:
+    """R10: well-compressing frames must not pile up uncompressed in memory."""
+    log = FrameLog()
+    frames = list(_v8_frames(43_200))  # five days, one frame every ten seconds
+    for received, raw in frames:
+        log.append_frame(received, KIND_V8, raw)
+    held = sum(len(line) for line in log._current_lines)  # noqa: SLF001
+    assert held < log.chunk_raw_bytes + 2_000
+    assert log.size() <= log.max_bytes
+
+
+def test_snapshot_reads_the_same_as_the_log_and_stays_put() -> None:
+    """R10: the export works on a copy; frames arriving afterwards do not change it."""
+    log = FrameLog()
+    frames = list(_v8_frames(3_000))
+    for received, raw in frames[:2_000]:
+        log.append_frame(received, KIND_V8, raw)
+    snapshot = log.snapshot()
+    expected = log.records()
+    for received, raw in frames[2_000:]:
+        log.append_frame(received, KIND_V8, raw)
+    assert snapshot.records() == expected
+    assert snapshot.export()["records"] == len(expected)
+
+
+def test_oldest_frame_time_survives_dropping_and_a_restart() -> None:
+    """The age of the oldest frame comes from a side list, not a decompression."""
+    log = FrameLog(max_bytes=64 * 1024)
+    for received, raw in _v8_frames(20_000):
+        log.append_frame(received, KIND_V8, raw)
+    first = datetime.fromisoformat(log.records()[0]["t"])
+    assert log._oldest_time() == first  # noqa: SLF001
+
+    restored = FrameLog(max_bytes=64 * 1024)
+    restored.load_store(log.to_store())
+    assert restored._oldest_time() == first  # noqa: SLF001

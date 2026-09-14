@@ -168,7 +168,10 @@ def build_export_zip(
         ]
         archive.writestr("README.txt", "\n".join(lines) + "\n")
         for entry in entries:
-            slug = _slug(entry["title"]) or "entry"
+            # The title labels the files; the entry id keeps two entries with
+            # the same (or same-looking) title from overwriting each other.
+            parts = (_slug(entry["title"]), entry.get("entry_id"))
+            slug = "-".join(part for part in parts if part) or "entry"
             records = entry["records"]
             archive.writestr(
                 f"frames-{slug}.jsonl",

@@ -223,6 +223,7 @@ class AsekoTestCasesCard extends HTMLElement {
   setConfig(config) {
     this._config = config || {};
     this._lang = this._lang || "en";
+    this._pruneThumbs(null);
     this._thumbs = {};
     this._listKey = "";
     if (!this.shadowRoot) {
@@ -275,6 +276,8 @@ class AsekoTestCasesCard extends HTMLElement {
 
   disconnectedCallback() {
     clearInterval(this._timer);
+    this._pruneThumbs(null);
+    this._listKey = "";
   }
 
   _render() {
@@ -292,6 +295,7 @@ class AsekoTestCasesCard extends HTMLElement {
         }
         * { box-sizing: border-box; }
         ha-card {
+          container-type: inline-size;
           overflow: hidden;
           border-radius: var(--ha-card-border-radius, 16px);
           background: var(--ha-card-background, var(--card-background-color));
@@ -484,7 +488,7 @@ class AsekoTestCasesCard extends HTMLElement {
         .footer-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
         .footer-actions .danger { margin-left: auto; }
         .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-        @media (max-width: 560px) {
+        @container (max-width: 560px) {
           .hero { padding: 17px 16px 15px; }
           .body { padding: 16px; }
           .composer { padding: 12px; }
@@ -586,11 +590,17 @@ class AsekoTestCasesCard extends HTMLElement {
   }
 
   _renderCases(entries) {
-    const cases = entries.flatMap((e) => e.markers || []).sort((a, b) => b.n - a.n);
+    // Marker numbers count per config entry, so order by time and keep the
+    // entry each case came from.
+    const cases = entries
+      .flatMap((e) => (e.markers || []).map((m) => ({ ...m, entry: e.entry, entryId: e.entry_id })))
+      .sort((a, b) => new Date(b.t) - new Date(a.t) || b.n - a.n);
+    const several = entries.length > 1;
     const fresh = entries.reduce((sum, e) => sum + (e.not_downloaded || 0), 0);
     this._el("heading").textContent = this._t("cases_count", { n: cases.length, f: fresh });
     this._el("export-new").textContent = `\u2B07 ${this._t("download_new")} (${fresh})`;
-    const key = JSON.stringify(cases.map((c) => [c.n, c.t, c.note, c.downloaded, c.frames, c.photo]));
+    const key = JSON.stringify([several, cases.map((c) => [c.entryId, c.n, c.t, c.note, c.downloaded, c.frames, c.photo])]);
+    this._pruneThumbs(new Set(cases.map((c) => c.photo).filter(Boolean)));
     if (key === this._listKey) return;
     this._listKey = key;
     const list = this._el("cases");
@@ -607,7 +617,7 @@ class AsekoTestCasesCard extends HTMLElement {
         return `<article class="case ${c.downloaded ? "" : "new"}">${img}
           <div class="case-number" aria-hidden="true">#${c.n}</div>
           <div class="txt"><div class="note">${esc(c.note || this._t("no_note"))}</div>
-          <div class="meta">${esc(when)}</div>
+          <div class="meta">#${c.n} \u00B7 ${esc(when)}${several ? ` \u00B7 ${esc(c.entry)}` : ""}</div>
           <div class="case-flags"><span class="flag ${c.downloaded ? "" : "new"}">${esc(downloadFlag)}</span><span class="flag">${esc(framesFlag)}</span></div></div></article>`;
       })
       .join("");
@@ -623,10 +633,20 @@ class AsekoTestCasesCard extends HTMLElement {
         .then((blob) => (blob ? URL.createObjectURL(blob) : null))
         .catch(() => null);
     }
-    const url = await this._thumbs[name];
+    const pending = this._thumbs[name];
+    const url = await pending;
+    if (!url && this._thumbs[name] === pending) delete this._thumbs[name]; // try again next render
     if (url) {
       img.src = url;
       img.onclick = () => window.open(url, "_blank");
+    }
+  }
+
+  _pruneThumbs(keep) {
+    for (const [name, pending] of Object.entries(this._thumbs || {})) {
+      if (keep && keep.has(name)) continue;
+      delete this._thumbs[name];
+      pending.then((url) => url && URL.revokeObjectURL(url));
     }
   }
 

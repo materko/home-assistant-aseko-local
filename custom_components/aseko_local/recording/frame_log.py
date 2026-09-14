@@ -33,6 +33,7 @@ import logging
 import zlib
 from collections import deque
 from collections.abc import Iterable, Iterator
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
@@ -40,6 +41,12 @@ _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_MAX_BYTES = 256 * 1024
 DEFAULT_CHUNK_BYTES = 16 * 1024
+# The open chunk keeps its lines uncompressed as well (for the export and the
+# store), so it is sealed at this many uncompressed bytes too.  Frames that
+# compress 30:1 would otherwise hold megabytes in memory before the
+# compressed size ever reached ``DEFAULT_CHUNK_BYTES``.  384 kB keeps what
+# 256 kB holds within a few percent (smaller chunks compress worse).
+DEFAULT_CHUNK_RAW_BYTES = 384 * 1024
 # Markers are also kept in a list of their own, outside the capped frame
 # chunks, so the cases a user clicked stay listed after their frames age out.
 MAX_MARKERS = 500
@@ -82,12 +89,17 @@ class FrameLog:
         self,
         max_bytes: int = DEFAULT_MAX_BYTES,
         chunk_bytes: int = DEFAULT_CHUNK_BYTES,
+        chunk_raw_bytes: int = DEFAULT_CHUNK_RAW_BYTES,
     ) -> None:
         if chunk_bytes * 2 > max_bytes:
             raise ValueError("chunk_bytes must be at most half of max_bytes")
         self.max_bytes = max_bytes
         self.chunk_bytes = chunk_bytes
+        self.chunk_raw_bytes = chunk_raw_bytes
         self._chunks: deque[bytes] = deque()  # sealed zlib streams, oldest first
+        # the time of each sealed chunk's first record, so the age of the
+        # oldest frame needs no decompression on every status poll
+        self._chunk_times: deque[datetime] = deque()
         self._sealed_bytes = 0
         self._dropped_chunks = 0
         self._next_marker = 1
@@ -102,6 +114,8 @@ class FrameLog:
         self._current = bytearray()  # compressed bytes of the open chunk so far
         self._current_lines: list[bytes] = []  # every record of the open chunk
         self._pending: list[bytes] = []  # records not yet given to the compressor
+        self._current_raw = 0  # uncompressed bytes of the open chunk
+        self._current_first: datetime | None = None  # time of its first record
         self._last_time: datetime | None = None  # None: next record carries ``t``
 
     def append_frame(self, received: datetime, kind: str, raw: bytes) -> None:
@@ -143,6 +157,7 @@ class FrameLog:
         if self._last_time is None:
             record = {"t": received.isoformat(), **body}
             self._last_time = received
+            self._current_first = received
         else:
             # Measure from the time the reader will reconstruct, not the true
             # previous one, so rounding never accumulates along a chunk.
@@ -156,9 +171,13 @@ class FrameLog:
     def _add_line(self, line: bytes) -> None:
         self._current_lines.append(line)
         self._pending.append(line)
+        self._current_raw += len(line)
         if len(self._pending) >= FLUSH_EVERY:
             self._flush_pending()
-        if len(self._current) >= self.chunk_bytes:
+        if (
+            len(self._current) >= self.chunk_bytes
+            or self._current_raw >= self.chunk_raw_bytes
+        ):
             self._seal()
         self._enforce_cap()
 
@@ -173,6 +192,7 @@ class FrameLog:
         self._flush_pending()
         self._current += self._compressor.flush(zlib.Z_FINISH)
         self._chunks.append(bytes(self._current))
+        self._chunk_times.append(self._current_first)
         self._sealed_bytes += len(self._current)
         self._start_chunk()
 
@@ -184,6 +204,7 @@ class FrameLog:
     def _enforce_cap(self) -> None:
         while self.size() > self.max_bytes and self._chunks:
             self._sealed_bytes -= len(self._chunks.popleft())
+            self._chunk_times.popleft()
             self._dropped_chunks += 1
         if self.size() > self.max_bytes:
             # Only the open chunk is left and it alone passes the cap -- not
@@ -226,45 +247,34 @@ class FrameLog:
         self._markers = []
 
     def _oldest_time(self) -> datetime | None:
-        for chunk in self._chunks:
-            first = zlib.decompress(chunk).split(b"\n", 1)[0]
-            return datetime.fromisoformat(json.loads(first)["t"])
-        if self._current_lines:
-            return datetime.fromisoformat(json.loads(self._current_lines[0])["t"])
-        return None
+        if self._chunk_times:
+            return self._chunk_times[0]
+        return self._current_first if self._current_lines else None
 
     # -- reading -----------------------------------------------------------
 
-    def _stored_lines(self) -> Iterator[bytes]:
-        for chunk in self._chunks:
-            yield from zlib.decompress(chunk).splitlines(keepends=True)
-        yield from self._current_lines
+    def snapshot(self) -> FrameLogSnapshot:
+        """An immutable copy of the buffer, cheap to take on the event loop.
+
+        Decompressing and re-encoding it is the expensive part: run
+        ``snapshot.records()`` / ``snapshot.export()`` in an executor, while the
+        live log keeps taking frames.
+        """
+        return FrameLogSnapshot(
+            chunks=tuple(self._chunks),
+            open_lines=b"".join(self._current_lines),
+            max_bytes=self.max_bytes,
+            size_bytes=self.size(),
+            dropped_chunks=self._dropped_chunks,
+        )
 
     def records(self) -> list[dict[str, Any]]:
         """Every record still held, oldest first, with absolute times."""
-        return list(decode_lines(self._stored_lines()))
+        return self.snapshot().records()
 
     def export(self, recent: int = 20) -> dict[str, Any]:
         """The buffer for the diagnostics download."""
-        records = self.records()
-        return {
-            "about": (
-                "Raw frames and mark_dump markers in the order Home Assistant "
-                "received them. 'blob' is the whole buffer: base64 of zlib-compressed "
-                "JSON lines; decode it with scripts/frame_log_tool.py."
-            ),
-            "cap_bytes": self.max_bytes,
-            "size_bytes": self.size(),
-            "records": len(records),
-            "oldest": records[0]["t"] if records else None,
-            "newest": records[-1]["t"] if records else None,
-            "dropped_chunks": self._dropped_chunks,
-            "markers": [r for r in records if r.get("k") == KIND_MARK],
-            "recent": records[-recent:],
-            "blob": base64.b64encode(
-                zlib.compress(b"".join(self._stored_lines()), 9)
-            ).decode(),
-        }
+        return self.snapshot().export(recent)
 
     # -- persistence -------------------------------------------------------
 
@@ -296,6 +306,12 @@ class FrameLog:
             _LOGGER.warning("Discarding an unreadable Aseko frame log: %s", err)
             return
         self._chunks = deque(chunks)
+        self._chunk_times = deque(
+            datetime.fromisoformat(
+                json.loads(zlib.decompress(chunk).split(b"\n", 1)[0])["t"]
+            )
+            for chunk in chunks
+        )
         self._sealed_bytes = sum(len(chunk) for chunk in chunks)
         self._dropped_chunks = int(data.get("dropped_chunks", 0))
         self._next_marker = int(data.get("next_marker", 1))
@@ -317,3 +333,44 @@ class FrameLog:
             self._markers = [r for r in self.records() if r.get("k") == KIND_MARK][
                 -MAX_MARKERS:
             ]
+
+
+@dataclass(frozen=True)
+class FrameLogSnapshot:
+    """What a ``FrameLog`` held at one moment; safe to read from any thread."""
+
+    chunks: tuple[bytes, ...]
+    open_lines: bytes
+    max_bytes: int
+    size_bytes: int
+    dropped_chunks: int
+
+    def lines(self) -> Iterator[bytes]:
+        """The stored JSON lines, oldest first."""
+        for chunk in self.chunks:
+            yield from zlib.decompress(chunk).splitlines(keepends=True)
+        yield from self.open_lines.splitlines(keepends=True)
+
+    def records(self) -> list[dict[str, Any]]:
+        """Every record, oldest first, with absolute times."""
+        return list(decode_lines(self.lines()))
+
+    def export(self, recent: int = 20) -> dict[str, Any]:
+        """The buffer for the diagnostics download."""
+        records = self.records()
+        return {
+            "about": (
+                "Raw frames and mark_dump markers in the order Home Assistant "
+                "received them. 'blob' is the whole buffer: base64 of zlib-compressed "
+                "JSON lines; decode it with scripts/frame_log_tool.py."
+            ),
+            "cap_bytes": self.max_bytes,
+            "size_bytes": self.size_bytes,
+            "records": len(records),
+            "oldest": records[0]["t"] if records else None,
+            "newest": records[-1]["t"] if records else None,
+            "dropped_chunks": self.dropped_chunks,
+            "markers": [r for r in records if r.get("k") == KIND_MARK],
+            "recent": records[-recent:],
+            "blob": base64.b64encode(zlib.compress(b"".join(self.lines()), 9)).decode(),
+        }

@@ -102,3 +102,29 @@ def test_export_zip_holds_frames_markers_diagnostics_and_photos(tmp_path) -> Non
         assert markers[0]["since"] == {"123": 3.0}
         frames = archive.read("frames-Aseko-Local.jsonl").decode().splitlines()
         assert json.loads(frames[0])["k"] == "v8"
+
+
+def test_export_zip_keeps_two_entries_with_the_same_title_apart(tmp_path) -> None:
+    """R9: files are named by title and entry id, so equal titles do not collide."""
+    log = FrameLog()
+    log.append_frame(T0, KIND_V8, b"{v1 123 804 0 27 ins: 1}\n")
+    entries = [
+        {
+            "title": "Aseko Local",
+            "entry_id": "01AAA",
+            "records": log.records(),
+            "diagnostics": {"a": 1},
+        },
+        {
+            "title": "Aseko Local",
+            "entry_id": "01BBB",
+            "records": [],
+            "diagnostics": {"b": 2},
+        },
+    ]
+    body = build_export_zip(entries, [], T0)
+    with zipfile.ZipFile(io.BytesIO(body)) as archive:
+        names = archive.namelist()
+    assert len(names) == len(set(names))
+    assert "frames-Aseko-Local-01AAA.jsonl" in names
+    assert "diagnostics-Aseko-Local-01BBB.json" in names
