@@ -266,6 +266,10 @@ def _device_state(device: Any) -> dict[str, Any]:
         # "features" is one this model does not have, not one that failed
         # to decode.
         "features": sorted(device.features),
+        # every field the model can have, and those the last frame did not
+        # show present -- their entities are unavailable, or still disabled
+        "possible_features": sorted(device.possible_features),
+        "not_present_now": sorted(device.possible_features - device.present_features),
         "flags": sorted(flag.value for flag in device.flags),
         "configuration": [p.value for p in (device.configuration or [])],
         "online": device.online(),

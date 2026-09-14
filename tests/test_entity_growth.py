@@ -221,15 +221,15 @@ def test_always_present_sensors_are_not_rebuilt_on_growth(grown_device) -> None:
     assert keys == {"ph"}
 
 
-def test_growth_never_builds_a_field_the_unit_lacks(grown_device) -> None:
-    """A field named by the listener is still checked against the device."""
+def test_growth_never_builds_a_field_the_model_lacks(grown_device) -> None:
+    """A field named by the listener is still checked against the model."""
     keys = {
         e.entity_description.key
         for e in _build_sensor_entities(
-            [grown_device], _PlatformCoordinator(), frozenset({"free_chlorine"})
+            [grown_device], _PlatformCoordinator(), frozenset({"oxygen_dose_target"})
         )
     }
-    assert keys == set()  # REDOX unit: no free-chlorine probe
+    assert keys == set()  # a SALT has no OXY Pure dose
 
 
 def test_the_whole_chain_adds_exactly_the_algicide_entities() -> None:
@@ -261,3 +261,111 @@ def test_the_whole_chain_adds_exactly_the_algicide_entities() -> None:
     }
     stored = coordinator.get_device(SERIAL)
     assert all(e.device is stored for e in added)
+
+
+# ── every quantity the model can have gets an entity ────────────────────────
+
+
+class _AvailableCoordinator(_PlatformCoordinator):
+    last_update_success = True
+
+
+def _entities_by_key(device):
+    coordinator = _AvailableCoordinator()
+    entities = (
+        _build_sensor_entities([device], coordinator)
+        + _build_binary_sensor_entities([device], coordinator)
+        + _build_button_entities([device], coordinator)
+        + _build_datetime([device], coordinator)
+    )
+    return {e.entity_description.key: e for e in entities}
+
+
+def test_quantities_the_unit_has_not_shown_get_disabled_entities() -> None:
+    """R7: a REDOX SALT with an unrouted port -- the entities exist, disabled."""
+    device = decode(_salt_frame(0xFF))
+    entities = _entities_by_key(device)
+
+    # shown: enabled
+    assert entities["ph"].entity_registry_enabled_default is True
+    assert entities["rx"].entity_registry_enabled_default is True
+    assert entities["connection_status"].entity_registry_enabled_default is True
+    # the model has them, this unit has not shown them: there, but disabled
+    for key in (
+        "free_chlorine",
+        "flowrate_algicide",
+        "algicide_pump_running",
+        "algicide_refill_reset",
+    ):
+        assert key in entities, key
+        assert entities[key].entity_registry_enabled_default is False, key
+    # a quantity no SALT has gets no entity at all
+    assert "required_oxy" not in entities
+    assert "flowrate_oxy" not in entities
+
+
+def test_an_entity_is_unavailable_while_its_quantity_is_not_present() -> None:
+    """R7: shown once, then not in the last frame -> unavailable, not removed."""
+    coordinator = _coordinator()
+    coordinator.devices_update_callback(
+        decode(_salt_frame(0xC3, flowrate_third_pump=40))
+    )
+    stored = coordinator.get_device(SERIAL)
+    entities = _entities_by_key(stored)
+    algicide = entities["flowrate_algicide"]
+    assert algicide.entity_registry_enabled_default is True
+    assert algicide.available is True
+
+    # the port goes unreadable: the stored device keeps the feature, the frame does not
+    coordinator.devices_update_callback(decode(_salt_frame(0xFF)))
+    assert "algaecide_flow_rate" in stored.features
+    assert algicide.available is False
+    assert entities["ph"].available is True
+    assert entities["connection_status"].available is True
+
+
+def test_growth_enables_the_entities_the_integration_disabled(monkeypatch) -> None:
+    """R7: only integration-disabled entries are enabled; a user's choice stays."""
+    from custom_components.aseko_local import entity as entity_module
+    from homeassistant.helpers import entity_registry as er
+
+    class _Entry:
+        def __init__(self, disabled_by):
+            self.disabled_by = disabled_by
+
+    entries = {
+        "sensor.algicide": _Entry(er.RegistryEntryDisabler.INTEGRATION),
+        "sensor.floc": _Entry(er.RegistryEntryDisabler.USER),
+    }
+    ids = {
+        "1234flowrate_algicide": "sensor.algicide",
+        "1234flowrate_floc": "sensor.floc",
+    }
+    enabled: list[str] = []
+
+    class _Registry:
+        def async_get_entity_id(self, platform, domain, unique_id):
+            return ids.get(unique_id)
+
+        def async_get(self, entity_id):
+            return entries.get(entity_id)
+
+        def async_update_entity(self, entity_id, disabled_by):
+            assert disabled_by is None
+            enabled.append(entity_id)
+
+    monkeypatch.setattr(entity_module.er, "async_get", lambda hass: _Registry())
+    entity_module.async_enable_entities(
+        None, "sensor", ["1234flowrate_algicide", "1234flowrate_floc", "1234unknown"]
+    )
+    assert enabled == ["sensor.algicide"]
+
+
+def test_enabled_unique_ids_are_the_shown_quantities() -> None:
+    from custom_components.aseko_local.entity import enabled_unique_ids
+
+    device = decode(_salt_frame(0xFF))
+    entities = list(_entities_by_key(device).values())
+    ids = set(enabled_unique_ids(entities))
+    assert f"{SERIAL}ph" in ids
+    assert f"{SERIAL}flowrate_algicide" not in ids

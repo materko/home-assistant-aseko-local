@@ -159,7 +159,15 @@ class AsekoDevice:
     #     entity; a field in here that reads None is unknown right now and
     #     its entity shows "unknown".  See ``decoding.presence``.
     # flags -- semantic facts about the model, see ``AsekoProfileFlag``.
+    # possible_features -- every field this model's profile reads: what the
+    #     unit *can* have.  Each gets an entity, created disabled until the
+    #     unit first shows the quantity (see ``entity.py``).
+    # present_features -- what the last frame showed present.  ``features``
+    #     is the union of everything seen since Home Assistant started; an
+    #     entity whose field is not present right now is unavailable.
     features: frozenset[str] = field(default_factory=frozenset)
+    possible_features: frozenset[str] = field(default_factory=frozenset)
+    present_features: frozenset[str] = field(default_factory=frozenset)
     flags: frozenset[AsekoProfileFlag] = field(default_factory=frozenset)
     configuration: set[AsekoProbeType] = field(default_factory=set)
 

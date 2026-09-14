@@ -10,9 +10,9 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import AsekoLocalConfigEntry
 from .coordinator import AsekoLocalDataUpdateCoordinator
-from .entity import AsekoLocalEntity
+from .entity import AsekoLocalEntity, async_enable_entities, enabled_unique_ids
 from .models import AsekoDevice
-from .sensor import PUMP_RUNNING_ATTR, device_has_pump
+from .sensor import PUMP_RUNNING_ATTR, model_has_pump
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -74,17 +74,23 @@ async def async_setup_entry(
     entities = _build_button_entities(devices, coordinator)
     async_add_entities(entities)
 
+    async_enable_entities(hass, "button", enabled_unique_ids(entities))
+
     @callback
     def _async_add_new_device(device: AsekoDevice) -> None:
         new_entities = _build_button_entities([device], coordinator)
+        async_enable_entities(hass, "button", enabled_unique_ids(new_entities))
         if new_entities:
             async_add_entities(new_entities)
 
     @callback
     def _async_add_new_features(device: AsekoDevice, features: frozenset[str]) -> None:
-        new_entities = _build_button_entities([device], coordinator, features)
-        if new_entities:
-            async_add_entities(new_entities)
+        # Every entity the model can have exists already; the ones for the
+        # quantities the unit just started showing were created disabled.
+        grown = _build_button_entities([device], coordinator, features)
+        async_enable_entities(
+            hass, "button", [e.unique_id for e in grown if e.unique_id]
+        )
 
     config_entry.async_on_unload(
         coordinator.async_add_new_device_listener(_async_add_new_device)
@@ -108,7 +114,7 @@ def _build_button_entities(
 
     for device in devices:
         for description in RESET_BUTTONS:
-            if not device_has_pump(device, description.pump_key):
+            if not model_has_pump(device, description.pump_key):
                 continue
             if (
                 features is not None
@@ -129,7 +135,12 @@ class AsekoResetButtonEntity(AsekoLocalEntity, ButtonEntity):
         coordinator: AsekoLocalDataUpdateCoordinator,
         description: AsekoResetButtonEntityDescription,
     ) -> None:
-        super().__init__(unit, coordinator, description)
+        super().__init__(
+            unit,
+            coordinator,
+            description,
+            feature=PUMP_RUNNING_ATTR[description.pump_key],
+        )
         self._pump_key = description.pump_key
 
     async def async_press(self) -> None:

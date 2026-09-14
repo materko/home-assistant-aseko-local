@@ -15,7 +15,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import AsekoLocalConfigEntry
 from .coordinator import AsekoLocalDataUpdateCoordinator
-from .entity import AsekoLocalEntity
+from .entity import AsekoLocalEntity, async_enable_entities, enabled_unique_ids
 from .models import AsekoDevice
 
 _LOGGER = logging.getLogger(__name__)
@@ -274,9 +274,12 @@ async def async_setup_entry(
     _LOGGER.debug(">>> [sensor] Adding %s binary sensors", len(entities))
     async_add_entities(entities)
 
+    async_enable_entities(hass, "binary_sensor", enabled_unique_ids(entities))
+
     @callback
     def _async_add_new_device(device: AsekoDevice) -> None:
         new_entities = _build_binary_sensor_entities([device], coordinator)
+        async_enable_entities(hass, "binary_sensor", enabled_unique_ids(new_entities))
         if new_entities:
             _LOGGER.debug(
                 ">>> [sensor] Adding %s binary sensors for new device %s",
@@ -287,15 +290,12 @@ async def async_setup_entry(
 
     @callback
     def _async_add_new_features(device: AsekoDevice, features: frozenset[str]) -> None:
-        new_entities = _build_binary_sensor_entities([device], coordinator, features)
-        if new_entities:
-            _LOGGER.debug(
-                ">>> [sensor] Adding %s binary sensors for new features %s of device %s",
-                len(new_entities),
-                sorted(features),
-                device.serial_number,
-            )
-            async_add_entities(new_entities)
+        # Every entity the model can have exists already; the ones for the
+        # quantities the unit just started showing were created disabled.
+        grown = _build_binary_sensor_entities([device], coordinator, features)
+        async_enable_entities(
+            hass, "binary_sensor", [e.unique_id for e in grown if e.unique_id]
+        )
 
     config_entry.async_on_unload(
         coordinator.async_add_new_device_listener(_async_add_new_device)
@@ -334,7 +334,7 @@ def _build_binary_sensor_entities(
                 val,
             )
 
-            if description.feature not in device.features:
+            if description.feature not in device.possible_features:
                 _LOGGER.debug(
                     "   - Skipped binary sensor %s: not a feature of this unit", key
                 )

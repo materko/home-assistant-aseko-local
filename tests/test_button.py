@@ -89,7 +89,8 @@ def _dummy_entry(device):
 
 def _mock_add_entities(added):
     def _cb(new_entities, update_before_add=False, *, config_subentry_id=None):
-        added.extend(new_entities)
+        # only the buttons for pumps the unit has shown; the rest are disabled
+        added.extend(e for e in new_entities if e.entity_registry_enabled_default)
 
     return _cb
 

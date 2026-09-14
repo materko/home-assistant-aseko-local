@@ -39,4 +39,6 @@ def decode(
             present.add(feature.field)
         setattr(device, feature.field, value)
     device.features = frozenset(present)
+    device.present_features = device.features
+    device.possible_features = profile.feature_names
     return device

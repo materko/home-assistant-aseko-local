@@ -24,7 +24,7 @@ from homeassistant.util import dt as dt_util
 
 from . import AsekoLocalConfigEntry
 from .coordinator import AsekoLocalDataUpdateCoordinator
-from .entity import AsekoLocalEntity
+from .entity import AsekoLocalEntity, async_enable_entities, enabled_unique_ids
 from .models import AsekoDevice
 
 _LOGGER = logging.getLogger(__name__)
@@ -44,19 +44,26 @@ async def async_setup_entry(
     """Set up the writable backwash datetime entities."""
 
     coordinator = config_entry.runtime_data.coordinator
-    async_add_entities(_build_entities(coordinator.get_devices(), coordinator))
+    entities = _build_entities(coordinator.get_devices(), coordinator)
+    async_add_entities(entities)
+
+    async_enable_entities(hass, "datetime", enabled_unique_ids(entities))
 
     @callback
     def _async_add_new_device(device: AsekoDevice) -> None:
         new_entities = _build_entities([device], coordinator)
+        async_enable_entities(hass, "datetime", enabled_unique_ids(new_entities))
         if new_entities:
             async_add_entities(new_entities)
 
     @callback
     def _async_add_new_features(device: AsekoDevice, features: frozenset[str]) -> None:
-        new_entities = _build_entities([device], coordinator, features)
-        if new_entities:
-            async_add_entities(new_entities)
+        # Every entity the model can have exists already; the ones for the
+        # quantities the unit just started showing were created disabled.
+        grown = _build_entities([device], coordinator, features)
+        async_enable_entities(
+            hass, "datetime", [e.unique_id for e in grown if e.unique_id]
+        )
 
     config_entry.async_on_unload(
         coordinator.async_add_new_device_listener(_async_add_new_device)
@@ -83,7 +90,7 @@ def _build_entities(
     return [
         AsekoLastScheduledBackwashEntity(device, coordinator, LAST_SCHEDULED_BACKWASH)
         for device in devices
-        if "backwash_running" in device.features
+        if "backwash_running" in device.possible_features
     ]
 
 

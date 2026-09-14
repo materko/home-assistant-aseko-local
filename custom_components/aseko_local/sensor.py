@@ -27,7 +27,7 @@ from homeassistant.helpers.typing import StateType
 
 from . import AsekoLocalConfigEntry
 from .coordinator import AsekoLocalDataUpdateCoordinator
-from .entity import AsekoLocalEntity
+from .entity import AsekoLocalEntity, async_enable_entities, enabled_unique_ids
 from .models import (
     AsekoDevice,
     AsekoElectrodePolarity,
@@ -96,6 +96,15 @@ def device_has_pump(device: AsekoDevice, pump_key: str) -> bool:
     a pump nobody has mapped yet (pH+) is in no profile's list at all.
     """
     return PUMP_RUNNING_ATTR[pump_key] in device.features
+
+
+def model_has_pump(device: AsekoDevice, pump_key: str) -> bool:
+    """Return True if this unit's model can have the given chemical pump.
+
+    The entities for a pump are built when the model has it; they start
+    disabled until this unit shows the pump (``device_has_pump``).
+    """
+    return PUMP_RUNNING_ATTR[pump_key] in device.possible_features
 
 
 CONSUMPTION_SENSORS: list[AsekoConsumptionSensorEntityDescription] = [
@@ -875,9 +884,12 @@ async def async_setup_entry(
     _LOGGER.debug(">>> [sensor] Adding %s sensors", len(entities))
     async_add_entities(entities)
 
+    async_enable_entities(hass, "sensor", enabled_unique_ids(entities))
+
     @callback
     def _async_add_new_device(device: AsekoDevice) -> None:
         new_entities = _build_sensor_entities([device], coordinator)
+        async_enable_entities(hass, "sensor", enabled_unique_ids(new_entities))
         if new_entities:
             _LOGGER.debug(
                 ">>> [sensor] Adding %s sensors for new device %s",
@@ -888,15 +900,12 @@ async def async_setup_entry(
 
     @callback
     def _async_add_new_features(device: AsekoDevice, features: frozenset[str]) -> None:
-        new_entities = _build_sensor_entities([device], coordinator, features)
-        if new_entities:
-            _LOGGER.debug(
-                ">>> [sensor] Adding %s sensors for new features %s of device %s",
-                len(new_entities),
-                sorted(features),
-                device.serial_number,
-            )
-            async_add_entities(new_entities)
+        # Every entity the model can have exists already; the ones for the
+        # quantities the unit just started showing were created disabled.
+        grown = _build_sensor_entities([device], coordinator, features)
+        async_enable_entities(
+            hass, "sensor", [e.unique_id for e in grown if e.unique_id]
+        )
 
     config_entry.async_on_unload(
         coordinator.async_add_new_device_listener(_async_add_new_device)
@@ -907,8 +916,10 @@ async def async_setup_entry(
 
 
 def _is_present(description: AsekoSensorEntityDescription, device: AsekoDevice) -> bool:
-    """Return True if this unit has the quantity the description stands for."""
-    return description.feature is None or description.feature in device.features
+    """Return True if this unit's model has the quantity the description stands for."""
+    return (
+        description.feature is None or description.feature in device.possible_features
+    )
 
 
 def _wanted(feature: str | None, features: frozenset[str] | None) -> bool:
@@ -967,7 +978,7 @@ def _build_sensor_entities(
             )
 
         for description in CONSUMPTION_SENSORS:
-            if not device_has_pump(device, description.pump_key):
+            if not model_has_pump(device, description.pump_key):
                 continue
             if not _wanted(PUMP_RUNNING_ATTR[description.pump_key], features):
                 continue
@@ -1002,7 +1013,13 @@ class AsekoConsumptionSensorEntity(AsekoLocalEntity, RestoreSensor):
         coordinator: AsekoLocalDataUpdateCoordinator,
         description: AsekoConsumptionSensorEntityDescription,
     ) -> None:
-        AsekoLocalEntity.__init__(self, unit, coordinator, description)
+        AsekoLocalEntity.__init__(
+            self,
+            unit,
+            coordinator,
+            description,
+            feature=PUMP_RUNNING_ATTR[description.pump_key],
+        )
 
     @property
     def native_value(self) -> float | None:

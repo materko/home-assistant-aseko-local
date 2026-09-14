@@ -84,6 +84,8 @@ def test_every_frame_derived_field_has_a_feature() -> None:
     not_from_the_frame = {
         "device_type",  # set from the profile
         "features",
+        "possible_features",  # set from the profile
+        "present_features",  # the frame's features, kept apart from the sticky ones
         "flags",
         "last_seen",  # stamped by the coordinator
         "last_backwash",  # BackwashTracker

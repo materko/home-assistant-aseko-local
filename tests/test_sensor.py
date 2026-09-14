@@ -263,7 +263,11 @@ async def test_async_setup_salt_redox(hass) -> None:
     def mock_add_entities(
         new_entities, update_before_add=False, *, config_subentry_id=None
     ):
-        added_entities.extend(new_entities)
+        # Only what the unit has shown: every other quantity the model can
+        # have gets an entity too, created disabled (entity.py).
+        added_entities.extend(
+            e for e in new_entities if e.entity_registry_enabled_default
+        )
 
     await async_setup_entry(hass, dummy_entry, mock_add_entities)
     await binary_async_setup_entry(hass, dummy_entry, mock_add_entities)
@@ -405,7 +409,11 @@ async def test_async_setup_salt_clf(hass) -> None:
     def mock_add_entities(
         new_entities, update_before_add=False, *, config_subentry_id=None
     ):
-        added_entities.extend(new_entities)
+        # Only what the unit has shown: every other quantity the model can
+        # have gets an entity too, created disabled (entity.py).
+        added_entities.extend(
+            e for e in new_entities if e.entity_registry_enabled_default
+        )
 
     await async_setup_entry(hass, dummy_entry, mock_add_entities)
     await binary_async_setup_entry(hass, dummy_entry, mock_add_entities)
@@ -525,7 +533,11 @@ async def test_async_setup_net_clf(hass) -> None:
     def mock_add_entities(
         new_entities, update_before_add=False, *, config_subentry_id=None
     ):
-        added_entities.extend(new_entities)
+        # Only what the unit has shown: every other quantity the model can
+        # have gets an entity too, created disabled (entity.py).
+        added_entities.extend(
+            e for e in new_entities if e.entity_registry_enabled_default
+        )
 
     await async_setup_entry(hass, dummy_entry, mock_add_entities)
     await binary_async_setup_entry(hass, dummy_entry, mock_add_entities)
@@ -669,7 +681,11 @@ async def test_async_setup_profi_clf_redox(hass) -> None:
     def mock_add_entities(
         new_entities, update_before_add=False, *, config_subentry_id=None
     ):
-        added_entities.extend(new_entities)
+        # Only what the unit has shown: every other quantity the model can
+        # have gets an entity too, created disabled (entity.py).
+        added_entities.extend(
+            e for e in new_entities if e.entity_registry_enabled_default
+        )
 
     await async_setup_entry(hass, dummy_entry, mock_add_entities)
     await binary_async_setup_entry(hass, dummy_entry, mock_add_entities)
