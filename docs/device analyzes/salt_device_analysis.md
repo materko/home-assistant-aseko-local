@@ -250,7 +250,7 @@ configured period 1 covered that time of day anyway.
 The exception is a by-hand **backwash**: there the unit keeps transmitting
 throughout, with `0x04` set from ~30 s before the valve opens until ~20 s
 after it closes.  A cycle running while somebody is at the menu the button
-lives on is manual by observation, and `backwash_tracker` uses it as such
+lives on is manual by observation, and `trackers.backwash` uses it as such
 rather than inferring from the clock — see `_service_menu_open`.
 
 ---

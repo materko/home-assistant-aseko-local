@@ -58,7 +58,7 @@ class AsekoSensorEntityDescription(SensorEntityDescription):
 class AsekoConsumptionSensorEntityDescription(SensorEntityDescription):
     """Describes a chemical consumption sensor entity (value from Tracker)."""
 
-    pump_key: str = ""  # one of PUMP_KEYS in consumption_tracker
+    pump_key: str = ""  # one of PUMP_KEYS in trackers.consumption
     counter: str = ""  # "total" or "canister"
 
 
@@ -695,7 +695,7 @@ SENSORS: list[AsekoSensorEntityDescription] = [
     # get it wrong — the device never says why the valve opened.  Only the
     # timestamps stay exact.  "(estimated)" therefore marks just
     # next_scheduled_backwash, the one value that is calculated rather than
-    # measured.  See backwash_tracker.BackwashTracker._classify.
+    # measured.  See trackers.backwash.BackwashTracker._classify.
     AsekoSensorEntityDescription(
         key="last_backwash",
         feature="backwash_running",

@@ -524,7 +524,7 @@ Tests for the HOME decoder live in `tests/test_decode_v7.py`:
 
 ## Cross-References
 
-- Related decoder file: `custom_components/aseko_local/aseko_decoder.py`
+- Related decoder files: `custom_components/aseko_local/decoding/profiles/v7/home.py` (profile) and `custom_components/aseko_local/decoding/features/` (one file per value)
 - Actuator masks: `custom_components/aseko_local/aseko_v7_helpers.py` → `ACTUATOR_MASKS[AsekoDeviceType.HOME]`
 - `AsekoByte37Masks`: `custom_components/aseko_local/aseko_v7_helpers.py`
 - OXY analysis (reference for shared byte layout): `docs/device analyzes/oxy_device_analysis.md`

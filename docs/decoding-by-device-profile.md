@@ -32,8 +32,8 @@ Friction points:
 Three building blocks, all under `custom_components/aseko_local/decoding/`:
 
 - A **feature** is one target value: one field on `AsekoDevice`. pH is one feature, chlorine is another, `filtration_period_2_start` is another. That is about 65 features for the frame-derived fields we have today.
-- Each feature has one **decoder file** in `decoders/` that holds every known way to read it, its *variants*, for v7 and v8 alike, with one default per protocol. A feature declares `depends_on` for features it needs first. A feature file knows nothing about models.
-- A **profile** is one (protocol, model, firmware) combination: an ordered list of the features it has, `overrides` naming a different variant for the few features it reads differently, `evidence` for each feature, and semantic flags. Model knowledge lives here only.
+- Each feature has one **feature file** in `features/` that holds every known way to read it, its *readings*, for v7 and v8 alike, with one default per protocol. A feature declares `depends_on` for features it needs first. A feature file knows nothing about models.
+- A **profile** is one (protocol, model, firmware) combination: an ordered list of the features it has, `overrides` naming a different reading for the few features it reads differently, `evidence` for each feature, and semantic flags. Model knowledge lives here only.
 
 The decoder becomes a generic loop. The only protocol-specific code left is a frame parser.
 
@@ -44,7 +44,7 @@ The decoder becomes a generic loop. The only protocol-specific code left is a fr
 The feature file holds the *how*, the profile holds the *which*. Filtration pump state as the example:
 
 ```python
-# decoders/filtration_running.py — one value, knows nothing about models
+# features/filtration_running.py — one value, knows nothing about models
 class FiltrationRunning(Feature):
     field = "filtration_running"
     depends_on = (ServiceMenuOpen,)
@@ -77,7 +77,7 @@ HOME = Profile(
 SALT = Profile(
     protocol=V7, model=SALT,
     features=(..., *FILTRATION, ...),              # decode_v7 by default
-    flags={MENU_BIT_IS_PRESENCE_ONLY},             # read by backwash_tracker
+    flags={MENU_BIT_IS_PRESENCE_ONLY},             # read by trackers.backwash
 )
 
 # profiles/v7/net.py
@@ -87,14 +87,14 @@ NET = Profile(
 )
 ```
 
-| profile | FiltrationRunning listed? | override? | variant used | example |
+| profile | FiltrationRunning listed? | override? | reading used | example |
 |---|---|---|---|---|
 | v7 · SALT | yes | no | `decode_v7` (default): `byte[29] & 0x08` | `0x18` → running |
 | v7 · HOME | yes | **yes** | `decode_v7_menu_override`: off while the menu is open | `byte[37] 0x04` → off |
 | v7 · NET | no (no filtration output) | — | never called | field stays `None` |
 | v8 · NET | yes | no | `decode_v8`: `outs[2]` | `1` → running |
 
-So: for a feature read the same way everywhere, the answer is the default variant in its file. For a feature that differs, the answer is one line in that profile's `overrides`. For a feature a model does not have, the answer is its absence from that profile's `features`.
+So: for a feature read the same way everywhere, the answer is the default reading in its file. For a feature that differs, the answer is one line in that profile's `overrides`. For a feature a model does not have, the answer is its absence from that profile's `features`.
 
 ## What changes, what stays
 
@@ -105,12 +105,12 @@ So: for a feature read the same way everywhere, the answer is the default varian
 | Model detection | `_unit_type()` in v7, header `f2` in v8 | same rules, moved into `detect_profile` |
 | Firmware variant | inline bit test, HOME only, not stored | part of the profile key; stored on `AsekoDevice`; visible in diagnostics |
 | Which features a model has | four `*_TYPES` sets + `ACTUATOR_MASKS` + `byte37_routes_pump_type` | one ordered `features` list per profile |
-| How a model reads a feature | `if device_type == …` inside each `_fill_*` | variants in the feature's file, default per protocol; the profile names an override |
+| How a model reads a feature | `if device_type == …` inside each `_fill_*` | readings in the feature's file, default per protocol; the profile names an override |
 | Pump presence for entities | `sensor.py` / `button.py` import v7 masks | `feature in device.features` |
 | Whether an entity is created | the first frame's value is not None | the field is in `device.features`: the model reads it *and* this unit has it; a None value then shows as "unknown" |
-| Meaning of `byte[37]` bit 0x04 | `device_type is SALT` check in `backwash_tracker` | profile flag, tracker reads the flag |
-| v8 decoding | separate decoder, one layout | same loop and same feature files; a v8 frame parser plus v8 variants inside each feature |
-| Public entry point | `AsekoDecoder.decode(bytes)` | kept, so the ~80 decoder tests stayed the regression oracle |
+| Meaning of `byte[37]` bit 0x04 | `device_type is SALT` check in `backwash_tracker` | profile flag, `trackers.backwash` reads the flag |
+| v8 decoding | separate decoder, one layout | same loop and same feature files; a v8 frame parser plus v8 readings inside each feature |
+| Public entry point | `AsekoDecoder.decode(bytes)` | kept during the refactor, so the ~80 decoder tests stayed the regression oracle; then replaced by `decoding.decode(raw, protocol=None)` |
 
 ## Three things the design has to respect
 
@@ -147,4 +147,4 @@ The v7 decoder was 939 lines with about 80 tests. The entry points stayed, so th
 3. **Move pump presence and the SALT check out of the entity layer.** `sensor.py`, `button.py` and `backwash_tracker` stop importing v7 helpers. The v8 mask mismatch disappears with it.
 4. **Cut `_fill_*` and the v8 decoder body into feature files and switch to the loop.** Feature by feature, running the decoder tests after each move. Overrides appear only where a test proves a model reads differently.
 
-Layout, all under `custom_components/aseko_local/decoding/`: `decoders/<field>.py` (one per target value, both protocols inside; 64 files), `profiles/v7/` and `profiles/v8/` (one module per model with its `evidence`, plus `common.py` for what the models of a protocol share and `__init__.py` for the model lookup), `frame.py` (the two parsers), `profile.py` (the `Profile` class and detection helpers), `engine.py` (the loop) and `support_matrix.py` (renders `docs/support_matrix.md`).  `aseko_decoder.py` and `aseko_decoder_v8.py` remain as thin facades.
+Layout, all under `custom_components/aseko_local/decoding/`: `features/<field>.py` (one per target value, both protocols inside), `profiles/v7/` and `profiles/v8/` (one module per model with its `evidence`, plus `common.py` for what the models of a protocol share and `__init__.py` for the model lookup), `frames/` (`v7.py` and `v8.py` parsers, `values.py` helpers, `protocol.py`), `profile.py` (the `Profile` class and detection helpers), `engine.py` (the loop), `support_matrix.py` (renders `docs/support_matrix.md`) and `__init__.py` with `decode()`, the one entry point.

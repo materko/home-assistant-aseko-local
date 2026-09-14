@@ -7,7 +7,7 @@
 | Model | ASIN AQUA NET |
 | Firmware | 8.x (text frame) |
 | Source | Two production frames (Sep 16 2025, Apr 13 2026) + Aseko Pool Live app screenshots |
-| Decoded by | `AsekoV8Decoder` in `aseko_decoder_v8.py` |
+| Decoded by | `decoding.decode()` with the profile in `decoding/profiles/v8/net.py` |
 
 ---
 

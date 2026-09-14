@@ -3,12 +3,12 @@
 This module defines the **protocol-agnostic target schema** (``AsekoDevice``)
 that the entity layer (sensors, binary sensors, buttons, ...) consumes.  It
 also defines the device-type enum, the probe-type enum, the electrolyser
-direction enum, the filtration-schedule enum, and the two enums that describe
+polarity enum, the filtration-schedule enum, and the two enums that describe
 *how* a device was decoded: the fields its profile reads and the semantic flags its
 profile carries.
 
-Byte-level knowledge lives in ``decoding/``: one decoder file per field in
-``decoding/decoders/``, and one profile per (protocol, model) in
+Byte-level knowledge lives in ``decoding/``: one feature file per field in
+``decoding/features/``, and one profile per (protocol, model) in
 ``decoding/profiles/``.  Nothing in this module knows a byte offset, and
 nothing outside ``decoding/`` should either: the entity layer asks
 ``AsekoDevice.features`` and ``AsekoDevice.flags`` instead.
@@ -44,7 +44,7 @@ class AsekoProfileFlag(Enum):
     # runs while the bit is on is manual as a matter of observation.  Where
     # not set (HOME, Issue #133) the same bit is a standing pump
     # override that can stay on indefinitely, so it proves nothing about who
-    # started a backwash.  Read by ``backwash_tracker``.
+    # started a backwash.  Read by ``trackers.backwash``.
     MENU_BIT_IS_PRESENCE_ONLY = "menu_bit_is_presence_only"
 
 

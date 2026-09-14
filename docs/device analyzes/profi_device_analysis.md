@@ -252,12 +252,12 @@ positions as HOME/SALT/OXY:
 - `byte[69:71]` = backwash time (HH:MM)
 - `byte[71]` = backwash duration (× 10 s)
 - `byte[29]` bit `0x01` = backwash relay active (combined with `byte[29]` bit `0x02`
-  for the water-filling state — see [`backwash_tracker.py`](../../custom_components/aseko_local/backwash_tracker.py)).
+  for the water-filling state — see [`trackers/backwash.py`](../../custom_components/aseko_local/trackers/backwash.py)).
   Note: byte[12] is **not** the backwash flag — it is the dosing-warning bitmask
   (see [`home_device_analysis.md`](home_device_analysis.md) §"Dosing warnings & alarms").
 
 `last_backwash` and `next_backwash` are derived (not from raw bytes) and depend on the
-[`BackwashTracker`](../../custom_components/aseko_local/backwash_tracker.py) state
+[`BackwashTracker`](../../custom_components/aseko_local/trackers/backwash.py) state
 across coordinator updates.
 
 **Live confirmation pending**.
@@ -375,8 +375,8 @@ early-return (like OXY and HOME) once the correct byte positions are confirmed.
 
 ## Cross-References
 
-- Decoder file: `custom_components/aseko_local/aseko_decoder.py`
-- Actuator masks: `custom_components/aseko_local/aseko_data.py` → `ACTUATOR_MASKS[AsekoDeviceType.PROFI]`
+- Profile: `custom_components/aseko_local/decoding/profiles/v7/profi.py` (features, overrides, evidence)
+- Feature files: `custom_components/aseko_local/decoding/features/`
 - Unit-type constant: `custom_components/aseko_local/const.py` → `UNIT_TYPE_PROFI = 0x10`
 - Test fixture: `tests/test_sensor.py` → `_make_profi_clf_redox_bytes`
 - Test: `tests/test_sensor.py` → `test_async_setup_profi_clf_redox` (asserts 35 entities
