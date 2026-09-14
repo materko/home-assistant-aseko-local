@@ -101,7 +101,7 @@ The card is a front end for this action, so an automation or a dashboard button 
 
 Which values are read on which model, and which of them still lack a confirming capture, is listed per model in the [support matrix](docs/support_matrix.md). It is generated from the decoder's device profiles, so it is always current; every ❓ in it is a value a recorded test case from that model would settle.
 
-How the decoder is put together (one feature file per value, one profile per model) is described in [Decoding by device profile](docs/decoding-by-device-profile.md). For contributors: [Adding a model or a value](docs/adding-a-model.md), [Evidence rules](docs/evidence-rules.md) (what ✅ 👁 ❓ 🔍 mean and how a value earns them), and the per-model byte maps in [device analyses](docs/device%20analyzes/).
+How the decoder is put together (one feature file per value, one profile per model) is described in [Decoding by device profile](docs/decoding-by-device-profile.md). When something looks off, see [Troubleshooting](docs/troubleshooting.md). For contributors: [Adding a model or a value](docs/adding-a-model.md), [Evidence rules](docs/evidence-rules.md) (what ✅ 👁 ❓ 🔍 mean and how a value earns them), and the per-model byte maps in [device analyses](docs/device%20analyzes/).
 
 ### Entities that appear later or go unavailable
 

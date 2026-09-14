@@ -2,7 +2,7 @@
 
 How frames from Aseko pool units become Home Assistant entities. The
 [support matrix](support_matrix.md), generated from the profiles, says which
-values are read on which model. Short guides: [Adding a model or a value](adding-a-model.md),
+values are read on which model. Short guides: [Troubleshooting](troubleshooting.md), [Adding a model or a value](adding-a-model.md),
 [Evidence rules](evidence-rules.md). Per-model byte maps: [device analyses](device%20analyzes/).
 
 ## Overview

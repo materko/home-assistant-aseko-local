@@ -186,7 +186,7 @@ def build_export_zip(
             f"created: {created.isoformat()}",
             "",
             "frames-<entry>.jsonl  every frame and marker, oldest first, one JSON",
-            "                      object a line; 'k' is v7 / v8 / partial / mark",
+            "                      object a line; 'k' is v7 / v8 / partial / rejected / mark",
             "cases-<entry>.json    the cases (markers) in this export; 'photo' names the",
             "                      file in photos/, 'frames' is false once the frames",
             "                      of that time have aged out of the log",
