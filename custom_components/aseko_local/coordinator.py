@@ -16,7 +16,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
-from .const import CONF_CLOCK_ALERT_MINUTES
+from .const import CONF_CLOCK_ALERT_MINUTES, MARK_DUMP_WAIT_TIMEOUT
 from .models import AsekoData, AsekoDevice
 from .recording.frame_log import (
     KIND_PARTIAL,
@@ -182,7 +182,7 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         if _LOGGER.isEnabledFor(logging.DEBUG):
             _LOGGER.debug(
                 "🔎 Before update: known serials=%s",
-                [d.serial_number for d in (new_data.get_all() or [])],
+                [d.serial_number for d in new_data.get_all()],
             )
 
         is_new_device = False
@@ -226,7 +226,7 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
             _LOGGER.error("❌ Received device without serial_number, not stored!")
             return  # abort, nothing to propagate
 
-        devices = new_data.get_all() or []
+        devices = new_data.get_all()
         _LOGGER.debug("📊 Currently %s devices in new_data", len(devices))
 
         _LOGGER.debug(
@@ -347,20 +347,25 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         device.last_backwash_trigger = tracker.last_trigger
         device.next_scheduled_backwash = tracker.next_scheduled_backwash(device, now)
 
-    def unit_clock_now(self, serial_number: int | None = None) -> datetime:
-        """Now as the unit's clock shows it, at the latest of the matching units.
+    def unit_clock_now(self, serial_number: int | None = None) -> datetime | None:
+        """Now on the clock of the units a backwash date is typed in for.
 
-        A typed-in last scheduled backwash is on the unit's clock; one running
-        ahead of Home Assistant has already done a cycle that is still in the
-        future on Home Assistant's clock.
+        A typed-in last scheduled backwash is on the unit's clock, so "in the
+        future" is judged there: a unit ahead of Home Assistant has already
+        run a cycle Home Assistant has not reached, one behind has not.  With
+        several units (no ``serial_number``) the earliest of them counts, so
+        the value is in the past for every unit it is written to.  A unit
+        whose clock is not measured counts as Home Assistant's clock.  None
+        when this entry has no such unit.
         """
-        ahead = [
-            device.clock_offset
+        now = dt_util.now()
+        times = [
+            now + timedelta(minutes=device.clock_offset or 0.0)
             for device in self.get_devices()
-            if device.clock_offset is not None
+            if device.serial_number in self._backwash_trackers
             and (serial_number is None or device.serial_number == serial_number)
         ]
-        return dt_util.now() + timedelta(minutes=max([0.0, *ahead]))
+        return min(times, default=None)
 
     def set_last_scheduled_backwash(
         self, moment: datetime, serial_number: int | None = None
@@ -590,6 +595,36 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         self._frame_log_save_requested = now
         self._frame_log_store.async_delay_save(self.frame_log.to_store, delay)
 
+    async def async_mark_after_frame(
+        self,
+        note: str | None,
+        extra: dict[str, Any],
+        *,
+        wait: bool,
+        serial_number: int | None,
+        generation: int,
+    ) -> dict[str, Any] | None:
+        """Wait for the next frame when asked, then write a marker.
+
+        Shared by ``mark_dump`` and the photo upload.  Returns the marker with
+        ``waited_for_frame``, or None when recording was stopped or deleted
+        while waiting (the generation moved on).
+        """
+        waited = None
+        if wait:
+            waited = await self.async_wait_for_frame(
+                MARK_DUMP_WAIT_TIMEOUT, serial_number
+            )
+        try:
+            marker = self.mark_dump(
+                note,
+                {**extra, "serial_number": serial_number, "waited_for_frame": waited},
+                generation=generation,
+            )
+        except RecordingOff:
+            return None
+        return {**marker, "waited_for_frame": waited}
+
     def mark_dump(
         self,
         note: str | None = None,
@@ -736,17 +771,13 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         return self.data.get(serial_number) if self.data is not None else None
 
     def get_devices(self) -> list[AsekoDevice]:
-        devices = self.data.get_all() or [] if self.data is not None else []
+        devices = self.data.get_all() if self.data is not None else []
         _LOGGER.debug(
             "get_devices() → %s devices: %s",
             len(devices),
             [d.serial_number for d in devices],
         )
         return devices
-
-    def get_backwash_tracker(self, serial_number: int) -> BackwashTracker | None:
-        """Return the backwash tracker for a given device serial number."""
-        return self._backwash_trackers.get(serial_number)
 
     async def async_setup_backwash_trackers(self) -> None:
         """Pre-load persisted backwash timestamps from storage.
@@ -760,7 +791,7 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         """
         if self.data is None:
             return
-        for device in self.data.get_all() or []:
+        for device in self.data.get_all():
             serial = device.serial_number
             if serial is None or serial in self._backwash_trackers:
                 continue

@@ -25,7 +25,14 @@ from custom_components.aseko_local.sensor import _build_sensor_entities
 
 from .test_decode_v7 import _make_base_bytes
 
-logging.disable(logging.CRITICAL)
+
+@pytest.fixture(autouse=True)
+def _quiet_logging():
+    """Silence logging for this module's tests only, and turn it back on."""
+    logging.disable(logging.CRITICAL)
+    yield
+    logging.disable(logging.NOTSET)
+
 
 SERIAL = 1234  # what _make_base_bytes writes into bytes 0-3
 

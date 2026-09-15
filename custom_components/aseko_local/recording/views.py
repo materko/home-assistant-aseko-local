@@ -35,8 +35,7 @@ from homeassistant.exceptions import Unauthorized
 from homeassistant.helpers.http import KEY_HASS
 from homeassistant.util import dt as dt_util
 
-from ..const import DOMAIN, MARK_DUMP_WAIT_TIMEOUT
-from ..coordinator import RecordingOff
+from ..const import DOMAIN
 from .photos import PhotoStore, build_export_zip
 
 _LOGGER = logging.getLogger(__name__)
@@ -158,32 +157,21 @@ class AsekoPhotoView(HomeAssistantView):
         saved = await hass.async_add_executor_job(store.save, data, received, note)
 
         async def mark(entry: Any) -> dict[str, Any] | None:
-            coordinator = entry.runtime_data.coordinator
-            waited = None
-            if wait:
-                waited = await coordinator.async_wait_for_frame(
-                    MARK_DUMP_WAIT_TIMEOUT, serial_number
-                )
-            try:
-                marker = coordinator.mark_dump(
-                    note,
-                    {
-                        "photo": saved.file,
-                        "captured": saved.captured,
-                        "serial_number": serial_number,
-                        "waited_for_frame": waited,
-                    },
-                    generation=generations[entry.entry_id],
-                )
-            except RecordingOff:
-                # stopped or deleted while this upload waited
-                return None
+            marker = await entry.runtime_data.coordinator.async_mark_after_frame(
+                note,
+                {"photo": saved.file, "captured": saved.captured},
+                wait=wait,
+                serial_number=serial_number,
+                generation=generations[entry.entry_id],
+            )
+            if marker is None:
+                return None  # stopped or deleted while this upload waited
             return {
                 "entry": entry.title,
                 "marker": marker["marker"],
                 "time": dt_util.as_local(marker["time"]).isoformat(),
                 "seconds_since_last_frame": marker["seconds_since_last_frame"],
-                "waited_for_frame": waited,
+                "waited_for_frame": marker["waited_for_frame"],
             }
 
         results = await asyncio.gather(*(mark(entry) for entry in entries))
@@ -285,9 +273,10 @@ class AsekoExportView(HomeAssistantView):
         newest: dict[str, int] = {}
         for entry in loaded:
             log = entry.runtime_data.coordinator.frame_log
-            markers = [m for m in log.markers() if not (only_new and m["downloaded"])]
+            listed = log.markers()
+            markers = [m for m in listed if not (only_new and m["downloaded"])]
             wanted_photos.update(m["photo"] for m in markers if m.get("photo"))
-            newest[entry.entry_id] = max((m["n"] for m in log.markers()), default=0)
+            newest[entry.entry_id] = max((m["n"] for m in listed), default=0)
             # one snapshot for the frames and the diagnostics' frame log, read
             # once: both from the same moment
             records, frame_log = await hass.async_add_executor_job(

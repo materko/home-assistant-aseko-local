@@ -245,3 +245,35 @@ def test_offset_compares_wall_clocks_from_a_utc_receive_time(
 
     assert tracker.offset_minutes == offset
     assert tracker.out_of_sync is (abs(offset) >= DEFAULT_ALERT_MINUTES)
+
+
+# ── "in the future" on the unit's clock (audit B2) ───────────────────────────
+
+
+def test_unit_clock_now_is_signed_and_the_earliest_of_the_units(monkeypatch):
+    from types import SimpleNamespace
+
+    from homeassistant.util import dt as dt_util
+
+    from custom_components.aseko_local.coordinator import (
+        AsekoLocalDataUpdateCoordinator,
+    )
+
+    now = datetime(2026, 9, 15, 10, 0, tzinfo=UTC)
+    monkeypatch.setattr(dt_util, "now", lambda: now)
+    coordinator = object.__new__(AsekoLocalDataUpdateCoordinator)
+    devices = [
+        SimpleNamespace(serial_number=1, clock_offset=-60.0),  # an hour behind
+        SimpleNamespace(serial_number=2, clock_offset=5.5),
+        SimpleNamespace(serial_number=3, clock_offset=None),  # not measured
+        SimpleNamespace(serial_number=4, clock_offset=30.0),  # no backwash valve
+    ]
+    coordinator.get_devices = lambda: devices
+    coordinator._backwash_trackers = {1: None, 2: None, 3: None}
+
+    assert coordinator.unit_clock_now(1) == now - timedelta(hours=1)
+    assert coordinator.unit_clock_now(2) == now + timedelta(minutes=5.5)
+    assert coordinator.unit_clock_now(3) == now
+    assert coordinator.unit_clock_now(4) is None
+    # for every unit at once: in the past for each of them
+    assert coordinator.unit_clock_now() == now - timedelta(hours=1)

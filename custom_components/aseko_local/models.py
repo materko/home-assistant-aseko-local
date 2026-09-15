@@ -414,7 +414,7 @@ class AsekoData:
         for f in fields(AsekoDevice):
             setattr(dest, f.name, getattr(src, f.name))
 
-    def get_all(self) -> list[AsekoDevice] | None:
+    def get_all(self) -> list[AsekoDevice]:
         """Return the list of Aseko devices."""
         return list(self.devices.values())
 

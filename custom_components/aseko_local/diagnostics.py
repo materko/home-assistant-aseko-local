@@ -406,7 +406,7 @@ async def async_get_config_entry_diagnostics(
     """
 
     coordinator = config_entry.runtime_data.coordinator
-    devices = coordinator.get_devices() or []
+    devices = coordinator.get_devices()
 
     devices_info: list[dict[str, Any]] = []
 

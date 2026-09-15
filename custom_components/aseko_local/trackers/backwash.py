@@ -505,13 +505,6 @@ class BackwashTracker:
             self._relay_on_since = None
             self._service_menu_in_window = False
 
-    @property
-    def _offset(self) -> timedelta | None:
-        """The unit clock minus Home Assistant's, or None while not measured."""
-        if self._clock_offset_minutes is None:
-            return None
-        return timedelta(minutes=self._clock_offset_minutes)
-
     def _on_unit_clock(
         self, moment: datetime, offset_minutes: float | None = None
     ) -> datetime:

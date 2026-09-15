@@ -60,6 +60,27 @@ class AsekoConsumptionTracker:
         """True once any counter came from the coordinator's store."""
         return bool(self.restored_keys)
 
+    def _credit(self, key: str, now: datetime, flowrate_per_min: int | None) -> None:
+        """Add the pumped volume since the pump's last ON frame, if there was one."""
+        last = self._last_on[key]
+        if last is None or not flowrate_per_min:
+            return
+        # a clock set back must not take consumption away
+        raw_delta = max(now - last, timedelta(0))
+        # Cap delta to prevent phantom consumption after outages
+        effective_delta = min(raw_delta, MAX_PUMP_INTERVAL)
+        ml = (effective_delta.total_seconds() / 60.0) * flowrate_per_min
+        self._counters[key].total += ml
+        self._counters[key].canister += ml
+        _LOGGER.debug(
+            "Tracker[%s]: +%.1f mL (dt=%.1fs capped=%.1fs flowrate=%d mL/min)",
+            key,
+            ml,
+            raw_delta.total_seconds(),
+            effective_delta.total_seconds(),
+            flowrate_per_min,
+        )
+
     # ------------------------------------------------------------------ #
     # Public API                                                           #
     # ------------------------------------------------------------------ #
@@ -91,43 +112,14 @@ class AsekoConsumptionTracker:
                 continue
 
             if is_on and flowrate_per_min:
-                last = self._last_on[key]
-                if last is not None:
-                    # a clock set back must not take consumption away
-                    raw_delta = max(now - last, timedelta(0))
-                    # Cap delta to prevent phantom consumption after outages
-                    effective_delta = min(raw_delta, MAX_PUMP_INTERVAL)
-                    ml = (effective_delta.total_seconds() / 60.0) * flowrate_per_min
-                    self._counters[key].total += ml
-                    self._counters[key].canister += ml
-                    _LOGGER.debug(
-                        "Tracker[%s]: +%.1f mL (dt=%.1fs capped=%.1fs flowrate=%d mL/min)",
-                        key,
-                        ml,
-                        raw_delta.total_seconds(),
-                        effective_delta.total_seconds(),
-                        flowrate_per_min,
-                    )
+                # the interval since the last ON frame, at the current rate
+                self._credit(key, now, flowrate_per_min)
                 self._last_on[key] = now
                 self._last_flowrate[key] = flowrate_per_min
             else:
-                # Pump just turned OFF – credit the final ON→OFF interval
-                last = self._last_on[key]
-                saved_flowrate = self._last_flowrate[key]
-                if last is not None and saved_flowrate:
-                    raw_delta = max(now - last, timedelta(0))
-                    effective_delta = min(raw_delta, MAX_PUMP_INTERVAL)
-                    ml = (effective_delta.total_seconds() / 60.0) * saved_flowrate
-                    self._counters[key].total += ml
-                    self._counters[key].canister += ml
-                    _LOGGER.debug(
-                        "Tracker[%s] OFF: +%.1f mL (dt=%.1fs capped=%.1fs flowrate=%d mL/min)",
-                        key,
-                        ml,
-                        raw_delta.total_seconds(),
-                        effective_delta.total_seconds(),
-                        saved_flowrate,
-                    )
+                # Pump just turned OFF – credit the final ON→OFF interval at
+                # the rate it ran with
+                self._credit(key, now, self._last_flowrate[key])
                 self._last_on[key] = None
                 self._last_flowrate[key] = None
 

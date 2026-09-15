@@ -26,8 +26,6 @@ class AsekoCloudMirror:
         self._task: Optional[asyncio.Task] = None
         self._read_task: Optional[asyncio.Task] = None
         self._writer: Optional[asyncio.StreamWriter] = None
-        self._reader: Optional[asyncio.StreamReader] = None
-        self._connected_event = asyncio.Event()
         self._last_connect: float = 0.0
         self._reconnect_interval = reconnect_interval
 
@@ -106,9 +104,7 @@ class AsekoCloudMirror:
                             self._host, self._port
                         )
                         self._writer = writer
-                        self._reader = reader
                         self._last_connect = time.time()
-                        self._connected_event.set()
                         _LOGGER.debug(
                             "Mirror connected to %s:%d", self._host, self._port
                         )
@@ -184,6 +180,4 @@ class AsekoCloudMirror:
                 pass
             finally:
                 self._writer = None
-                self._reader = None
-                self._connected_event.clear()
                 _LOGGER.debug("Mirror connection closed.")

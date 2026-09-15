@@ -27,7 +27,14 @@ from custom_components.aseko_local.recording.photos import PhotoStore
 
 from .test_decode_v7 import _make_base_bytes
 
-logging.disable(logging.CRITICAL)
+
+@pytest.fixture(autouse=True)
+def _quiet_logging():
+    """Silence logging for this module's tests only, and turn it back on."""
+    logging.disable(logging.CRITICAL)
+    yield
+    logging.disable(logging.NOTSET)
+
 
 SERIAL = 1234  # the serial number of the base frame
 
@@ -488,7 +495,9 @@ async def test_a_case_keeps_its_unit_and_that_no_frame_came(
     tmp_path, monkeypatch
 ) -> None:
     """Audit A3: after a refresh the case still says which unit, and the timeout."""
-    monkeypatch.setattr(views, "MARK_DUMP_WAIT_TIMEOUT", 0.01)
+    from custom_components.aseko_local import coordinator as coordinator_module
+
+    monkeypatch.setattr(coordinator_module, "MARK_DUMP_WAIT_TIMEOUT", 0.01)
     hass, (entry,) = _setup(tmp_path)
     _frame_arrives(entry)
 

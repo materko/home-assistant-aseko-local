@@ -255,10 +255,6 @@ class AsekoLocalOptionsFlowHandler(OptionsFlow):
                         unit_of_measurement="min",
                     )
                 ),
-                # vol.Optional(
-                #     CONF_ENABLE_RAW_LOGGING,
-                #     default=config_entry.options.get(CONF_ENABLE_RAW_LOGGING, False),
-                # ): bool,
             }
         )
 

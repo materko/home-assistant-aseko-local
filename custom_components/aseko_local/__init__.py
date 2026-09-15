@@ -31,7 +31,7 @@ from .const import (
     DOMAIN,
     MARK_DUMP_WAIT_TIMEOUT,
 )
-from .coordinator import AsekoLocalDataUpdateCoordinator, RecordingOff
+from .coordinator import AsekoLocalDataUpdateCoordinator
 from .forwarder import AsekoCloudMirror
 from .models import AsekoDevice
 from .recording.views import async_setup_recording
@@ -46,9 +46,6 @@ PLATFORMS: list[Platform] = [
     Platform.DATETIME,
     Platform.SENSOR,
 ]
-
-_MIRRORS: dict[str, AsekoCloudMirror] = {}
-_SERVERS: dict[str, AsekoDeviceServer] = {}
 
 SERVICE_RESET_CONSUMPTION = "reset_consumption"
 SERVICE_SET_LAST_SCHEDULED_BACKWASH = "set_last_scheduled_backwash"
@@ -313,15 +310,19 @@ def _async_register_backwash_services(hass: HomeAssistant) -> None:
             if timestamp.tzinfo is None:
                 timestamp = timestamp.replace(tzinfo=dt_util.DEFAULT_TIME_ZONE)
 
-            latest = max(
+            # judged on the clocks of the units it is written to, before any
+            # of them is written
+            unit_now = min(
                 (
-                    entry.runtime_data.coordinator.unit_clock_now(serial)
+                    now
                     for entry in hass.config_entries.async_entries(DOMAIN)
                     if getattr(entry, "runtime_data", None)
+                    and (now := entry.runtime_data.coordinator.unit_clock_now(serial))
+                    is not None
                 ),
                 default=dt_util.now(),
             )
-            if timestamp > latest:
+            if timestamp > unit_now:
                 raise ServiceValidationError(
                     f"{timestamp.isoformat()} is in the future; "
                     "the last scheduled backwash must already have happened"
@@ -441,26 +442,21 @@ def _async_register_mark_dump_service(hass: HomeAssistant) -> None:
             }
 
             async def mark(entry: ConfigEntry) -> dict | None:
-                coordinator = entry.runtime_data.coordinator
-                waited = None
-                if wait:
-                    waited = await coordinator.async_wait_for_frame(
-                        MARK_DUMP_WAIT_TIMEOUT, serial_number
-                    )
-                try:
-                    marker = coordinator.mark_dump(
-                        note,
-                        {"serial_number": serial_number, "waited_for_frame": waited},
-                        generation=generations[entry.entry_id],
-                    )
-                except RecordingOff:
+                marker = await entry.runtime_data.coordinator.async_mark_after_frame(
+                    note,
+                    {},
+                    wait=wait,
+                    serial_number=serial_number,
+                    generation=generations[entry.entry_id],
+                )
+                if marker is None:
                     return None  # stopped or deleted while waiting
                 return {
                     "entry": entry.title,
                     "marker": marker["marker"],
                     "time": dt_util.as_local(marker["time"]).isoformat(),
                     "seconds_since_last_frame": marker["seconds_since_last_frame"],
-                    "waited_for_frame": waited,
+                    "waited_for_frame": marker["waited_for_frame"],
                     "seconds_after_tap": round(
                         (marker["time"] - tapped).total_seconds(), 1
                     ),
@@ -539,17 +535,4 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     hass.services.async_remove(DOMAIN, service)
                     _LOGGER.debug("Unregistered service %s.%s", DOMAIN, service)
 
-        # Remove runtime_data to avoid stale references
-        domain_data = hass.data.get(DOMAIN)
-        if domain_data is not None:
-            domain_data.pop(entry.entry_id, None)
-            if not domain_data:
-                hass.data.pop(DOMAIN, None)
-
     return unload_ok
-
-
-async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Handle reload of the entry."""
-    await async_unload_entry(hass, entry)
-    await async_setup_entry(hass, entry)

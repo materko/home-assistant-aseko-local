@@ -18,7 +18,6 @@ MESSAGE_SIZE = 120
 # How long mark_dump and the photo upload wait for the next frame.  A unit
 # sends every ten seconds or so, but not while its settings menu is open.
 MARK_DUMP_WAIT_TIMEOUT = 60
-MAX_CLF_LIMIT = 100
 
 # Connection timeout in seconds (3x normal 10s interval)
 READ_TIMEOUT = 30.0
@@ -32,7 +31,6 @@ WATER_FLOW_TO_PROBES = 0xAA
 # the period-2 checkbox and diffing two frames (PR #122 review). The decoder
 # applies this only to the verified device types (FILTRATION_PERIOD2_FLAG_TYPES);
 # other types report period 2 as-is until their mechanism is verified.
-FILTRATION_PERIOD2_ENABLED_MASK = 0x20
 
 # Probe missing flags
 # (unfortunately seems not to be true for HOME)
@@ -53,9 +51,7 @@ UNSPECIFIED_VALUE = 0xFF
 UNSPECIFIED_V8 = -500  # v8 text frame sentinel for absent/unavailable probe readings
 
 # Config / option keys
-CONF_ENABLE_RAW_LOGGING = "enable_raw_logging"
 CONF_FORWARDER_ENABLED = "forwarder_enabled"
 CONF_FORWARDER_HOST = "forwarder_host"
-CONF_FORWARDER_PORT = "forwarder_port"
 # Minutes the unit clock may be off before clock_out_of_sync turns on
 CONF_CLOCK_ALERT_MINUTES = "clock_alert_minutes"

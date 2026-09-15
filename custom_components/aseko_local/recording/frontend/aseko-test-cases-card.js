@@ -340,11 +340,18 @@ class AsekoTestCasesCard extends HTMLElement {
   connectedCallback() {
     this._poll();
     clearInterval(this._timer);
-    this._timer = setInterval(() => this._poll(), 3000);
+    // the timer waits for an unanswered poll; a slow Home Assistant must not
+    // pile up requests
+    this._timer = setInterval(() => {
+      if (!this._polling) this._poll();
+    }, 3000);
   }
 
   disconnectedCallback() {
     clearInterval(this._timer);
+    // an answer arriving after this is stale
+    this._pollSeq = (this._pollSeq || 0) + 1;
+    this._polling = false;
     this._pruneThumbs(null);
     this._listKey = "";
   }
@@ -708,10 +715,17 @@ class AsekoTestCasesCard extends HTMLElement {
 
   async _poll() {
     if (!this._hass || !this.shadowRoot) return;
+    // Only the newest request may paint: an older answer arriving late (after
+    // a toggle asked for a fresh one, or after the card left the page) would
+    // put the card back to a state that is gone.
+    const seq = (this._pollSeq = (this._pollSeq || 0) + 1);
+    const stale = () => seq !== this._pollSeq || !this.isConnected;
+    this._polling = true;
     try {
       const response = await this._hass.fetchWithAuth(STATUS_URL);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
+      if (stale()) return;
       const ages = data.entries.flatMap((e) => Object.values(e.seconds_since_last_frame));
       const youngest = ages.length ? Math.min(...ages) : null;
       this._el("age").innerHTML = ages.length
@@ -723,8 +737,11 @@ class AsekoTestCasesCard extends HTMLElement {
       this._renderCases(data.entries);
       this._renderUnits(data.entries);
     } catch (err) {
+      if (stale()) return;
       this._el("age").textContent = this._t("last_frame_error", { e: err.message });
       this._el("age").dataset.state = "error";
+    } finally {
+      if (seq === this._pollSeq) this._polling = false;
     }
   }
 

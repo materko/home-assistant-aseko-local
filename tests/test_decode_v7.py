@@ -360,7 +360,7 @@ def test_decode_electrolyzer_data() -> None:
     data[20] = 32  # salinity = 3.2
     data[21] = 80  # chlorine_production
     data[29] = 0x50  # electrolysis running, polarity bit 0x40 = right
-    data[16:18] = (50).to_bytes(2, "big")  # free_chlorine < MAX_CLF_LIMIT
+    data[16:18] = (50).to_bytes(2, "big")  # a free chlorine reading in range
     data[14:16] = (700).to_bytes(2, "big")  # ph
     data[52] = 70
 

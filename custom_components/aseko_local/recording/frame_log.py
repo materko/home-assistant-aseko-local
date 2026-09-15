@@ -242,10 +242,6 @@ class FrameLog:
             self._dropped_chunks += 1
             self._start_chunk()
 
-    def marker_count(self) -> int:
-        """How many markers have been written since the log began."""
-        return self._next_marker - 1
-
     def markers(self) -> list[dict[str, Any]]:
         """Every marker still listed, oldest first, with a ``downloaded`` flag.
 

@@ -887,7 +887,7 @@ async def async_setup_entry(
     async_remove_retired_entities(hass, config_entry)
 
     coordinator = config_entry.runtime_data.coordinator
-    devices = coordinator.get_devices() or []
+    devices = coordinator.get_devices()
     _LOGGER.debug(
         ">>> [sensor] Found %s devices: %s",
         len(devices),
