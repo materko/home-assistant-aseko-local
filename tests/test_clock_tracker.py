@@ -3,9 +3,15 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, time, timedelta
+from types import SimpleNamespace
+from zoneinfo import ZoneInfo
 
 import pytest
+from homeassistant.util import dt as dt_util
 
+from custom_components.aseko_local.coordinator import (
+    AsekoLocalDataUpdateCoordinator,
+)
 from custom_components.aseko_local.decoding import decode
 from custom_components.aseko_local.trackers.clock import (
     DEFAULT_ALERT_MINUTES,
@@ -23,8 +29,6 @@ T0 = datetime(2026, 9, 14, 8, 0, tzinfo=UTC)
 @pytest.fixture(autouse=True)
 def _home_assistant_in_utc():
     """The v8 reading has no zone of its own; compare it in UTC here."""
-    from homeassistant.util import dt as dt_util
-
     original = dt_util.DEFAULT_TIME_ZONE
     dt_util.set_default_time_zone(UTC)
     yield
@@ -220,9 +224,6 @@ def test_offset_compares_wall_clocks_from_a_utc_receive_time(
     received_utc, unit_wall, offset
 ):
     """What the server hands over (UTC) through the real v7 decoder."""
-    from zoneinfo import ZoneInfo
-
-    from homeassistant.util import dt as dt_util
 
     zone = ZoneInfo("Europe/Bratislava")
     dt_util.set_default_time_zone(zone)
@@ -251,13 +252,6 @@ def test_offset_compares_wall_clocks_from_a_utc_receive_time(
 
 
 def test_unit_clock_now_is_signed_and_the_earliest_of_the_units(monkeypatch):
-    from types import SimpleNamespace
-
-    from homeassistant.util import dt as dt_util
-
-    from custom_components.aseko_local.coordinator import (
-        AsekoLocalDataUpdateCoordinator,
-    )
 
     now = datetime(2026, 9, 15, 10, 0, tzinfo=UTC)
     monkeypatch.setattr(dt_util, "now", lambda: now)

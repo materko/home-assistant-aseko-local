@@ -14,8 +14,11 @@ from custom_components.aseko_local import (
 from custom_components.aseko_local.const import (
     DOMAIN,
 )
+from custom_components.aseko_local.coordinator import (
+    AsekoLocalDataUpdateCoordinator,
+)
 from custom_components.aseko_local.forwarder import AsekoCloudMirror
-from custom_components.aseko_local.models import AsekoDevice
+from custom_components.aseko_local.models import AsekoDevice, AsekoDeviceType
 from custom_components.aseko_local.server import (
     AsekoDeviceServer,
 )
@@ -213,8 +216,6 @@ async def test_device_recognition(monkeypatch) -> None:
 
 def _make_device(serial: int) -> AsekoDevice:
     """Return a minimal AsekoDevice with the given serial number."""
-    from custom_components.aseko_local.models import AsekoDeviceType
-
     device = AsekoDevice()
     device.serial_number = serial
     device.device_type = AsekoDeviceType.NET
@@ -224,13 +225,6 @@ def _make_device(serial: int) -> AsekoDevice:
 @pytest.mark.asyncio
 async def test_coordinator_new_device_listener_called_for_new_device(hass) -> None:
     """Listener is called exactly once when a brand-new device arrives."""
-    from pytest_homeassistant_custom_component.common import MockConfigEntry
-
-    from custom_components.aseko_local.const import DOMAIN
-    from custom_components.aseko_local.coordinator import (
-        AsekoLocalDataUpdateCoordinator,
-    )
-    from tests.const import MOCK_CONFIG
 
     entry = MockConfigEntry(domain=DOMAIN, data=MOCK_CONFIG, entry_id="test_listener")
     entry.add_to_hass(hass)
@@ -256,13 +250,6 @@ async def test_coordinator_new_device_listener_called_for_new_device(hass) -> No
 @pytest.mark.asyncio
 async def test_coordinator_new_device_listener_unsub(hass) -> None:
     """Unsubscribing the listener stops it from receiving future discoveries."""
-    from pytest_homeassistant_custom_component.common import MockConfigEntry
-
-    from custom_components.aseko_local.const import DOMAIN
-    from custom_components.aseko_local.coordinator import (
-        AsekoLocalDataUpdateCoordinator,
-    )
-    from tests.const import MOCK_CONFIG
 
     entry = MockConfigEntry(domain=DOMAIN, data=MOCK_CONFIG, entry_id="test_unsub")
     entry.add_to_hass(hass)
@@ -280,13 +267,6 @@ async def test_coordinator_new_device_listener_unsub(hass) -> None:
 @pytest.mark.asyncio
 async def test_coordinator_multiple_listeners(hass) -> None:
     """All registered listeners receive the new-device notification."""
-    from pytest_homeassistant_custom_component.common import MockConfigEntry
-
-    from custom_components.aseko_local.const import DOMAIN
-    from custom_components.aseko_local.coordinator import (
-        AsekoLocalDataUpdateCoordinator,
-    )
-    from tests.const import MOCK_CONFIG
 
     entry = MockConfigEntry(domain=DOMAIN, data=MOCK_CONFIG, entry_id="test_multi_cb")
     entry.add_to_hass(hass)

@@ -50,11 +50,15 @@ _SECTION_RE = re.compile(r"(\w+):\s*(.*?)(?=\s+\w+:|$)", re.DOTALL)
 _HEADER_RE = re.compile(r"v1\s+(\d+)\s+(\d+)\s+(\S+)\s+(\S+)")
 
 
+NET_HEADER_TYPES = range(800, 900)
+SALT_HEADER_TYPES = range(100, 200)
+
+
 def model_from_header_type(header_type: int) -> str | None:
     """The model the header type names (as the integration's v8 profiles do)."""
-    if 800 <= header_type <= 899:
+    if header_type in NET_HEADER_TYPES:
         return "NET"
-    if 100 <= header_type <= 199:
+    if header_type in SALT_HEADER_TYPES:
         return "SALT"
     return None
 

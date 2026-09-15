@@ -33,6 +33,13 @@ V8_SIGNATURE = b"{v1 "
 # is logged at debug level, so an odd stream cannot grow the set forever
 MAX_WARNED = 1000
 
+# What a plausible v7 frame reads (a hint for diagnostics only)
+PH_MIN, PH_MAX = 0, 14
+PH_TARGET_MIN, PH_TARGET_MAX = 6, 10
+
+# A v7 frame is three 40-byte segments; byte 5 of each names its type
+V7_SEGMENT_TYPES = {5: 0x01, 45: 0x03, 85: 0x02}
+
 
 async def _read_initial(reader: asyncio.StreamReader, buffered: bytes) -> bytes:
     """Read until MESSAGE_SIZE bytes are in, or a whole v8 frame is.
@@ -143,11 +150,13 @@ class AsekoDeviceServer:
         # 0xFF 0xFF (UNSPECIFIED_VALUE) means the probe is absent
         if frame[14] != UNSPECIFIED_VALUE and frame[15] != UNSPECIFIED_VALUE:
             ph_value = int.from_bytes(frame[14:16], "big") / 100
-            if not 0 <= ph_value <= 14:
-                reasons.append(f"pH {ph_value} outside 0-14")
+            if not PH_MIN <= ph_value <= PH_MAX:
+                reasons.append(f"pH {ph_value} outside {PH_MIN}-{PH_MAX}")
         ph_target = frame[52] / 10
-        if not 6 <= ph_target <= 10:
-            reasons.append(f"required pH {ph_target} outside 6-10")
+        if not PH_TARGET_MIN <= ph_target <= PH_TARGET_MAX:
+            reasons.append(
+                f"required pH {ph_target} outside {PH_TARGET_MIN}-{PH_TARGET_MAX}"
+            )
         return reasons
 
     async def _report_implausible(self, frame: bytes, addr: Any) -> None:
@@ -504,9 +513,10 @@ class AsekoDeviceServer:
 
         offset = 0
         while (
-            data[offset + 5] != 0x01
-            or data[offset + 45] != 0x03
-            or data[offset + 85] != 0x02
+            any(
+                data[offset + position] != kind
+                for position, kind in V7_SEGMENT_TYPES.items()
+            )
             or data[offset : offset + 4] != data[offset + 40 : offset + 44]
             or data[offset + 40 : offset + 44] != data[offset + 80 : offset + 84]
         ):

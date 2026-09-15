@@ -20,6 +20,7 @@ from homeassistant.exceptions import Unauthorized
 from homeassistant.helpers.http import KEY_HASS
 from PIL import Image
 
+from custom_components.aseko_local import coordinator as coordinator_module
 from custom_components.aseko_local.coordinator import AsekoLocalDataUpdateCoordinator
 from custom_components.aseko_local.decoding import decode
 from custom_components.aseko_local.recording import views
@@ -495,8 +496,6 @@ async def test_a_case_keeps_its_unit_and_that_no_frame_came(
     tmp_path, monkeypatch
 ) -> None:
     """Audit A3: after a refresh the case still says which unit, and the timeout."""
-    from custom_components.aseko_local import coordinator as coordinator_module
-
     monkeypatch.setattr(coordinator_module, "MARK_DUMP_WAIT_TIMEOUT", 0.01)
     hass, (entry,) = _setup(tmp_path)
     _frame_arrives(entry)

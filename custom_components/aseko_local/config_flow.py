@@ -62,10 +62,13 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 )
 
 
+MAX_PORT = 65535
+
+
 def parse_port(value: Any) -> int:
     """The port a user picked or typed, as a number; ValueError when it is none."""
     port = int(str(value).strip())
-    if not 1 <= port <= 65535:
+    if not 1 <= port <= MAX_PORT:
         msg = f"port {port} out of range"
         raise ValueError(msg)
     return port

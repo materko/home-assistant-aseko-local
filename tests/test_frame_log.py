@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import random
@@ -11,6 +12,8 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from homeassistant.util import dt as dt_util
 
+from custom_components.aseko_local import _mark_dump_message
+from custom_components.aseko_local.coordinator import RecordingOffError
 from custom_components.aseko_local.decoding import decode
 from custom_components.aseko_local.recording.frame_log import (
     KIND_MARK,
@@ -19,8 +22,11 @@ from custom_components.aseko_local.recording.frame_log import (
     FrameLog,
     decode_lines,
 )
+from custom_components.aseko_local.server import AsekoDeviceServer
 
 from .test_decode_v8 import REFERENCE_FRAME
+from .test_entity_growth import _coordinator
+from .test_server import V8_FULL_FRAME, DummyWriter
 
 T0 = datetime(2026, 9, 1, 12, 0, tzinfo=UTC)
 
@@ -166,8 +172,6 @@ def test_chunk_size_must_leave_room_under_the_cap() -> None:
 
 
 def test_coordinator_logs_every_frame_and_numbers_markers() -> None:
-    from .test_entity_growth import _coordinator
-
     coordinator = _coordinator()
     coordinator.set_recording(enabled=True)
     coordinator.store_v8_frame(REFERENCE_FRAME)
@@ -190,9 +194,6 @@ def test_coordinator_logs_every_frame_and_numbers_markers() -> None:
 
 @pytest.mark.asyncio
 async def test_waiting_for_the_next_frame() -> None:
-    import asyncio
-
-    from .test_entity_growth import _coordinator
 
     coordinator = _coordinator()
     coordinator.hass.loop = asyncio.get_running_loop()
@@ -210,8 +211,6 @@ async def test_waiting_for_the_next_frame() -> None:
 
 
 def test_mark_dump_notification_says_whether_the_marker_is_written() -> None:
-    from custom_components.aseko_local import _mark_dump_message
-
     written = {
         "marker": 3,
         "time": "2026-09-13T12:01:05+02:00",
@@ -343,9 +342,6 @@ def test_a_damaged_store_leaves_the_log_empty_instead_of_raising(damage) -> None
 @pytest.mark.asyncio
 async def test_a_fragment_or_another_unit_does_not_end_the_wait() -> None:
     """R8: only a whole frame from the unit being waited for writes the marker."""
-    import asyncio
-
-    from .test_entity_growth import _coordinator
 
     coordinator = _coordinator()
     coordinator.hass.loop = asyncio.get_running_loop()
@@ -369,8 +365,6 @@ async def test_a_fragment_or_another_unit_does_not_end_the_wait() -> None:
 
 
 def test_rejected_bytes_are_logged_with_their_reason_and_counted() -> None:
-    from .test_entity_growth import _coordinator
-
     coordinator = _coordinator()
     coordinator.set_recording(enabled=True)
     coordinator.store_rejected_frame(bytes(range(120)), "frame sync failed: IndexError")
@@ -389,9 +383,6 @@ def test_rejected_bytes_are_logged_with_their_reason_and_counted() -> None:
 
 
 def test_recording_is_off_until_turned_on_and_nothing_is_logged() -> None:
-    from custom_components.aseko_local.coordinator import RecordingOffError
-
-    from .test_entity_growth import _coordinator
 
     coordinator = _coordinator()
     assert coordinator.frame_log.enabled is False
@@ -457,12 +448,6 @@ def test_clear_drops_frames_and_cases_but_keeps_counting() -> None:
 @pytest.mark.asyncio
 async def test_a_frame_the_decoder_rejects_does_not_end_the_wait() -> None:
     """Audit N2: raw bytes are logged first, but only a decoded frame answers a wait."""
-    import asyncio
-
-    from custom_components.aseko_local.server import AsekoDeviceServer
-
-    from .test_entity_growth import _coordinator
-    from .test_server import V8_FULL_FRAME, DummyWriter
 
     coordinator = _coordinator()
     coordinator.set_recording(enabled=True)

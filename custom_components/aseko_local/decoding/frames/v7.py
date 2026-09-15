@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 
-from ...const import MESSAGE_SIZE
+from ...const import MESSAGE_SIZE, SERIAL_NUMBER_LENGTH
 from .protocol import Protocol
 from .values import UNSPECIFIED_WORD
 
@@ -90,7 +90,7 @@ def parse_v7(raw: bytes) -> V7Frame:
     frame = V7Frame(bytes(raw))
     bad = v7_bad_checksum_segments(frame.raw)
     if bad:
-        serial = frame.serial_number if len(frame.raw) >= 4 else 0
+        serial = frame.serial_number if len(frame.raw) >= SERIAL_NUMBER_LENGTH else 0
         log = _LOGGER.debug if serial in _checksum_warned else _LOGGER.warning
         _checksum_warned.add(serial)
         log(

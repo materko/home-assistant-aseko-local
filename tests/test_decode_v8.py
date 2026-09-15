@@ -1,5 +1,7 @@
 """Tests for AsekoV8Decoder."""
 
+import logging
+
 import pytest
 
 from custom_components.aseko_local.decoding import decode
@@ -7,6 +9,7 @@ from custom_components.aseko_local.decoding.frames import parse_v8
 from custom_components.aseko_local.models import (
     AsekoDeviceType,
     AsekoProbeType,
+    AsekoProfileFlag,
 )
 
 # ---------------------------------------------------------------------------
@@ -340,8 +343,6 @@ def test_unknown_header_type_is_tolerated(caplog):
     and a warning names it; a new firmware of a known line (813, 106) does
     not get here.
     """
-    import logging
-
     with caplog.at_level(
         logging.WARNING, logger="custom_components.aseko_local.decoding.profiles"
     ):
@@ -417,8 +418,6 @@ def test_both_pumps_independent():
 
 def test_delays_are_minutes_and_the_profile_says_so():
     """R3: areqs[17] / areqs[18] = 2 is "2 min" in the app; kept as 2, flagged as minutes."""
-    from custom_components.aseko_local.models import AsekoProfileFlag
-
     device = decode(REFERENCE_FRAME)
     assert device.startup_delay == 2
     assert device.dosing_delay == 2

@@ -1,9 +1,10 @@
 """Tests for the setpoint/schedule sensor descriptions."""
 
 from custom_components.aseko_local.decoding import decode
-from custom_components.aseko_local.sensor import SENSORS
+from custom_components.aseko_local.sensor import SENSORS, _delay_unit
 
 from .test_decode_v7 import _make_base_bytes
+from .test_decode_v8 import REFERENCE_FRAME
 
 
 def _value(key: str):
@@ -31,9 +32,6 @@ def test_delay_sensors() -> None:
 
 def test_delay_unit_follows_the_protocol() -> None:
     """R3: v7 delays are seconds, v8 delays minutes — the entity says which."""
-    from custom_components.aseko_local.sensor import _delay_unit
-
-    from .test_decode_v8 import REFERENCE_FRAME
 
     v7 = decode(bytes(_make_base_bytes()))
     v8 = decode(REFERENCE_FRAME)

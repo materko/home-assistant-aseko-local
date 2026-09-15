@@ -7,12 +7,16 @@ recorded cycle is classified as scheduled or manual from its start time.
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime, time, timedelta
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
+from zoneinfo import ZoneInfo
 
 import pytest
+from homeassistant.util import dt as dt_util
 
+from custom_components.aseko_local.decoding import decode
 from custom_components.aseko_local.models import (
     AsekoBackwashSource,
     AsekoBackwashTrigger,
@@ -24,6 +28,9 @@ from custom_components.aseko_local.trackers.backwash import (
     SCHEDULED_MATCH_TOLERANCE,
     BackwashTracker,
 )
+from custom_components.aseko_local.trackers.clock import ClockTracker
+
+from .test_decode_v7 import _make_base_bytes
 
 T0 = datetime(2026, 6, 14, 21, 0, 0, tzinfo=UTC)
 
@@ -42,8 +49,6 @@ def _home_assistant_in_utc():
     goes through ``set_default_time_zone`` (which clears its cache) and is put
     back afterwards, so the test plugin's own teardown finds what it set.
     """
-    from homeassistant.util import dt as dt_util
-
     original = dt_util.DEFAULT_TIME_ZONE
     dt_util.set_default_time_zone(UTC)
     yield
@@ -966,9 +971,6 @@ def test_backfill_of_an_unexplained_salt_record_runs_once():
 
 def _in_bratislava() -> Any:
     """Home Assistant in Europe/Bratislava; the autouse fixture puts it back."""
-    from zoneinfo import ZoneInfo
-
-    from homeassistant.util import dt as dt_util
 
     zone = ZoneInfo("Europe/Bratislava")
     dt_util.set_default_time_zone(zone)
@@ -1332,8 +1334,6 @@ async def test_schedule_restart_and_offset_survive_a_restart():
 
 def _unit_bytes(unit: datetime) -> bytes:
     """A v7 SALT frame whose clock bytes (6-11) read ``unit``."""
-    from .test_decode_v7 import _make_base_bytes
-
     data = _make_base_bytes()
     data[6:12] = bytes(
         (unit.year - 2000, unit.month, unit.day, unit.hour, unit.minute, unit.second)
@@ -1343,9 +1343,6 @@ def _unit_bytes(unit: datetime) -> bytes:
 
 def _recognise(zone, ha_start: datetime, unit_ahead: timedelta):
     """Clock frames and one cycle through the real decoder and both trackers."""
-    from custom_components.aseko_local.decoding import decode
-    from custom_components.aseko_local.trackers.clock import ClockTracker
-
     clock = ClockTracker()
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     at = time(8, 30)
@@ -1393,8 +1390,6 @@ def test_six_minutes_past_the_plan_on_the_unit_clock_is_not_scheduled():
 
 async def test_a_frame_before_the_load_finishes_does_not_wipe_the_history():
     """Store hands a pending write back to a load: nothing may be saved first."""
-    import asyncio
-
     stored = {
         "last_backwash": "2026-09-15T06:25:21+00:00",
         "last_scheduled_backwash": "2026-09-15T06:25:21+00:00",

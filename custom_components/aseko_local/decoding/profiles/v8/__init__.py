@@ -30,6 +30,11 @@ BY_MODEL: dict[AsekoDeviceType | None, Profile] = {
 }
 
 
+# Header type ranges: the product line, the rest reads like a firmware version
+NET_HEADER_TYPES = range(800, 900)
+SALT_HEADER_TYPES = range(100, 200)
+
+
 def model_from_header_type(header_type: int) -> AsekoDeviceType | None:
     """The model a v8 header's type field names, or None.
 
@@ -39,9 +44,9 @@ def model_from_header_type(header_type: int) -> AsekoDeviceType | None:
     only the line picks the model: 8xx NET, 1xx SALT.  When a version ever
     needs a layout of its own, that is one more branch here.
     """
-    if 800 <= header_type <= 899:
+    if header_type in NET_HEADER_TYPES:
         return AsekoDeviceType.NET
-    if 100 <= header_type <= 199:
+    if header_type in SALT_HEADER_TYPES:
         return AsekoDeviceType.SALT
     return None
 

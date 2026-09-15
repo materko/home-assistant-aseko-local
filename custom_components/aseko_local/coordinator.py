@@ -16,7 +16,12 @@ from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
-from .const import CONF_CLOCK_ALERT_MINUTES, MARK_DUMP_WAIT_TIMEOUT
+from .const import (
+    CONF_CLOCK_ALERT_MINUTES,
+    MARK_DUMP_WAIT_TIMEOUT,
+    MESSAGE_SIZE,
+    SERIAL_NUMBER_LENGTH,
+)
 from .models import AsekoData, AsekoDevice
 from .recording.frame_log import (
     KIND_PARTIAL,
@@ -460,10 +465,9 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         with unknown device variants can share the raw data via the Diagnostics
         download without needing to enable debug logging.
         """
-        if len(raw_frame) < 4:
+        if len(raw_frame) < SERIAL_NUMBER_LENGTH:
             return
-        serial = int.from_bytes(raw_frame[0:4], "big")
-        from .const import MESSAGE_SIZE  # noqa: PLC0415
+        serial = int.from_bytes(raw_frame[:SERIAL_NUMBER_LENGTH], "big")
 
         if len(raw_frame) < MESSAGE_SIZE:
             self._last_partial_frames[serial] = bytes(raw_frame)

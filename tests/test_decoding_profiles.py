@@ -41,6 +41,7 @@ from custom_components.aseko_local.decoding.frames import v7 as frame_module
 from custom_components.aseko_local.decoding.profile import Profile
 from custom_components.aseko_local.decoding.profiles import (
     ALL_PROFILES,
+    FALLBACK_PROFILES,
     detect_profile,
     profile_for,
     v7,
@@ -52,6 +53,7 @@ from custom_components.aseko_local.models import (
     AsekoFiltrationSchedule,
     AsekoProfileFlag,
 )
+from custom_components.aseko_local.sensor import device_has_pump
 
 from .test_decode_v7 import _make_base_bytes
 from .test_decode_v8 import REFERENCE_FRAME, REFERENCE_FRAME_105
@@ -383,8 +385,6 @@ def test_home_menu_override_forces_the_pump_off() -> None:
 
 
 def test_entity_layer_reads_pump_presence_off_the_device() -> None:
-    from custom_components.aseko_local.sensor import device_has_pump
-
     data = _make_base_bytes()
     data[4] = 0x09  # NET
     data[28] = WATER_FLOW_TO_PROBES
@@ -619,8 +619,6 @@ def test_a_profile_cannot_be_changed_in_memory() -> None:
 
 def test_every_feature_of_a_model_profile_has_evidence() -> None:
     """docs/evidence-rules.md: every listed feature says why it is believed."""
-    from custom_components.aseko_local.decoding.profiles import FALLBACK_PROFILES
-
     missing = {
         profile.name: [f.field for f in profile.features if f not in profile.evidence]
         for profile in ALL_PROFILES

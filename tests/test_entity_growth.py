@@ -13,15 +13,22 @@ from __future__ import annotations
 
 import contextlib
 import logging
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
+from zoneinfo import ZoneInfo
 
 import pytest
+from homeassistant.helpers import entity_registry as er
+from homeassistant.util import dt as dt_util
 
+from custom_components.aseko_local import entity as entity_module
 from custom_components.aseko_local.binary_sensor import _build_binary_sensor_entities
 from custom_components.aseko_local.button import _build_button_entities
 from custom_components.aseko_local.coordinator import AsekoLocalDataUpdateCoordinator
 from custom_components.aseko_local.datetime import _build_entities as _build_datetime
 from custom_components.aseko_local.decoding import decode
+from custom_components.aseko_local.entity import enabled_unique_ids
+from custom_components.aseko_local.models import AsekoDevice
 from custom_components.aseko_local.sensor import _build_sensor_entities
 
 from .test_decode_v7 import _make_base_bytes
@@ -334,9 +341,6 @@ def test_an_entity_is_unavailable_while_its_quantity_is_not_present() -> None:
 
 def test_growth_enables_the_entities_the_integration_disabled(monkeypatch) -> None:
     """R7: only integration-disabled entries are enabled; a user's choice stays."""
-    from homeassistant.helpers import entity_registry as er
-
-    from custom_components.aseko_local import entity as entity_module
 
     class _Entry:
         def __init__(self, disabled_by):
@@ -371,8 +375,6 @@ def test_growth_enables_the_entities_the_integration_disabled(monkeypatch) -> No
 
 
 def test_enabled_unique_ids_are_the_shown_quantities() -> None:
-    from custom_components.aseko_local.entity import enabled_unique_ids
-
     device = decode(_salt_frame(0xFF))
     entities = list(_entities_by_key(device).values())
     ids = set(enabled_unique_ids(entities))
@@ -412,13 +414,6 @@ def test_a_failed_platform_setup_is_asked_again_on_the_next_frame() -> None:
 
 def test_a_unit_is_offline_after_five_minutes_but_keeps_its_values():
     """Audit A1: offline is a flag; the last values stay as they were."""
-    from datetime import timedelta
-
-    from homeassistant.util import dt as dt_util
-
-    from custom_components.aseko_local.decoding import decode
-
-    from .test_decode_v7 import _make_base_bytes
 
     device = decode(bytes(_make_base_bytes()))
     device.last_seen = dt_util.now() - timedelta(minutes=4)
@@ -431,12 +426,6 @@ def test_a_unit_is_offline_after_five_minutes_but_keeps_its_values():
 
 def test_online_counts_real_minutes_across_a_change_of_time(monkeypatch):
     """A frame 10 real seconds old is fresh even when the local clock jumped."""
-    from datetime import UTC, datetime, timedelta
-    from zoneinfo import ZoneInfo
-
-    from homeassistant.util import dt as dt_util
-
-    from custom_components.aseko_local.models import AsekoDevice
 
     zone = ZoneInfo("Europe/Bratislava")
     for now in (

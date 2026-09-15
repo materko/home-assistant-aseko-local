@@ -1,11 +1,17 @@
 """Test the Aseko Decoder."""
 
+import json
 from dataclasses import fields
 from datetime import datetime, time
+from pathlib import Path
 
 import pytest
 
 from custom_components.aseko_local.const import (
+    PROBE_CLF_MISSING,
+    PROBE_DOSE_MISSING,
+    PROBE_OXY_MISSING,
+    PROBE_REDOX_MISSING,
     UNIT_TYPE_PROFI,
     WATER_FLOW_TO_PROBES,
     YEAR_OFFSET,
@@ -264,9 +270,6 @@ def test_decode_filtration_period2_real_dtpugh_frames() -> None:
     entity would go "unknown" when the user toggled the controller back
     from P1&P2 to P1 only.
     """
-    import json
-    from pathlib import Path
-
     # Diagnostic files live in /tmp/issue133 (downloaded from the issue);
     # when the test runs in CI without that directory, skip instead of fail.
     diag_dir = Path("/tmp/issue133")
@@ -888,13 +891,6 @@ def test_time_invalid() -> None:
 
 
 def test_available_probes_combinations() -> None:
-    from custom_components.aseko_local.const import (
-        PROBE_CLF_MISSING,
-        PROBE_DOSE_MISSING,
-        PROBE_OXY_MISSING,
-        PROBE_REDOX_MISSING,
-    )
-
     # All probes present
     data = bytearray(120)
     data[4] = 0x00

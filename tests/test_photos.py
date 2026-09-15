@@ -6,6 +6,7 @@ import io
 import json
 import os
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 
 from PIL import Image
@@ -132,8 +133,6 @@ def test_export_zip_keeps_two_entries_with_the_same_title_apart(tmp_path) -> Non
 
 def test_concurrent_uploads_in_the_same_second_get_their_own_files(tmp_path) -> None:
     """Minor fix 3: the name is claimed atomically, no upload overwrites another."""
-    from concurrent.futures import ThreadPoolExecutor
-
     store = PhotoStore(tmp_path / "photos")
     when = T0 + timedelta(seconds=5)
     with ThreadPoolExecutor(max_workers=8) as pool:

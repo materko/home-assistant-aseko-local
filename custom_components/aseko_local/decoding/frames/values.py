@@ -19,6 +19,9 @@ _LOGGER = logging.getLogger(__name__)
 # Two 0xFF bytes: a 16-bit value the unit did not fill in.
 UNSPECIFIED_WORD = 0xFFFF
 
+# v7 bytes 6-11: year (from 2000), month, day, hour, minute, second
+CLOCK_BYTES = slice(6, 12)
+
 
 def normalize_value[T](value: int | str | None, type_: type[T]) -> T | None:
     """Normalize a raw value to None if it is unspecified or invalid.
@@ -87,7 +90,7 @@ def unit_clock_v7(data: bytes) -> datetime | None:
 
     Wall-clock time in Home Assistant's time zone: the unit sends no zone.
     """
-    if len(data) < 12 or UNSPECIFIED_VALUE in data[6:12]:
+    if len(data) < CLOCK_BYTES.stop or UNSPECIFIED_VALUE in data[CLOCK_BYTES]:
         return None
     try:
         return datetime(
@@ -118,7 +121,7 @@ def decode_timestamp(data: bytes) -> datetime:
     clock = unit_clock_v7(data)
     if clock is not None:
         return clock
-    if len(data) >= 12 and UNSPECIFIED_VALUE not in data[6:12]:
+    if len(data) >= CLOCK_BYTES.stop and UNSPECIFIED_VALUE not in data[CLOCK_BYTES]:
         # filled in, but not a date: worth a look, unlike the routine unset
         # bytes of a unit that sends no clock (v7 NET)
         _LOGGER.warning(

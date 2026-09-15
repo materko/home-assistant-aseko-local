@@ -2,11 +2,17 @@ import asyncio
 
 import pytest
 
+from custom_components.aseko_local.coordinator import (
+    MAX_WARNING_REASONS,
+    OTHER_WARNING_REASONS,
+)
 from custom_components.aseko_local.models import AsekoDevice
 from custom_components.aseko_local.server import (
     AsekoDeviceServer,
     FrameType,
 )
+
+from .test_entity_growth import _coordinator
 
 
 # Hilfsfunktion: Hex-String zu Bytes
@@ -574,12 +580,6 @@ async def test_a_whole_short_v8_frame_is_handled_without_waiting_for_more() -> N
 
 def test_the_warning_register_stays_bounded() -> None:
     """Whatever a unit sends, the reasons kept per unit are capped."""
-    from custom_components.aseko_local.coordinator import (
-        MAX_WARNING_REASONS,
-        OTHER_WARNING_REASONS,
-    )
-
-    from .test_entity_growth import _coordinator
 
     coordinator = _coordinator()
     for i in range(1000):

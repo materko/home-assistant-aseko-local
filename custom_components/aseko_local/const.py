@@ -48,6 +48,8 @@ UNIT_TYPE_SALT = 0x0C  # SALT can be CLF (0x0D) or REDOX (0x0E) or DOSE (0x0F)
 UNIT_TYPE_PROFI = 0x10  # PROFI is 0x10 - not confirmed
 
 UNSPECIFIED_VALUE = 0xFF
+# bytes 0-3 of a v7 frame (and of every segment header): the serial number
+SERIAL_NUMBER_LENGTH = 4
 UNSPECIFIED_V8 = -500  # v8 text frame sentinel for absent/unavailable probe readings
 
 # Config / option keys

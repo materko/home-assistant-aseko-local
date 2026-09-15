@@ -1,6 +1,7 @@
 """Tests for AsekoConsumptionTracker."""
 
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -9,6 +10,8 @@ from custom_components.aseko_local.trackers.consumption import (
     MAX_PUMP_INTERVAL,
     AsekoConsumptionTracker,
 )
+
+from .test_entity_growth import _coordinator
 
 # ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -375,8 +378,6 @@ def test_an_invalid_stored_counter_leaves_that_pump_to_its_sensor(counters):
 
 def test_a_refill_reset_touches_only_its_unit():
     """Audit A2: the button of one unit leaves the other unit's canister alone."""
-    from .test_entity_growth import _coordinator
-
     coordinator = _coordinator()
     for serial, ml in ((1234, 100.0), (5678, 200.0)):
         tracker = AsekoConsumptionTracker()
@@ -401,8 +402,6 @@ def test_a_refill_reset_touches_only_its_unit():
 )
 def test_dosing_across_a_change_of_time_counts_real_seconds(start_utc):
     """Ten real seconds at 60 ml/min are 10 ml, whatever the local clock does."""
-    from zoneinfo import ZoneInfo
-
     zone = ZoneInfo("Europe/Bratislava")
     tracker = AsekoConsumptionTracker()
     device = _device(cl_on=True, cl_rate=60)

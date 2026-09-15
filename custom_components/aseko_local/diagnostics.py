@@ -243,6 +243,16 @@ def _parse_v8_frame(raw: bytes) -> dict[str, Any] | None:
     }
 
 
+# the v7 bytes the raw dump spells out on their own
+PUMP_STATE_BYTE = 29
+ALGICIDE_CONFIG_BYTE = 37
+
+
+def _byte(raw: bytes, index: int, pattern: str) -> str:
+    """``raw[index]`` formatted by ``pattern``, or "n/a" when the frame is shorter."""
+    return pattern.format(raw[index]) if len(raw) > index else "n/a"
+
+
 def _str_or_none(value: Any) -> str | None:
     """Render an optional value as a string, keeping None as None.
 
@@ -345,9 +355,9 @@ def _raw_frames(coordinator: Any, serial: int) -> dict[str, Any]:
             "available": True,
             "hex_dump": raw.hex(),
             "length_bytes": len(raw),
-            "byte_29_pump_state_hex": f"0x{raw[29]:02x}" if len(raw) > 29 else "n/a",
-            "byte_29_pump_state_bin": f"0b{raw[29]:08b}" if len(raw) > 29 else "n/a",
-            "byte_37_algicide_cfg_hex": f"0x{raw[37]:02x}" if len(raw) > 37 else "n/a",
+            "byte_29_pump_state_hex": _byte(raw, PUMP_STATE_BYTE, "0x{:02x}"),
+            "byte_29_pump_state_bin": _byte(raw, PUMP_STATE_BYTE, "0b{:08b}"),
+            "byte_37_algicide_cfg_hex": _byte(raw, ALGICIDE_CONFIG_BYTE, "0x{:02x}"),
             "annotated_table": _annotated_frame(raw),
         }
 

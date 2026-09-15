@@ -6,7 +6,13 @@ from pathlib import Path
 
 import pytest
 
+from custom_components.aseko_local.decoding import support_matrix
+from custom_components.aseko_local.decoding.features import ALL_FEATURES, SerialNumber
+from custom_components.aseko_local.decoding.frames import Protocol
+from custom_components.aseko_local.decoding.profile import Profile
+from custom_components.aseko_local.decoding.profiles import ALL_PROFILES
 from custom_components.aseko_local.decoding.support_matrix import render
+from custom_components.aseko_local.models import AsekoDeviceType
 
 MATRIX = Path(__file__).resolve().parent.parent / "docs" / "support_matrix.md"
 
@@ -18,8 +24,6 @@ def test_support_matrix_is_up_to_date() -> None:
 
 def test_every_profile_and_field_is_in_the_matrix() -> None:
     text = render()
-    from custom_components.aseko_local.decoding.features import ALL_FEATURES
-    from custom_components.aseko_local.decoding.profiles import ALL_PROFILES
 
     for profile in ALL_PROFILES:
         assert profile.name.split(" ", 1)[1] in text
@@ -28,12 +32,6 @@ def test_every_profile_and_field_is_in_the_matrix() -> None:
 
 
 def _status_for(evidence: str, profile_name: str = "v7 SALT") -> str:
-    from custom_components.aseko_local.decoding import support_matrix
-    from custom_components.aseko_local.decoding.features import SerialNumber
-    from custom_components.aseko_local.decoding.frames import Protocol
-    from custom_components.aseko_local.decoding.profile import Profile
-    from custom_components.aseko_local.models import AsekoDeviceType
-
     model = (
         AsekoDeviceType.SALT if profile_name.endswith("SALT") else AsekoDeviceType.HOME
     )
