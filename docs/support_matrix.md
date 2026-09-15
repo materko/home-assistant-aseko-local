@@ -78,6 +78,7 @@ Further profiles exist that no unit is meant to decode with and that the tables 
 | `service_menu_open` | ✅ | ✅ | 👁 | — | ❓ |
 | `startup_delay` | ✅ | ✅ | 👁 | ❓ | ❓ |
 | `timestamp` | ✅ | ✅ | ✅ | ❓ | ❓ |
+| `unit_clock` | ✅ | ✅ | ✅ | — | ❓ |
 | `variable_speed_pump_enabled` | ✅ | ✅ | ❓ | — | — |
 | `variable_speed_pump_type` | ✅ | ✅ | — | — | — |
 | `water_flow_to_probes` | ✅ | ✅ | 👁 | ✅ | ❓ |
@@ -109,6 +110,7 @@ Further profiles exist that no unit is meant to decode with and that the tables 
 | `serial_number` | ✅ | ✅ |
 | `startup_delay` | ✅ | ❓ |
 | `timestamp` | ✅ | ❓ |
+| `unit_clock` | ✅ | ❓ |
 | `water_flow_to_probes` | ✅ | ❓ |
 | `water_temperature` | ✅ | ❓ |
 
@@ -216,6 +218,7 @@ Every entry below is read today without a confirming capture.  If you own one of
 - `service_menu_open` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `startup_delay` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `timestamp` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
+- `unit_clock` — assumed: bytes 6-11 as on the other v7 models; no real PROFI frame has been captured
 - `water_flow_to_probes` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `water_level` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
 - `water_level_high_alarm` — assumed: no real PROFI frame has been captured; layout inferred from the manual and the other models (profi_device_analysis.md)
@@ -246,6 +249,7 @@ Every entry below is read today without a confirming capture.  If you own one of
 - `redox_target` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
 - `startup_delay` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
 - `timestamp` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
+- `unit_clock` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
 - `water_flow_to_probes` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
 - `water_temperature` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
 
@@ -310,7 +314,7 @@ Fields that exist on `AsekoDevice` but that nothing knows how to read yet.
 
 ## Totals
 
-- features known: 72
-- with a v7 reading: 70
-- with a v8 reading: 17
+- features known: 73
+- with a v7 reading: 71
+- with a v8 reading: 18
 - profiles: 9

@@ -16,6 +16,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
+from .const import CONF_CLOCK_ALERT_MINUTES
 from .models import AsekoData, AsekoDevice
 from .recording.frame_log import (
     KIND_PARTIAL,
@@ -25,6 +26,7 @@ from .recording.frame_log import (
     FrameLog,
 )
 from .trackers.backwash import BackwashTracker
+from .trackers.clock import DEFAULT_ALERT_MINUTES, ClockTracker
 from .trackers.consumption import AsekoConsumptionTracker
 
 _LOGGER = logging.getLogger(__name__)
@@ -77,6 +79,8 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         self.platforms_ready = False
         # One backwash tracker per device serial number
         self._backwash_trackers: dict[int, BackwashTracker] = {}
+        # One clock tracker per device serial number
+        self._clock_trackers: dict[int, ClockTracker] = {}
         # Last raw frame per device serial number (for diagnostics)
         self._last_raw_frames: dict[int, bytes] = {}
         # Last partial (incomplete) raw frame per serial number
@@ -190,6 +194,7 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
             # attributes off this object onto the stored one, and anything
             # written afterwards would never reach the entities.
             self._update_backwash(device)
+            self._update_clock(device)
 
             new_data.set(device.serial_number, device)
 
@@ -305,6 +310,23 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         now = dt_util.now()
         tracker.update(device, now)
         self._publish_backwash(device, tracker, now)
+
+    def _update_clock(self, device: AsekoDevice) -> None:
+        """Compare the unit's clock with Home Assistant's; publish the result."""
+        serial = device.serial_number
+        if serial is None:
+            return
+        tracker = self._clock_trackers.get(serial)
+        if tracker is None:
+            tracker = ClockTracker(
+                self.config_entry.options.get(
+                    CONF_CLOCK_ALERT_MINUTES, DEFAULT_ALERT_MINUTES
+                )
+            )
+            self._clock_trackers[serial] = tracker
+        tracker.update(device.unit_clock, dt_util.now())
+        device.clock_offset = tracker.offset_minutes
+        device.clock_out_of_sync = tracker.out_of_sync
 
     @staticmethod
     def _publish_backwash(

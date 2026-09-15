@@ -56,6 +56,16 @@ An entity you disabled yourself stays disabled.
 3. Compare with the unit display. For a ❓ or a wrong ✅, record a test case
    with the card (README, *Help wanted*) while the unit shows the value.
 
+## Backwash times look shifted
+
+The schedule the unit shows is in **its own** clock. Compare
+**Clock offset** (`devices[].device.clock_offset_minutes`: minutes the unit
+is ahead, negative behind) with the shift you see. Around ±60 minutes after a
+change between summer and winter time usually means the unit did not switch;
+set its clock on the unit. **Clock out of sync** turns on past the limit set
+in the integration's settings (15 minutes by default). See the README,
+*Unit clock*.
+
 ## A frame looks damaged
 
 | Symptom | Where |

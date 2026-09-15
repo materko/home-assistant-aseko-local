@@ -36,7 +36,8 @@
       "options_init": {
         "data": {
           "forwarder_enabled": "Activer la transmission",
-          "forwarder_host": "Hôte de destination"
+          "forwarder_host": "Hôte de destination",
+          "clock_alert_minutes": "Alerter quand l'horloge de l'unité s'écarte de (minutes)"
         }
       }
     }
@@ -122,6 +123,9 @@
       },
       "heating_allowed": {
         "name": "Chauffage autorisé"
+      },
+      "clock_out_of_sync": {
+        "name": "Horloge désynchronisée"
       }
     },
     "sensor": {
@@ -347,6 +351,9 @@
           "pentair_dab": "Pentair / Dab",
           "hayward": "Hayward"
         }
+      },
+      "clock_offset": {
+        "name": "Décalage de l'horloge"
       }
     },
     "number": {

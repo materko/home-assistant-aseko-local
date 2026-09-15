@@ -23,6 +23,7 @@ from ...features import (
     SerialNumber,
     StartupDelay,
     Timestamp,
+    UnitClock,
     WaterFlowToProbes,
     WaterTemperature,
 )
@@ -31,6 +32,7 @@ FEATURES = (
     SerialNumber,
     Configuration,
     Timestamp,
+    UnitClock,
     WaterTemperature,
     WaterFlowToProbes,
     Ph,

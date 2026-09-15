@@ -14,6 +14,7 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import (
+    EntityCategory,
     UnitOfElectricPotential,
     UnitOfLength,
     UnitOfTemperature,
@@ -747,6 +748,19 @@ SENSORS: list[AsekoSensorEntityDescription] = [
         value_fn=lambda device: device.next_scheduled_backwash,
         # No source attribute: this is always projected from
         # last_scheduled_backwash, so that sensor's source is this one's too.
+    ),
+    AsekoSensorEntityDescription(
+        # Minutes the unit's clock is ahead of Home Assistant's; see
+        # trackers/clock.py.  Only models that send their clock have it.
+        key="clock_offset",
+        feature="unit_clock",
+        translation_key="clock_offset",
+        icon="mdi:clock-fast",
+        native_unit_of_measurement=UnitOfTime.MINUTES,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=1,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda device: device.clock_offset,
     ),
 ]
 

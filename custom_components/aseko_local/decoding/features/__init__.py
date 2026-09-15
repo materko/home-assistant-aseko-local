@@ -70,6 +70,7 @@ from .serial_number import SerialNumber
 from .service_menu_open import ServiceMenuOpen
 from .startup_delay import StartupDelay
 from .timestamp import Timestamp
+from .unit_clock import UnitClock
 from .variable_speed_pump_enabled import VariableSpeedPumpEnabled
 from .variable_speed_pump_type import VariableSpeedPumpType
 from .water_flow_to_probes import WaterFlowToProbes
@@ -146,6 +147,7 @@ ALL_FEATURES: tuple[type[Feature], ...] = (
     SerialNumber,
     ServiceMenuOpen,
     Timestamp,
+    UnitClock,
     VariableSpeedPumpEnabled,
     Refilling,
     WaterFlowToProbes,
@@ -222,6 +224,7 @@ __all__ = [
     "SerialNumber",
     "ServiceMenuOpen",
     "Timestamp",
+    "UnitClock",
     "VariableSpeedPumpEnabled",
     "Refilling",
     "WaterFlowToProbes",

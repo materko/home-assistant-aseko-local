@@ -96,6 +96,8 @@ def test_every_frame_derived_field_has_a_feature() -> None:
         "last_manual_backwash",
         "last_backwash_trigger",
         "next_scheduled_backwash",
+        "clock_offset",  # ClockTracker
+        "clock_out_of_sync",
     }
     assert DEVICE_FIELDS - owned == not_from_the_frame
 

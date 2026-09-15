@@ -57,3 +57,5 @@ CONF_ENABLE_RAW_LOGGING = "enable_raw_logging"
 CONF_FORWARDER_ENABLED = "forwarder_enabled"
 CONF_FORWARDER_HOST = "forwarder_host"
 CONF_FORWARDER_PORT = "forwarder_port"
+# Minutes the unit clock may be off before clock_out_of_sync turns on
+CONF_CLOCK_ALERT_MINUTES = "clock_alert_minutes"

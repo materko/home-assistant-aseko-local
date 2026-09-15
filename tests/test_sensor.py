@@ -317,7 +317,9 @@ async def test_async_setup_salt_redox(hass) -> None:
     # + 2 heating_control_enabled / freeze_protection_enabled binary sensors: the
     #   SALT Configuration menu has Heating control and Winter mode, but
     #   their place in the frame is not known yet, so they read unknown
-    assert len(added_entities) == 46
+    # + 2 clock_offset sensor / clock_out_of_sync binary sensor: the unit sends
+    #   its clock (bytes 6-11)
+    assert len(added_entities) == 48
     # Nothing has been observed yet, so the history is unknown rather than
     # guessed from the schedule.
     backwash_history = {
@@ -464,7 +466,9 @@ async def test_async_setup_salt_clf(hass) -> None:
     #   their place in the frame is not known yet, so they read unknown
     # - 1 free_chlorine_mv: bytes 20-21 are salinity and chlorine production
     #   on SALT, not a probe voltage
-    assert len(added_entities) == 46
+    # + 2 clock_offset sensor / clock_out_of_sync binary sensor: the unit sends
+    #   its clock (bytes 6-11)
+    assert len(added_entities) == 48
     assert not any(
         getattr(e.entity_description, "key", None) == "free_chlorine_mv"
         for e in added_entities
@@ -763,7 +767,9 @@ async def test_async_setup_profi_clf_redox(hass) -> None:
     #   reads "unknown" until the coordinator stamps the first frame.  It used
     #   to be skipped here only because this test hands the platform a device
     #   the coordinator has not stamped yet.
-    assert len(added_entities) == 47
+    # + 2 clock_offset sensor / clock_out_of_sync binary sensor: the unit sends
+    #   its clock (bytes 6-11)
+    assert len(added_entities) == 49
     assert any(
         getattr(e.entity_description, "key", None) == "free_chlorine"
         for e in added_entities

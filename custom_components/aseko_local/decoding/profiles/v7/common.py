@@ -43,6 +43,7 @@ from ...features import (
     SerialNumber,
     StartupDelay,
     Timestamp,
+    UnitClock,
     VariableSpeedPumpEnabled,
     WaterFlowToProbes,
     WaterLevel,
@@ -60,6 +61,8 @@ from ...features import (
 # ---------------------------------------------------------------------------
 
 IDENTITY = (SerialNumber, Configuration, Timestamp)
+# Every model that sends its own clock; not NET, whose bytes 6-11 are 0xFF.
+CLOCK = (UnitClock,)
 MEASUREMENTS = (WaterTemperature, WaterFlowToProbes)
 CHLORINE_PROBES = (Ph, Redox, FreeChlorine, FreeChlorineMv)
 SETTINGS = (

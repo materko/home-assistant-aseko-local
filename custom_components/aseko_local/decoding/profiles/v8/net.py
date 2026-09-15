@@ -19,6 +19,7 @@ from ...features import (
     SerialNumber,
     StartupDelay,
     Timestamp,
+    UnitClock,
     WaterFlowToProbes,
     WaterTemperature,
 )
@@ -48,6 +49,7 @@ NET = Profile(
         RedoxTarget: "confirmed: areqs[1] * 10 = 740 mV vs the app",
         SerialNumber: "confirmed: header token 2, serial 110203680",
         Timestamp: "confirmed: ins[16] hour, ins[17] minute match the HA log; date taken from HA",
+        UnitClock: "confirmed: ins[16] hour, ins[17] minute match the HA log; no date",
         WaterFlowToProbes: "confirmed: ins[8] = 1 while the app showed 'Water flow: YES'",
         WaterTemperature: "confirmed: ins[0] / 10 = 31.4 C (Sep 2025) and 18.0 C (Apr 2026) vs the app",
     },

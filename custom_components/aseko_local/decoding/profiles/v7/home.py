@@ -58,6 +58,7 @@ from ...features import (
     ServiceMenuOpen,
     StartupDelay,
     Timestamp,
+    UnitClock,
     VariableSpeedPumpEnabled,
     VariableSpeedPumpType,
     WaterFlowToProbes,
@@ -78,6 +79,7 @@ from .common import (
     CHLORINE_PROBES,
     DISINFECTION_SETPOINTS,
     FILTRATION,
+    CLOCK,
     IDENTITY,
     MEASUREMENTS,
     SETTINGS,
@@ -87,6 +89,7 @@ from .common import (
 
 _HOME_FEATURES = (
     *IDENTITY,
+    *CLOCK,
     *MEASUREMENTS,
     AirTemperature,
     *CHLORINE_PROBES,
@@ -186,6 +189,7 @@ HOME = Profile(
         FiltrationPeriod1End: "confirmed: bytes 58-59 = 16:00 last-configured, serial 110128063 (Issues #110, #133)",
         FiltrationPeriod2End: "confirmed: bytes 62-63 = 22:00 last-configured, serial 110128063 (Issues #110, #133)",
         Timestamp: "confirmed: bytes 6-11",
+        UnitClock: "confirmed: bytes 6-11, the bytes of timestamp without its fallback to Home Assistant's clock",
         VariableSpeedPumpEnabled: "confirmed: byte[22] 0x08, serial 110175608",
         Refilling: "confirmed: byte[29] 0x02 (DomSchCoding #100)",
         WaterFlowToProbes: "confirmed: byte[28] != 0xAA while Aseko Live showed 'NO', serial 110128063",

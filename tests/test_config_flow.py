@@ -8,6 +8,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 
 from custom_components.aseko_local.const import (
+    CONF_CLOCK_ALERT_MINUTES,
     CONF_FORWARDER_ENABLED,
     CONF_FORWARDER_HOST,
     DEFAULT_FORWARDER_HOST,
@@ -110,6 +111,7 @@ async def test_options_flow(
     options = {
         CONF_FORWARDER_ENABLED: True,
         CONF_FORWARDER_HOST: DEFAULT_FORWARDER_HOST,
+        CONF_CLOCK_ALERT_MINUTES: 10,
     }
 
     with patch("custom_components.aseko_local.server.AsekoDeviceServer.remove_all"):

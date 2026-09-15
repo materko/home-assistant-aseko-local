@@ -36,7 +36,8 @@
       "options_init": {
         "data": {
           "forwarder_enabled": "Enable forwarding",
-          "forwarder_host": "Forward to host"
+          "forwarder_host": "Forward to host",
+          "clock_alert_minutes": "Alert when the unit clock is off by (minutes)"
         }
       }
     }
@@ -122,6 +123,9 @@
       },
       "heating_allowed": {
         "name": "Heating allowed"
+      },
+      "clock_out_of_sync": {
+        "name": "Clock out of sync"
       }
     },
     "sensor": {
@@ -347,6 +351,9 @@
           "pentair_dab": "Pentair / Dab",
           "hayward": "Hayward"
         }
+      },
+      "clock_offset": {
+        "name": "Clock offset"
       }
     },
     "number": {

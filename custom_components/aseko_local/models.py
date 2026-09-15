@@ -189,6 +189,8 @@ class AsekoDevice:
 
     serial_number: int | None = None  # byte 0 - 4
     timestamp: datetime | None = None  # byte 6 - 11
+    # the unit's clock as sent, no fallback: datetime (v7) or time (v8)
+    unit_clock: datetime | time | None = None
     ph: float | None = None  # byte 14 & 15
     free_chlorine: float | None = None  # byte 16 & 17
     free_chlorine_mv: int | None = (
@@ -374,6 +376,12 @@ class AsekoDevice:
     # Server-side receive timestamp – set by the coordinator on every incoming frame.
     # Independent of the device clock (which can be wrong or missing on some models).
     last_seen: datetime | None = None
+
+    # From trackers/clock.py: minutes the unit's clock is ahead of Home
+    # Assistant's (negative: behind), and whether that is past the alert
+    # limit set in the integration's options.  None until measured.
+    clock_offset: float | None = None
+    clock_out_of_sync: bool | None = None
 
     def online(self) -> bool:
         """Return True if a frame was received within ``OFFLINE_AFTER``.

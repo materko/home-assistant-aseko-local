@@ -11,6 +11,9 @@ from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.selector import (
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
     SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
@@ -18,6 +21,7 @@ from homeassistant.helpers.selector import (
 )
 
 from .const import (
+    CONF_CLOCK_ALERT_MINUTES,
     CONF_FORWARDER_ENABLED,
     CONF_FORWARDER_HOST,
     DEFAULT_BINDING_ADDRESS,
@@ -27,6 +31,7 @@ from .const import (
     DOMAIN,
 )
 from .server import AsekoDeviceServer, ServerConnectionError
+from .trackers.clock import DEFAULT_ALERT_MINUTES
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -236,6 +241,20 @@ class AsekoLocalOptionsFlowHandler(OptionsFlow):
                         CONF_FORWARDER_HOST, DEFAULT_FORWARDER_HOST
                     ),
                 ): str,
+                vol.Optional(
+                    CONF_CLOCK_ALERT_MINUTES,
+                    default=config_entry.options.get(
+                        CONF_CLOCK_ALERT_MINUTES, DEFAULT_ALERT_MINUTES
+                    ),
+                ): NumberSelector(
+                    NumberSelectorConfig(
+                        min=1,
+                        max=180,
+                        step=1,
+                        mode=NumberSelectorMode.BOX,
+                        unit_of_measurement="min",
+                    )
+                ),
                 # vol.Optional(
                 #     CONF_ENABLE_RAW_LOGGING,
                 #     default=config_entry.options.get(CONF_ENABLE_RAW_LOGGING, False),

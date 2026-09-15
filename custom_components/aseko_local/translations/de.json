@@ -36,7 +36,8 @@
       "options_init": {
         "data": {
           "forwarder_enabled": "Cloud-Weiterleitung aktivieren",
-          "forwarder_host": "Cloud-Host"
+          "forwarder_host": "Cloud-Host",
+          "clock_alert_minutes": "Warnen, wenn die Uhr der Einheit abweicht um (Minuten)"
         }
       }
     }
@@ -122,6 +123,9 @@
       },
       "heating_allowed": {
         "name": "Heizen erlaubt"
+      },
+      "clock_out_of_sync": {
+        "name": "Uhr nicht synchron"
       }
     },
     "sensor": {
@@ -347,6 +351,9 @@
           "pentair_dab": "Pentair / Dab",
           "hayward": "Hayward"
         }
+      },
+      "clock_offset": {
+        "name": "Uhrabweichung"
       }
     },
     "number": {

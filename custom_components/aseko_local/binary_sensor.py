@@ -5,6 +5,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from homeassistant.components.binary_sensor import (
+    BinarySensorDeviceClass,
     BinarySensorEntity,
     BinarySensorEntityDescription,
 )
@@ -213,6 +214,17 @@ BINARY_SENSORS: tuple[AsekoLocalBinarySensorEntityDescription, ...] = (
         translation_key="backwash_running",
         icon="mdi:water-pump",
         value_fn=lambda device: device.backwash_running,
+    ),
+    AsekoLocalBinarySensorEntityDescription(
+        # The unit's clock is off Home Assistant's by at least the limit set
+        # in the options (15 min by default); see trackers/clock.py.
+        key="clock_out_of_sync",
+        feature="unit_clock",
+        translation_key="clock_out_of_sync",
+        icon="mdi:clock-alert-outline",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda device: device.clock_out_of_sync,
     ),
 )
 

@@ -57,6 +57,7 @@ from ...features import (
     ServiceMenuOpen,
     StartupDelay,
     Timestamp,
+    UnitClock,
     VariableSpeedPumpEnabled,
     VariableSpeedPumpType,
     WaterFlowToProbes,
@@ -76,6 +77,7 @@ from .common import (
     BACKWASH,
     DISINFECTION_SETPOINTS,
     FILTRATION,
+    CLOCK,
     IDENTITY,
     MEASUREMENTS,
     SETTINGS,
@@ -90,6 +92,7 @@ SALT = Profile(
     model=AsekoDeviceType.SALT,
     features=(
         *IDENTITY,
+        *CLOCK,
         *MEASUREMENTS,
         AirTemperature,
         # not CHLORINE_PROBES: bytes 20-21, the free chlorine mV on NET and
@@ -189,6 +192,7 @@ SALT = Profile(
         FiltrationPeriod1End: "confirmed: bytes 58-59 changed 18:05 / 19:00 / 21:35 with the timer settings during the own SALT dumps, 37 frames 2026-08-08..28, checked against the unit by the maintainer; matches the app and unit display, 2026-09-11",
         FiltrationPeriod2End: "confirmed: bytes 62-63 changed 22:00 -> 23:55 with the timer settings during the own SALT dumps, 37 frames 2026-08-08..28, checked against the unit by the maintainer; matches the app and unit display, 2026-09-11",
         Timestamp: "confirmed: bytes 6-11",
+        UnitClock: "confirmed: bytes 6-11; about 5 min ahead of Home Assistant in the 2026-09-13/14 capture, matching the backwash valve opening about 5 min before the planned time",
         VariableSpeedPumpEnabled: "confirmed: byte[22] 0x08 is the VS Pump setting, not the run state; confirmed on the own SALT by toggling it on the unit with a frame-log marker after each change, 2026-09-13/14, and in four clean on/off cycles, one per brand, 2026-09-14 20:19-20:23",
         Refilling: "confirmed: byte[29] 0x02 on the own SALT, 2026-09-06 08:12-08:21: set when the water level fell to the unit's refill start (10) and cleared when it reached the refill stop (25), the level rising only while it was set; not in the earlier dumps, which caught no refill",
         WaterFlowToProbes: "confirmed: byte[28] == 0xAA",

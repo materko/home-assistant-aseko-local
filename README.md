@@ -187,6 +187,19 @@ If you want to keep sending the data to Aseko Cloud, you had to use a TCP proxy 
 
 ![Aseko Local options](images/aseko-options.png)
 
+### Unit clock
+
+Every ASIN Aqua Home, Salt, Oxygen and Profi, and every v8 unit, sends its own clock with each frame (v7 date and time to the second, v8 hour and minute). The ASIN Aqua Net on firmware v7 sends none, so it has neither entity below.
+
+| Entity | What it shows |
+|---|---|
+| `sensor.…_clock_offset` | Minutes the unit's clock is **ahead** of Home Assistant's when the frame arrives; negative means it runs late. The median of the last three frames, so one late frame does not move it. |
+| `binary_sensor.…_clock_out_of_sync` | On when the last three frames are all at least the limit off (either way); off again when all three are under the limit minus a fifth of it (12 minutes for 15), at least a minute under. Unknown until three frames have arrived. |
+
+The limit is **15 minutes** by default; change *Alert when the unit clock is off by (minutes)* in the integration's settings (the same dialog as the forwarder). Both entities are diagnostic, so an automation on `clock_out_of_sync` is the way to get a notification.
+
+The unit may not switch between summer and winter time on its own, and its clock drifts over weeks; an offset near ±60 minutes after a change of time is the typical sign. While no frames arrive both entities keep their last value — see `connection_status` for whether they are fresh. The backwash sensors do not use the offset yet.
+
 ## Chemical consumption & canister management
 
 The unit does **not** send how much chemical it dosed. The integration **estimates** it: from the first frame in which a pump is seen running, every following frame adds the time since the previous one multiplied by that pump's flow rate (ml/min, as set on the unit). The estimate is as good as the pump-running bit and the flow rate for your model — check both in the [support matrix](docs/support_matrix.md); a pump with ❓ or 🔍 there gives a rough or no figure. Each interval counts at most 30 seconds, so a gap in the frames is not counted as dosing; the stretch up to the frame in which the pump stops is counted. The millilitres are stored without rounding to litres; if Home Assistant stops abruptly, the last minute before the save can be lost.
@@ -413,7 +426,7 @@ once, and only while both are empty, so a real cycle is never second-guessed.
 
 * A cycle you start **by hand near the scheduled time** is reported as scheduled, on every model.
 * Only the **time of day** is checked, not the day itself. A manual cycle at exactly `backwash_time` on a day the interval does not fall on still counts as scheduled. (Checking the day would require knowing the schedule phase — which is exactly what this is trying to establish — and would break whenever you change the interval.)
-* If the unit's **clock drifts** more than 15 minutes from Home Assistant's, its own scheduled cycles are reported as manual (not attributed on an ASIN Aqua Salt).
+* If the unit's **clock drifts** more than 15 minutes from Home Assistant's, its own scheduled cycles are reported as manual (not attributed on an ASIN Aqua Salt). `clock_offset` shows how far it is off — see [Unit clock](#unit-clock).
 * A cycle the unit runs on its own **for some other reason** (e.g. after a fault) is reported as manual — on an ASIN Aqua Salt as not attributed.
 * Classification uses the schedule **as it was at the time of the cycle** and is never revisited — changing `backwash_time` later does not reclassify history.
 

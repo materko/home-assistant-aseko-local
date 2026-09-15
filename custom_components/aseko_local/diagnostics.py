@@ -294,6 +294,11 @@ def _device_state(device: Any) -> dict[str, Any]:
         "configuration": [p.value for p in (device.configuration or [])],
         "online": device.online(),
         "timestamp": str(device.timestamp),
+        # the clock as the unit sent it (None: not sent), and how far it is
+        # off Home Assistant's -- see trackers/clock.py
+        "unit_clock": _str_or_none(getattr(device, "unit_clock", None)),
+        "clock_offset_minutes": getattr(device, "clock_offset", None),
+        "clock_out_of_sync": getattr(device, "clock_out_of_sync", None),
         "air_temperature": device.air_temperature,
         "water_temperature": device.water_temperature,
         "ph": device.ph,

@@ -24,6 +24,7 @@ from ...features import (
     SerialNumber,
     StartupDelay,
     Timestamp,
+    UnitClock,
     WaterFlowToProbes,
     WaterTemperature,
 )
@@ -56,6 +57,7 @@ SALT = Profile(
         RedoxTarget: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",
         SerialNumber: "confirmed: header token 2 on every captured frame",
         Timestamp: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",
+        UnitClock: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",
         WaterFlowToProbes: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",
         WaterTemperature: "assumed: only the header type (105) says SALT; the NET layout is taken over unverified",
     },

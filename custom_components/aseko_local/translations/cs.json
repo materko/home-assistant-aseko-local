@@ -36,7 +36,8 @@
       "options_init": {
         "data": {
           "forwarder_enabled": "Povolit přeposílání",
-          "forwarder_host": "Cílová adresa"
+          "forwarder_host": "Cílová adresa",
+          "clock_alert_minutes": "Upozornit, když se hodiny jednotky liší o (minuty)"
         }
       }
     }
@@ -122,6 +123,9 @@
       },
       "heating_allowed": {
         "name": "Ohřev povolen"
+      },
+      "clock_out_of_sync": {
+        "name": "Hodiny nesynchronizované"
       }
     },
     "sensor": {
@@ -347,6 +351,9 @@
           "pentair_dab": "Pentair / Dab",
           "hayward": "Hayward"
         }
+      },
+      "clock_offset": {
+        "name": "Odchylka hodin"
       }
     },
     "number": {
