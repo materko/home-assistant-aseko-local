@@ -489,7 +489,8 @@ async def test_a_unit_still_reading_its_history_stops_the_service_everywhere(
         ready, reading = reading, ready
     ready.devices_update_callback(_salt_device())
     await hass.async_block_till_done()
-    ready.set_last_scheduled_backwash(dt_util.now() - timedelta(days=1), 1234)
+    past = dt_util.now() - timedelta(days=1)
+    ready.set_last_scheduled_backwash(past, 1234)
     stored = ready.get_device(1234).last_scheduled_backwash
 
     blocked = BackwashTracker(hass, 4321)
@@ -497,7 +498,8 @@ async def test_a_unit_still_reading_its_history_stops_the_service_everywhere(
     reading._backwash_trackers[4321] = blocked
     try:
         for service, data in (
-            (SERVICE_SET_LAST_SCHEDULED_BACKWASH, {"timestamp": dt_util.now()}),
+            # a date in the past: the loading check, not the clock, refuses it
+            (SERVICE_SET_LAST_SCHEDULED_BACKWASH, {"timestamp": past}),
             (SERVICE_CLEAR_LAST_SCHEDULED_BACKWASH, {}),
         ):
             with pytest.raises(ServiceValidationError, match="4321"):
