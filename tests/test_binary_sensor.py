@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from custom_components.aseko_local import binary_sensor as binary_sensor_module
+from custom_components.aseko_local import entity as entity_module
 from custom_components.aseko_local.binary_sensor import (
     BINARY_SENSORS,
     AsekoLocalBinarySensorEntity,
@@ -60,7 +61,7 @@ async def test_setup_adds_entities_now_and_for_devices_seen_later(monkeypatch) -
         lambda hass, entry: retired.append(entry),
     )
     monkeypatch.setattr(
-        binary_sensor_module,
+        entity_module,
         "async_enable_entities",
         lambda hass, platform, unique_ids: enabled.append(list(unique_ids)),
     )

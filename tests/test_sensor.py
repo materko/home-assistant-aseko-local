@@ -6,6 +6,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from custom_components.aseko_local import entity as entity_module
 from custom_components.aseko_local import sensor as sensor_module
 from custom_components.aseko_local.binary_sensor import (
     BINARY_SENSORS,
@@ -1056,7 +1057,7 @@ async def test_sensors_follow_units_and_quantities_seen_later(monkeypatch) -> No
         sensor_module, "async_remove_retired_entities", lambda h, e: None
     )
     monkeypatch.setattr(
-        sensor_module,
+        entity_module,
         "async_enable_entities",
         lambda hass, platform, unique_ids: enabled.append(list(unique_ids)),
     )

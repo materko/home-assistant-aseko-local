@@ -10,6 +10,7 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.util import dt as dt_util
 
 from custom_components.aseko_local import datetime as datetime_module
+from custom_components.aseko_local import entity as entity_module
 from custom_components.aseko_local.coordinator import AsekoLocalDataUpdateCoordinator
 from custom_components.aseko_local.datetime import (
     LAST_SCHEDULED_BACKWASH,
@@ -38,7 +39,7 @@ def _entity(coordinator) -> AsekoLastScheduledBackwashEntity:
 async def test_setup_adds_entities_now_and_for_devices_seen_later(monkeypatch) -> None:
     enabled: list[list[str]] = []
     monkeypatch.setattr(
-        datetime_module,
+        entity_module,
         "async_enable_entities",
         lambda hass, platform, unique_ids: enabled.append(list(unique_ids)),
     )

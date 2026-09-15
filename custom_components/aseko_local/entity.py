@@ -16,18 +16,34 @@ and one removed later does not lose its history:
 
 from __future__ import annotations
 
-from collections.abc import Iterable
-from typing import Any
+import logging
+from collections.abc import Callable, Iterable
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.entity import EntityDescription
+from homeassistant.helpers.entity import Entity, EntityDescription
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, MANUFACTURER
 from .coordinator import AsekoLocalDataUpdateCoordinator
 from .models import AsekoDevice
+
+if TYPE_CHECKING:
+    from homeassistant.const import Platform
+    from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+
+    from . import AsekoLocalConfigEntry
+
+_LOGGER = logging.getLogger(__name__)
+
+#: Builds a platform's entities for some devices; with ``features``, only the
+#: entities for those fields (the ones a known device has just started showing).
+type EntityBuilder = Callable[
+    [list[AsekoDevice], AsekoLocalDataUpdateCoordinator, frozenset[str] | None],
+    list[Entity],
+]
 
 # ``feature`` left at this default is read off the entity description.
 _FROM_DESCRIPTION = object()
@@ -125,3 +141,53 @@ def enabled_unique_ids(entities: Iterable[Any]) -> list[str]:
         for e in entities
         if e.unique_id and getattr(e, "entity_registry_enabled_default", True)
     ]
+
+
+@callback
+def async_setup_platform_entities(
+    hass: HomeAssistant,
+    config_entry: AsekoLocalConfigEntry,
+    async_add_entities: AddConfigEntryEntitiesCallback,
+    platform: Platform,
+    build: EntityBuilder,
+) -> None:
+    """Add a platform's entities now, and for units and features seen later.
+
+    Every platform sets up the same way: the entities of the known devices,
+    enabled where the unit shows the quantity; then one listener adds a new
+    unit's entities and another enables those a known unit has just started
+    showing (they exist already, created disabled -- see the module docstring).
+    Both listeners are removed when the entry unloads.
+    """
+    coordinator = config_entry.runtime_data.coordinator
+    entities = build(coordinator.get_devices(), coordinator, None)
+    _LOGGER.debug("%s: adding %s entities", platform, len(entities))
+    async_add_entities(entities)
+    async_enable_entities(hass, platform, enabled_unique_ids(entities))
+
+    @callback
+    def _add_new_device(device: AsekoDevice) -> None:
+        new_entities = build([device], coordinator, None)
+        async_enable_entities(hass, platform, enabled_unique_ids(new_entities))
+        if new_entities:
+            _LOGGER.debug(
+                "%s: adding %s entities for new device %s",
+                platform,
+                len(new_entities),
+                device.serial_number,
+            )
+            async_add_entities(new_entities)
+
+    @callback
+    def _add_new_features(device: AsekoDevice, features: frozenset[str]) -> None:
+        grown = build([device], coordinator, features)
+        async_enable_entities(
+            hass, platform, [e.unique_id for e in grown if e.unique_id]
+        )
+
+    config_entry.async_on_unload(
+        coordinator.async_add_new_device_listener(_add_new_device)
+    )
+    config_entry.async_on_unload(
+        coordinator.async_add_new_features_listener(_add_new_features)
+    )

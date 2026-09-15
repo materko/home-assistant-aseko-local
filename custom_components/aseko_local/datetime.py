@@ -17,13 +17,14 @@ import logging
 from datetime import datetime
 
 from homeassistant.components.datetime import DateTimeEntity, DateTimeEntityDescription
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.const import Platform
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import AsekoLocalConfigEntry
 from .coordinator import AsekoLocalDataUpdateCoordinator
-from .entity import AsekoLocalEntity, async_enable_entities, enabled_unique_ids
+from .entity import AsekoLocalEntity, async_setup_platform_entities
 from .models import AsekoDevice
 
 _LOGGER = logging.getLogger(__name__)
@@ -41,34 +42,8 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up the writable backwash datetime entities."""
-
-    coordinator = config_entry.runtime_data.coordinator
-    entities = _build_entities(coordinator.get_devices(), coordinator)
-    async_add_entities(entities)
-
-    async_enable_entities(hass, "datetime", enabled_unique_ids(entities))
-
-    @callback
-    def _async_add_new_device(device: AsekoDevice) -> None:
-        new_entities = _build_entities([device], coordinator)
-        async_enable_entities(hass, "datetime", enabled_unique_ids(new_entities))
-        if new_entities:
-            async_add_entities(new_entities)
-
-    @callback
-    def _async_add_new_features(device: AsekoDevice, features: frozenset[str]) -> None:
-        # Every entity the model can have exists already; the ones for the
-        # quantities the unit just started showing were created disabled.
-        grown = _build_entities([device], coordinator, features)
-        async_enable_entities(
-            hass, "datetime", [e.unique_id for e in grown if e.unique_id]
-        )
-
-    config_entry.async_on_unload(
-        coordinator.async_add_new_device_listener(_async_add_new_device)
-    )
-    config_entry.async_on_unload(
-        coordinator.async_add_new_features_listener(_async_add_new_features)
+    async_setup_platform_entities(
+        hass, config_entry, async_add_entities, Platform.DATETIME, _build_entities
     )
 
 

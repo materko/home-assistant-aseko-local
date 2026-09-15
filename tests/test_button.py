@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import pytest
 from homeassistant.config_entries import ConfigEntry
 
-from custom_components.aseko_local import button as button_module
+from custom_components.aseko_local import entity as entity_module
 from custom_components.aseko_local.button import (
     AsekoResetButtonEntity,
     async_setup_entry,
@@ -173,7 +173,7 @@ async def test_buttons_follow_units_and_pumps_seen_later(monkeypatch) -> None:
     """A new unit gets its buttons; a pump a known unit starts showing is enabled."""
     enabled: list[list[str]] = []
     monkeypatch.setattr(
-        button_module,
+        entity_module,
         "async_enable_entities",
         lambda hass, platform, unique_ids: enabled.append(list(unique_ids)),
     )

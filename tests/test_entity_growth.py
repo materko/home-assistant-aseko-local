@@ -22,6 +22,7 @@ from unittest.mock import MagicMock
 from zoneinfo import ZoneInfo
 
 import pytest
+from homeassistant.const import Platform
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
@@ -381,6 +382,31 @@ def test_growth_enables_the_entities_the_integration_disabled(monkeypatch) -> No
         None, "sensor", ["1234flowrate_algicide", "1234flowrate_floc", "1234unknown"]
     )
     assert enabled == ["sensor.algicide"]
+
+
+def test_platform_setup_listeners_are_removed_on_unload(monkeypatch) -> None:
+    """Every platform registers its two listeners through one helper, and unloads them."""
+    monkeypatch.setattr(entity_module, "async_enable_entities", lambda *args: None)
+    coordinator = _coordinator()
+    coordinator.config_entry.options = {}
+    coordinator.devices_update_callback(decode(_salt_frame(0xD3)))
+    entry = MagicMock()
+    entry.runtime_data.coordinator = coordinator
+    unloads: list = []
+    entry.async_on_unload.side_effect = unloads.append
+    added: list = []
+
+    entity_module.async_setup_platform_entities(
+        MagicMock(), entry, added.extend, Platform.BUTTON, _build_button_entities
+    )
+
+    assert added  # the known unit's buttons
+    assert len(coordinator._new_device_listeners) == 1
+    assert len(coordinator._new_features_listeners) == 1
+    for unsubscribe in unloads:
+        unsubscribe()
+    assert coordinator._new_device_listeners == []
+    assert coordinator._new_features_listeners == []
 
 
 def test_enabled_unique_ids_are_the_shown_quantities() -> None:
