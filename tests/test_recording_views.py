@@ -11,6 +11,7 @@ import io
 import json
 import logging
 import zipfile
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
@@ -30,7 +31,7 @@ from .test_decode_v7 import _make_base_bytes
 
 
 @pytest.fixture(autouse=True)
-def _quiet_logging():
+def _quiet_logging() -> Iterator[None]:
     """Silence logging for this module's tests only, and turn it back on."""
     logging.disable(logging.CRITICAL)
     yield
@@ -68,10 +69,10 @@ class FakeRequest(dict):
 
     def __init__(
         self,
-        hass: Any,
+        hass: object,
         admin: bool = True,
         query: dict[str, str] | None = None,
-        body: Any = None,
+        body: object = None,
         parts: dict[str, bytes] | None = None,
     ) -> None:
         super().__init__(hass_user=MagicMock(is_admin=admin))
@@ -80,7 +81,7 @@ class FakeRequest(dict):
         self._body = body
         self._parts = parts or {}
 
-    async def json(self) -> Any:
+    async def json(self) -> object:
         if isinstance(self._body, Exception):
             raise self._body
         return self._body
@@ -98,7 +99,7 @@ def _jpeg() -> bytes:
 def _setup(tmp_path: Path, entries: int = 1) -> tuple[MagicMock, list[MagicMock]]:
     """A hass with loaded entries, each with its own real coordinator."""
 
-    async def run_inline(job, *args):
+    async def run_inline(job, *args: object) -> object:
         return job(*args)
 
     hass = MagicMock()
@@ -130,7 +131,7 @@ def _frame_arrives(entry: MagicMock) -> None:
     coordinator.devices_update_callback(decode(raw))
 
 
-def _body(response: Any) -> Any:
+def _body(response: object) -> dict[str, Any]:
     return json.loads(response.body)
 
 

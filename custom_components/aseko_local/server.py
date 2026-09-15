@@ -138,7 +138,7 @@ class AsekoDeviceServer:
         """Check if the server is running."""
         return self._server is not None and self._server.is_serving()
 
-    async def _maybe_await(self, result: Any) -> None:
+    async def _maybe_await(self, result: object) -> None:
         if asyncio.iscoroutine(result):
             await result
 
@@ -169,7 +169,7 @@ class AsekoDeviceServer:
             )
         return reasons
 
-    async def _report_implausible(self, frame: bytes, addr: Any) -> None:
+    async def _report_implausible(self, frame: bytes, addr: object) -> None:
         serial = int.from_bytes(frame[0:4], "big")
         for reason in self._implausible_values(frame):
             key = (serial, reason)
@@ -189,7 +189,7 @@ class AsekoDeviceServer:
                 except Exception:
                     _LOGGER.exception("Frame warning sink raised an exception")
 
-    async def _report_frame_problems(self, device: AsekoDevice, addr: Any) -> None:
+    async def _report_frame_problems(self, device: AsekoDevice, addr: object) -> None:
         """Log and count values the parser could not read; the frame still counts."""
         serial = device.serial_number
         if serial is None:
@@ -339,7 +339,7 @@ class AsekoDeviceServer:
                 await writer.wait_closed()
 
     async def _read_message(
-        self, reader: asyncio.StreamReader, buffered: bytes, addr: Any
+        self, reader: asyncio.StreamReader, buffered: bytes, addr: object
     ) -> tuple[bytes | None, bytes] | None:
         """The first bytes of the next message and what is carried after them.
 
@@ -390,7 +390,9 @@ class AsekoDeviceServer:
         )
         return initial, carry
 
-    async def _deliver_v8(self, frame: bytes, addr: Any, received_at: datetime) -> bool:
+    async def _deliver_v8(
+        self, frame: bytes, addr: object, received_at: datetime
+    ) -> bool:
         """Forward, log, decode and hand on a v8 frame; False closes the connection."""
         await self._call_forward_v8_cb(frame)
         # Log the frame before decoding it: a frame the decoder rejects is
@@ -411,7 +413,9 @@ class AsekoDeviceServer:
         await self._maybe_call_on_data(device)
         return True
 
-    async def _deliver_v7(self, frame: bytes, addr: Any, received_at: datetime) -> bool:
+    async def _deliver_v7(
+        self, frame: bytes, addr: object, received_at: datetime
+    ) -> bool:
         """Log, forward, decode and hand on an aligned v7 frame; False closes."""
         try:
             # Call raw_sink so diagnostics see the correctly aligned frame

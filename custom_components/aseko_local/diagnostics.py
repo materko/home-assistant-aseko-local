@@ -14,7 +14,7 @@ GitHub issue to help developers reverse-engineer unknown byte positions
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.core import HomeAssistant
@@ -23,6 +23,10 @@ from . import AsekoLocalConfigEntry
 from .decoding.frames.v8 import parse_v8_sections
 from .decoding.profiles import profile_named
 from .trackers.consumption import PUMP_KEYS
+
+if TYPE_CHECKING:
+    from .coordinator import AsekoLocalDataUpdateCoordinator
+    from .models import AsekoDevice
 
 # Fields that may contain personally identifying information
 _REDACT = {"host", "unique_id"}
@@ -253,7 +257,7 @@ def _byte(raw: bytes, index: int, pattern: str) -> str:
     return pattern.format(raw[index]) if len(raw) > index else "n/a"
 
 
-def _str_or_none(value: Any) -> str | None:
+def _str_or_none(value: object) -> str | None:
     """Render an optional value as a string, keeping None as None.
 
     ``str(None)`` would produce the literal "None", which reads in a dump like
@@ -275,7 +279,7 @@ def _reading_overrides(profile_name: str | None) -> dict[str, str]:
     }
 
 
-def _device_state(device: Any) -> dict[str, Any]:
+def _device_state(device: AsekoDevice) -> dict[str, Any]:
     """The decoded state of one unit, as the dump reports it."""
     serial = device.serial_number
     return {
@@ -345,7 +349,9 @@ def _device_state(device: Any) -> dict[str, Any]:
     }
 
 
-def _raw_frames(coordinator: Any, serial: int) -> dict[str, Any]:
+def _raw_frames(
+    coordinator: AsekoLocalDataUpdateCoordinator, serial: int
+) -> dict[str, Any]:
     """The last frames seen from one serial number, annotated for a GitHub issue."""
     # --- Raw frame (v7 binary) ---
     raw_info: dict[str, Any] = {"available": False}

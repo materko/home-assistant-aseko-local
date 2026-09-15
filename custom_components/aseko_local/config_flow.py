@@ -6,7 +6,12 @@ import logging
 from typing import Any
 
 import voluptuous as vol
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFlow
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlow,
+)
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError
@@ -65,7 +70,7 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 MAX_PORT = 65535
 
 
-def parse_port(value: Any) -> int:
+def parse_port(value: object) -> int:
     """The port a user picked or typed, as a number; ValueError when it is none."""
     port = int(str(value).strip())
     if not 1 <= port <= MAX_PORT:
@@ -90,8 +95,10 @@ async def validate_input(data: dict[str, Any]) -> dict[str, Any]:
     return {"title": f"Aseko Local - {data[CONF_HOST]}:{data[CONF_PORT]}"}
 
 
-async def _remove_entry_server(config_entry: Any) -> None:
+async def _remove_entry_server(config_entry: ConfigEntry | None) -> None:
     """Stop the server of this entry only; an entry without an address has none."""
+    if config_entry is None:
+        return
     host = config_entry.data.get(CONF_HOST)
     port = config_entry.data.get(CONF_PORT)
     if host is not None and port is not None:
@@ -201,7 +208,9 @@ class AsekoLocalConfigFlow(ConfigFlow, domain=DOMAIN):
 
     @staticmethod
     @callback
-    def async_get_options_flow(config_entry):
+    def async_get_options_flow(
+        config_entry: ConfigEntry,
+    ) -> AsekoLocalOptionsFlowHandler:
         """Link options flow to config flow."""
         return AsekoLocalOptionsFlowHandler(config_entry)
 
@@ -209,13 +218,17 @@ class AsekoLocalConfigFlow(ConfigFlow, domain=DOMAIN):
 class AsekoLocalOptionsFlowHandler(OptionsFlow):
     """Handle Aseko Local options."""
 
-    def __init__(self, config_entry):
+    def __init__(self, config_entry: ConfigEntry) -> None:
         self._entry_id = config_entry.entry_id
 
-    async def async_step_init(self, user_input=None):
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
         return await self.async_step_options_init(user_input)
 
-    async def async_step_options_init(self, user_input=None):
+    async def async_step_options_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
         errors = {}
         config_entry = self.hass.config_entries.async_get_entry(self._entry_id)
 

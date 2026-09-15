@@ -7,6 +7,7 @@ import base64
 import json
 import random
 import zlib
+from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -31,7 +32,7 @@ from .test_server import V8_FULL_FRAME, DummyWriter
 T0 = datetime(2026, 9, 1, 12, 0, tzinfo=UTC)
 
 
-def _v8_frames(count: int, seed: int = 1):
+def _v8_frames(count: int, seed: int = 1) -> Iterator[tuple[datetime, bytes]]:
     """Frames of one v8 unit every ten seconds, with the jitter a real one has."""
     rng = random.Random(seed)
     parts = REFERENCE_FRAME.decode().strip().split()
@@ -522,7 +523,7 @@ def test_records_and_export_come_from_one_read() -> None:
     reads = 0
     lines = type(snapshot).lines
 
-    def counting_lines(self):
+    def counting_lines(self) -> Iterator[bytes]:
         nonlocal reads
         reads += 1
         return lines(self)

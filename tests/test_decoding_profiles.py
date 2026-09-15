@@ -231,14 +231,14 @@ def test_profile_detects_a_dependency_cycle() -> None:
     class A(Feature):
         field = "ph"
 
-        def decode_v7(self, frame, device):
+        def decode_v7(self, frame, device) -> None:
             return None
 
     class B(Feature):
         field = "redox"
         depends_on = (A,)
 
-        def decode_v7(self, frame, device):
+        def decode_v7(self, frame, device) -> None:
             return None
 
     A.depends_on = (B,)

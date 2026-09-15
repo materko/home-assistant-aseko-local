@@ -130,7 +130,7 @@ async def test_a_frame_that_failed_goes_out_before_newer_ones(monkeypatch) -> No
     writer = DummyWriter()
     attempts = {"n": 0}
 
-    async def flaky_open_connection(host: str, port: int):
+    async def flaky_open_connection(host: str, port: int) -> tuple[None, DummyWriter]:
         attempts["n"] += 1
         if attempts["n"] == 1:
             msg = "cloud unreachable"
@@ -167,7 +167,7 @@ async def test_a_frame_whose_write_failed_goes_out_first(monkeypatch) -> None:
 
     writer = FailOnce()
 
-    async def open_connection(host: str, port: int):
+    async def open_connection(host: str, port: int) -> tuple[None, DummyWriter]:
         return None, writer
 
     monkeypatch.setattr(asyncio, "open_connection", open_connection)
@@ -195,7 +195,7 @@ async def test_repeated_write_failures_back_off(monkeypatch) -> None:
             msg = "broken pipe"
             raise OSError(msg)
 
-    async def open_connection(host: str, port: int):
+    async def open_connection(host: str, port: int) -> tuple[None, DummyWriter]:
         return None, AlwaysFails()
 
     monkeypatch.setattr(asyncio, "open_connection", open_connection)

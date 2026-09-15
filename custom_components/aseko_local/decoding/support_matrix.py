@@ -66,7 +66,7 @@ def _features_for(protocol: Protocol) -> list[type[Feature]]:
     return sorted(listed, key=lambda f: f.field)
 
 
-def _help_section(w, mark: str) -> None:
+def _help_section(w: Callable[[str], None], mark: str) -> None:
     """List, per real profile, the features whose status carries ``mark``."""
     for profile in ALL_PROFILES:
         if profile in FALLBACK_PROFILES:

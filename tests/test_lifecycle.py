@@ -39,7 +39,7 @@ def listeners(monkeypatch) -> list[tuple[int, FakeListener]]:
     """Every listener the integration opened, with its port."""
     opened: list[tuple[int, FakeListener]] = []
 
-    async def start_server(handler, host, port):
+    async def start_server(handler, host, port) -> object:
         listener = FakeListener()
         opened.append((port, listener))
         return listener

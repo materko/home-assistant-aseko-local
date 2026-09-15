@@ -6,6 +6,7 @@ import importlib.util
 import subprocess
 import sys
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
@@ -34,7 +35,7 @@ def _run(script: str, *args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def _load(script: str):
+def _load(script: str) -> ModuleType:
     spec = importlib.util.spec_from_file_location(
         script.removesuffix(".py"), ROOT / "scripts" / script
     )
@@ -47,13 +48,13 @@ def _load(script: str):
 # ── hex_tools ────────────────────────────────────────────────────────────────
 
 
-def test_hex_tools_help():
+def test_hex_tools_help() -> None:
     result = _run("hex_tools.py", "--help")
     assert result.returncode == 0, result.stderr
     assert "--byteinfo" in result.stdout
 
 
-def test_hex_tools_byteinfo_shows_the_byte_and_its_word():
+def test_hex_tools_byteinfo_shows_the_byte_and_its_word() -> None:
     result = _run("hex_tools.py", V7_HEX, "--byteinfo", "25")
     assert result.returncode == 0, result.stderr
     # water temperature 24.5 is bytes 25-26 = 0x00f5
@@ -62,26 +63,26 @@ def test_hex_tools_byteinfo_shows_the_byte_and_its_word():
     )
 
 
-def test_hex_tools_byteinfo_outside_the_frame_is_an_error():
+def test_hex_tools_byteinfo_outside_the_frame_is_an_error() -> None:
     result = _run("hex_tools.py", V7_HEX, "--byteinfo", "120")
     assert result.returncode != 0
     assert "outside the frame" in result.stderr
 
 
-def test_hex_tools_table_lists_every_byte():
+def test_hex_tools_table_lists_every_byte() -> None:
     result = _run("hex_tools.py", V7_HEX, "--table")
     assert result.returncode == 0, result.stderr
     assert sum(line[:3].isdigit() for line in result.stdout.splitlines()) == 120
 
 
-def test_hex_tools_tablewrite_writes_where_asked(tmp_path):
+def test_hex_tools_tablewrite_writes_where_asked(tmp_path) -> None:
     out = tmp_path / "table.md"
     result = _run("hex_tools.py", V7_HEX, "--tablewrite", str(out))
     assert result.returncode == 0, result.stderr
     assert out.read_text(encoding="utf-8").count("\n") == 122
 
 
-def test_hex_tools_generated_test_leaves_the_values_to_fill_in():
+def test_hex_tools_generated_test_leaves_the_values_to_fill_in() -> None:
     result = _run("hex_tools.py", V7_HEX, "--generate-test")
     assert result.returncode == 0, result.stderr
     assert "assert device.serial_number == 1234" in result.stdout
@@ -93,7 +94,7 @@ def test_hex_tools_generated_test_leaves_the_values_to_fill_in():
 # ── v8_tools ─────────────────────────────────────────────────────────────────
 
 
-def test_v8_tools_help():
+def test_v8_tools_help() -> None:
     result = _run("v8_tools.py", "--help")
     assert result.returncode == 0, result.stderr
     assert "--annotate" in result.stdout
@@ -107,7 +108,7 @@ def test_v8_tools_help():
         V8_FRAME.replace("ains: 708", "ains: x7", 1),
     ],
 )
-def test_v8_tools_parses_like_the_integration(frame):
+def test_v8_tools_parses_like_the_integration(frame) -> None:
     """The standalone parser must not drift from decoding/frames/v8.py."""
     v8_tools = _load("v8_tools.py")
     _, sections = v8_tools.parse_v8_frame(frame)
@@ -119,7 +120,7 @@ def test_v8_tools_parses_like_the_integration(frame):
 @pytest.mark.parametrize(
     "header_type", [0, 99, 100, 105, 199, 200, 799, 804, 812, 899, 900]
 )
-def test_v8_tools_names_models_like_the_integration(header_type):
+def test_v8_tools_names_models_like_the_integration(header_type) -> None:
     v8_tools = _load("v8_tools.py")
     model = model_from_header_type(header_type)
     assert v8_tools.model_from_header_type(header_type) == (
@@ -127,14 +128,14 @@ def test_v8_tools_names_models_like_the_integration(header_type):
     )
 
 
-def test_v8_tools_annotates_crc16_as_hex():
+def test_v8_tools_annotates_crc16_as_hex() -> None:
     result = _run("v8_tools.py", V8_FRAME[:-1] + " crc16: 1a2b}", "--annotate")
     assert result.returncode == 0, result.stderr
     assert "0x1a2b" in result.stdout
     assert "water_temperature" in result.stdout
 
 
-def test_v8_tools_generated_test_names_the_model_from_the_header():
+def test_v8_tools_generated_test_names_the_model_from_the_header() -> None:
     salt = V8_FRAME.replace("{v1 123456789 804", "{v1 123456789 105", 1)
     result = _run("v8_tools.py", salt, "--generate-test")
     assert result.returncode == 0, result.stderr
@@ -143,6 +144,6 @@ def test_v8_tools_generated_test_names_the_model_from_the_header():
     compile(result.stdout, "generated", "exec")
 
 
-def test_v8_tools_rejects_a_frame_without_braces():
+def test_v8_tools_rejects_a_frame_without_braces() -> None:
     result = _run("v8_tools.py", "v1 1 804 0 27 ins: 1", "--annotate")
     assert result.returncode != 0

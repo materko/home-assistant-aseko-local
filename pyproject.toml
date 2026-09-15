@@ -8,6 +8,7 @@ target-version = "py313"  # the oldest Python a supported Home Assistant runs on
 # (Home Assistant core's setting) is where this is heading.
 select = [
     "A",    # flake8-builtins
+    "ANN",  # type annotations
     "ARG",  # unused arguments
     "ASYNC", # async
     "B",    # flake8-bugbear

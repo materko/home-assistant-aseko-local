@@ -8,6 +8,7 @@ recorded cycle is classified as scheduled or manual from its start time.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Iterator
 from datetime import UTC, datetime, time, timedelta
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -41,7 +42,7 @@ SCHEDULE_EVERY_N_DAYS = 3
 
 
 @pytest.fixture(autouse=True)
-def _home_assistant_in_utc():
+def _home_assistant_in_utc() -> Iterator[None]:
     """These tests state the schedule in UTC; Home Assistant's test zone is not.
 
     The tracker projects and classifies in Home Assistant's time zone, so pin it
@@ -63,7 +64,7 @@ def _device(
     *,
     backwash_start_time: time | None = None,
     backwash_interval: int | None = None,
-) -> Any:
+) -> MagicMock:
     """Minimal stand-in for AsekoDevice with only the fields the tracker reads.
 
     The schedule defaults to "not configured", which classifies every recorded
@@ -77,7 +78,7 @@ def _device(
     return dev
 
 
-def _scheduled_device(backwash_running: bool | None) -> Any:
+def _scheduled_device(backwash_running: bool | None) -> MagicMock:
     """Stand-in for a device with an enabled backwash schedule at SCHEDULE_AT."""
     return _device(
         backwash_running,
@@ -118,7 +119,7 @@ def _hass() -> MagicMock:
 # ── basic accumulation ──────────────────────────────────────────────────────
 
 
-def test_short_backwash_below_threshold_not_recorded():
+def test_short_backwash_below_threshold_not_recorded() -> None:
     """Relay on for 30 s (below MIN_BACKWASH_DURATION) → no event recorded."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     device = _device(backwash_running=True)
@@ -130,7 +131,7 @@ def test_short_backwash_below_threshold_not_recorded():
     assert tracker.last_backwash is None
 
 
-def test_long_backwash_recorded_at_midpoint():
+def test_long_backwash_recorded_at_midpoint() -> None:
     """Relay on for 90 s (≥ 60 s threshold) → event recorded at window midpoint."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     device = _device(backwash_running=True)
@@ -144,7 +145,7 @@ def test_long_backwash_recorded_at_midpoint():
     assert tracker.last_backwash == expected
 
 
-def test_exactly_threshold_backwash_recorded():
+def test_exactly_threshold_backwash_recorded() -> None:
     """Relay on for exactly 60 s → still recorded (≥ comparison, not >)."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     device = _device(backwash_running=True)
@@ -157,7 +158,7 @@ def test_exactly_threshold_backwash_recorded():
     assert tracker.last_backwash == T0 + timedelta(seconds=30)
 
 
-def test_two_consecutive_backwashes_keep_latest():
+def test_two_consecutive_backwashes_keep_latest() -> None:
     """If two backwashes happen in sequence, keep the later one."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
@@ -181,7 +182,7 @@ def test_two_consecutive_backwashes_keep_latest():
 # ── loss of connection ──────────────────────────────────────────────────────
 
 
-def test_lost_connection_resets_in_progress_window():
+def test_lost_connection_resets_in_progress_window() -> None:
     """Frame gap > MAX_FRAME_GAP between two relay-on updates → window reset.
 
     The reset discards the previous (unreliable) "on" window.  A
@@ -205,7 +206,7 @@ def test_lost_connection_resets_in_progress_window():
     assert tracker.last_backwash is None
 
 
-def test_lost_connection_during_real_backwash_does_not_record():
+def test_lost_connection_during_real_backwash_does_not_record() -> None:
     """A long but disconnected window should not be recorded as a backwash.
 
     Scenario: the device is in a real backwash cycle, the connection drops
@@ -226,7 +227,7 @@ def test_lost_connection_during_real_backwash_does_not_record():
     assert tracker.last_backwash is None
 
 
-def test_short_gap_does_not_reset():
+def test_short_gap_does_not_reset() -> None:
     """Frame gap < MAX_FRAME_GAP → window continues."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     device = _device(backwash_running=True)
@@ -243,7 +244,7 @@ def test_short_gap_does_not_reset():
 # ── NET devices ─────────────────────────────────────────────────────────────
 
 
-def test_net_device_skipped():
+def test_net_device_skipped() -> None:
     """backwash_running is None on NET → tracker is a no-op."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     tracker.update(_device(backwash_running=None), T0)
@@ -257,7 +258,7 @@ def test_net_device_skipped():
 # ── persistence ─────────────────────────────────────────────────────────────
 
 
-async def test_async_load_from_empty_store():
+async def test_async_load_from_empty_store() -> None:
     """async_load on a fresh Store leaves last_backwash as None."""
     hass = _hass()
     hass.config = MagicMock()  # unused but required by HA core for Store
@@ -269,7 +270,7 @@ async def test_async_load_from_empty_store():
     assert tracker.last_backwash is None
 
 
-async def test_async_save_writes_nulls_rather_than_skipping():
+async def test_async_save_writes_nulls_rather_than_skipping() -> None:
     """An empty state must be written, not skipped.
 
     Skipping made clearing a no-op on disk: the cleared value came back on the
@@ -289,7 +290,7 @@ async def test_async_save_writes_nulls_rather_than_skipping():
 # ── scheduled vs. manual classification ─────────────────────────────────────
 
 
-def test_nothing_recorded_starts_unknown():
+def test_nothing_recorded_starts_unknown() -> None:
     """A fresh tracker reports every field as unknown, not as a schedule guess."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
@@ -300,7 +301,7 @@ def test_nothing_recorded_starts_unknown():
     assert tracker.next_scheduled_backwash(_scheduled_device(False), T0) is None
 
 
-def test_cycle_at_scheduled_time_is_scheduled():
+def test_cycle_at_scheduled_time_is_scheduled() -> None:
     """A cycle starting at the configured backwash_start_time is the unit's own run."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
@@ -313,7 +314,7 @@ def test_cycle_at_scheduled_time_is_scheduled():
     assert tracker.last_manual_backwash is None
 
 
-def test_cycle_just_inside_tolerance_is_scheduled():
+def test_cycle_just_inside_tolerance_is_scheduled() -> None:
     """The unit's clock may drift from HA's — the tolerance window absorbs it."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
@@ -322,7 +323,7 @@ def test_cycle_just_inside_tolerance_is_scheduled():
     assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
 
 
-def test_cycle_outside_tolerance_is_manual():
+def test_cycle_outside_tolerance_is_manual() -> None:
     """A cycle well away from the scheduled time was started by hand."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
@@ -335,11 +336,11 @@ def test_cycle_outside_tolerance_is_manual():
     assert tracker.last_scheduled_backwash is None
 
 
-def test_cycle_is_manual_when_schedule_disabled():
+def test_cycle_is_manual_when_schedule_disabled() -> None:
     """interval 0 = automatic backwash off → the unit cannot have started it."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
-    def _disabled(active):
+    def _disabled(active) -> MagicMock:
         return _device(active, backwash_start_time=SCHEDULE_AT, backwash_interval=0)
 
     _run_cycle(tracker, T0, device_factory=_disabled)
@@ -347,7 +348,7 @@ def test_cycle_is_manual_when_schedule_disabled():
     assert tracker.last_trigger is AsekoBackwashTrigger.MANUAL
 
 
-def test_cycle_is_manual_when_schedule_unconfigured():
+def test_cycle_is_manual_when_schedule_unconfigured() -> None:
     """No backwash_start_time in the frame (0xFF) → nothing to match against."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
@@ -356,11 +357,11 @@ def test_cycle_is_manual_when_schedule_unconfigured():
     assert tracker.last_trigger is AsekoBackwashTrigger.MANUAL
 
 
-def test_scheduled_time_near_midnight_matches_across_days():
+def test_scheduled_time_near_midnight_matches_across_days() -> None:
     """A cycle at 00:05 still matches a 23:55 schedule on the previous day."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
-    def _near_midnight(active):
+    def _near_midnight(active) -> MagicMock:
         return _device(
             active,
             backwash_start_time=time(23, 55),
@@ -378,7 +379,7 @@ def test_scheduled_time_near_midnight_matches_across_days():
     assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
 
 
-def test_manual_cycle_keeps_earlier_scheduled_record():
+def test_manual_cycle_keeps_earlier_scheduled_record() -> None:
     """A manual run must not overwrite the last scheduled one (it drives 'next')."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
@@ -399,7 +400,7 @@ def test_manual_cycle_keeps_earlier_scheduled_record():
 # ── next-backwash projection ────────────────────────────────────────────────
 
 
-def test_next_scheduled_backwash_unknown_after_manual_only():
+def test_next_scheduled_backwash_unknown_after_manual_only() -> None:
     """A manual cycle says nothing about the unit's schedule phase."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     device = _scheduled_device(False)
@@ -410,7 +411,7 @@ def test_next_scheduled_backwash_unknown_after_manual_only():
     assert tracker.next_scheduled_backwash(device, T0 + timedelta(hours=3)) is None
 
 
-def test_next_scheduled_backwash_projected_from_last_scheduled():
+def test_next_scheduled_backwash_projected_from_last_scheduled() -> None:
     """next = last scheduled cycle + interval, snapped to the configured time."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     device = _scheduled_device(False)
@@ -424,7 +425,7 @@ def test_next_scheduled_backwash_projected_from_last_scheduled():
     ) == datetime(2026, 6, 17, 21, 0, 0, tzinfo=UTC)
 
 
-def test_next_scheduled_backwash_rolls_forward_past_missed_cycles():
+def test_next_scheduled_backwash_rolls_forward_past_missed_cycles() -> None:
     """Cycles missed while HA was down must not leave 'next' stuck in the past."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     device = _scheduled_device(False)
@@ -438,7 +439,7 @@ def test_next_scheduled_backwash_rolls_forward_past_missed_cycles():
     )
 
 
-def test_next_scheduled_backwash_none_when_schedule_disabled():
+def test_next_scheduled_backwash_none_when_schedule_disabled() -> None:
     """With automatic backwash switched off there is no next cycle to project."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
@@ -452,7 +453,7 @@ def test_next_scheduled_backwash_none_when_schedule_disabled():
 # ── persistence of the classification ───────────────────────────────────────
 
 
-async def test_async_load_restores_classified_state():
+async def test_async_load_restores_classified_state() -> None:
     """A stored payload round-trips into all four public fields."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     stored = {
@@ -471,7 +472,7 @@ async def test_async_load_restores_classified_state():
     assert tracker.last_trigger is AsekoBackwashTrigger.MANUAL
 
 
-async def test_async_load_tolerates_version_1_payload():
+async def test_async_load_tolerates_version_1_payload() -> None:
     """Stores written before classification existed keep their timestamp.
 
     The trigger of that pre-upgrade cycle is genuinely unknown, so it stays
@@ -490,7 +491,7 @@ async def test_async_load_tolerates_version_1_payload():
     assert tracker.last_trigger is None
 
 
-async def test_async_save_persists_classification():
+async def test_async_save_persists_classification() -> None:
     """The saved payload carries everything async_load reads back."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     tracker._store.async_save = AsyncMock()  # type: ignore[method-assign]
@@ -508,7 +509,7 @@ async def test_async_save_persists_classification():
 # ── manual seeding and provenance ───────────────────────────────────────────
 
 
-def test_manual_seed_marks_source_and_drives_projection():
+def test_manual_seed_marks_source_and_drives_projection() -> None:
     """A seeded date starts the projection and is labelled as manual."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     device = _scheduled_device(False)
@@ -524,7 +525,7 @@ def test_manual_seed_marks_source_and_drives_projection():
     )
 
 
-def test_manual_seed_does_not_touch_observed_last_backwash():
+def test_manual_seed_does_not_touch_observed_last_backwash() -> None:
     """last_backwash means "we watched this happen" — typing a date does not."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
@@ -535,7 +536,7 @@ def test_manual_seed_does_not_touch_observed_last_backwash():
     assert tracker.last_trigger is None
 
 
-def test_cycle_detected_after_a_seed_supersedes_it():
+def test_cycle_detected_after_a_seed_supersedes_it() -> None:
     """The seed stood in for a real cycle; once one is detected, it takes over."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
@@ -549,7 +550,7 @@ def test_cycle_detected_after_a_seed_supersedes_it():
     assert tracker.last_scheduled_source is AsekoBackwashSource.OBSERVED
 
 
-def test_cycle_detected_after_a_later_dated_seed_still_supersedes_it():
+def test_cycle_detected_after_a_later_dated_seed_still_supersedes_it() -> None:
     """Last write wins — the stored timestamps are never compared.
 
     Even a seed dated after the detected cycle gives way, because the cycle
@@ -565,7 +566,7 @@ def test_cycle_detected_after_a_later_dated_seed_still_supersedes_it():
     assert tracker.last_scheduled_source is AsekoBackwashSource.OBSERVED
 
 
-def test_manual_seed_overrides_an_observed_value():
+def test_manual_seed_overrides_an_observed_value() -> None:
     """A manual entry replaces a detected one — the user has a reason."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
@@ -579,7 +580,7 @@ def test_manual_seed_overrides_an_observed_value():
     assert tracker.last_scheduled_source is AsekoBackwashSource.MANUAL
 
 
-def test_observed_manual_cycle_leaves_the_seed_alone():
+def test_observed_manual_cycle_leaves_the_seed_alone() -> None:
     """A detected *manual* backwash says nothing about the schedule phase."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
@@ -592,14 +593,14 @@ def test_observed_manual_cycle_leaves_the_seed_alone():
     assert tracker.last_scheduled_source is AsekoBackwashSource.MANUAL
 
 
-def test_no_source_while_nothing_is_known():
+def test_no_source_while_nothing_is_known() -> None:
     """No value, no provenance — the attribute stays absent rather than lying."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
     assert tracker.last_scheduled_source is None
 
 
-async def test_manual_seed_is_persisted_before_any_observation():
+async def test_manual_seed_is_persisted_before_any_observation() -> None:
     """async_save must not bail out just because last_backwash is still None."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     tracker._store.async_save = AsyncMock()  # type: ignore[method-assign]
@@ -614,7 +615,7 @@ async def test_manual_seed_is_persisted_before_any_observation():
     assert saved["last_scheduled_source"] == "manual"
 
 
-async def test_async_load_restores_manual_source():
+async def test_async_load_restores_manual_source() -> None:
     """A seeded value survives a restart still marked as manual."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     tracker._store.async_load = AsyncMock(  # type: ignore[method-assign]
@@ -630,7 +631,7 @@ async def test_async_load_restores_manual_source():
     assert tracker.last_scheduled_source is AsekoBackwashSource.MANUAL
 
 
-async def test_async_load_treats_sourceless_stored_value_as_observed():
+async def test_async_load_treats_sourceless_stored_value_as_observed() -> None:
     """Stores written before provenance existed can only hold observed values."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     tracker._store.async_load = AsyncMock(  # type: ignore[method-assign]
@@ -648,7 +649,7 @@ async def test_async_load_treats_sourceless_stored_value_as_observed():
 # ── backfilling an old store ────────────────────────────────────────────────
 
 
-def test_backfill_classifies_a_pre_split_record_as_scheduled():
+def test_backfill_classifies_a_pre_split_record_as_scheduled() -> None:
     """A store holding only last_backwash gets classified on the first frame.
 
     Stores written before the scheduled/manual split existed would otherwise
@@ -667,7 +668,7 @@ def test_backfill_classifies_a_pre_split_record_as_scheduled():
     assert tracker.last_manual_backwash is None
 
 
-def test_backfill_classifies_a_pre_split_record_as_manual():
+def test_backfill_classifies_a_pre_split_record_as_manual() -> None:
     """Same, for a stored cycle that did not run at the scheduled time."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     off_schedule = T0 + timedelta(hours=4)
@@ -680,7 +681,7 @@ def test_backfill_classifies_a_pre_split_record_as_manual():
     assert tracker.last_scheduled_backwash is None
 
 
-def test_backfill_waits_for_a_frame_that_carries_the_schedule():
+def test_backfill_waits_for_a_frame_that_carries_the_schedule() -> None:
     """Without backwash_start_time there is nothing to classify against — retry later."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     tracker._last_backwash = T0  # type: ignore[attr-defined]
@@ -693,7 +694,7 @@ def test_backfill_waits_for_a_frame_that_carries_the_schedule():
     assert tracker.last_scheduled_backwash == T0
 
 
-def test_backfill_does_not_touch_an_already_split_store():
+def test_backfill_does_not_touch_an_already_split_store() -> None:
     """Once either bucket is filled the record is current — leave it alone."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     seeded = T0 - timedelta(days=3)
@@ -706,7 +707,7 @@ def test_backfill_does_not_touch_an_already_split_store():
     assert tracker.last_scheduled_source is AsekoBackwashSource.MANUAL
 
 
-def test_backfill_is_a_no_op_on_an_empty_store():
+def test_backfill_is_a_no_op_on_an_empty_store() -> None:
     """Nothing stored, nothing to classify."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
@@ -721,7 +722,7 @@ def test_backfill_is_a_no_op_on_an_empty_store():
 # ── clearing ────────────────────────────────────────────────────────────────
 
 
-def test_clear_returns_the_value_to_unknown():
+def test_clear_returns_the_value_to_unknown() -> None:
     """The undo for a mistyped date."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     tracker.set_last_scheduled_backwash(T0 - timedelta(days=1))
@@ -732,7 +733,7 @@ def test_clear_returns_the_value_to_unknown():
     assert tracker.last_scheduled_source is None
 
 
-def test_clear_rearms_the_backfill():
+def test_clear_rearms_the_backfill() -> None:
     """After clearing, an older stored cycle is classified again.
 
     This is what makes clearing useful rather than merely destructive: the
@@ -749,7 +750,7 @@ def test_clear_rearms_the_backfill():
     assert tracker.last_scheduled_source is AsekoBackwashSource.OBSERVED
 
 
-def test_clear_is_a_no_op_when_already_unknown():
+def test_clear_is_a_no_op_when_already_unknown() -> None:
     """Nothing stored, nothing to clear — and no pointless write."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
@@ -759,7 +760,7 @@ def test_clear_is_a_no_op_when_already_unknown():
     tracker._hass.async_create_task.assert_not_called()  # type: ignore[attr-defined]
 
 
-async def test_clear_is_persisted():
+async def test_clear_is_persisted() -> None:
     """Clearing must reach the store, or the old value returns on restart."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     tracker._store.async_save = AsyncMock()  # type: ignore[method-assign]
@@ -780,7 +781,7 @@ def _salt_device(
     backwash_running: bool | None,
     menu: bool,
     device_type: AsekoDeviceType = AsekoDeviceType.SALT,
-) -> Any:
+) -> MagicMock:
     """A scheduled device that also reports the settings-menu bit.
 
     The tracker never looks at the device type; what it reads is the profile
@@ -821,7 +822,7 @@ def _run_service_menu_cycle(
     )
 
 
-def test_in_the_schedule_window_a_cycle_is_scheduled_even_with_the_menu_open():
+def test_in_the_schedule_window_a_cycle_is_scheduled_even_with_the_menu_open() -> None:
     """The unit's timer explains a cycle in the window, whoever is at the menu."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
@@ -832,7 +833,7 @@ def test_in_the_schedule_window_a_cycle_is_scheduled_even_with_the_menu_open():
     assert tracker.last_manual_backwash is None
 
 
-def test_service_menu_is_latched_across_the_whole_window():
+def test_service_menu_is_latched_across_the_whole_window() -> None:
     """The flag counts even though the closing frame has already lost it.
 
     Reading the mode at the end of the window would miss every real cycle:
@@ -856,7 +857,7 @@ def test_service_menu_is_latched_across_the_whole_window():
     assert tracker.last_trigger is AsekoBackwashTrigger.MANUAL
 
 
-def test_without_the_service_menu_the_schedule_still_decides():
+def test_without_the_service_menu_the_schedule_still_decides() -> None:
     """The flag only ever adds evidence; its absence changes nothing."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
@@ -866,7 +867,7 @@ def test_without_the_service_menu_the_schedule_still_decides():
     assert tracker.last_scheduled_backwash is not None
 
 
-def test_service_menu_signal_does_not_apply_to_home():
+def test_service_menu_signal_does_not_apply_to_home() -> None:
     """On HOME the same bit is a standing pump override, not a person.
 
     It can sit set indefinitely, so honouring it there would refile every
@@ -882,7 +883,7 @@ def test_service_menu_signal_does_not_apply_to_home():
     assert tracker.last_trigger is AsekoBackwashTrigger.MANUAL
 
 
-def test_service_menu_flag_does_not_leak_into_the_next_cycle():
+def test_service_menu_flag_does_not_leak_into_the_next_cycle() -> None:
     """Each window starts from a clean slate."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
@@ -898,7 +899,7 @@ def test_service_menu_flag_does_not_leak_into_the_next_cycle():
 # ── units that report their settings menu (SALT) ─────────────────────────────
 
 
-def test_salt_cycle_outside_the_window_with_the_menu_closed_is_unknown():
+def test_salt_cycle_outside_the_window_with_the_menu_closed_is_unknown() -> None:
     """Nobody at the menu and not the schedule: the cycle is not attributed."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     started = T0 + timedelta(hours=2)
@@ -911,7 +912,7 @@ def test_salt_cycle_outside_the_window_with_the_menu_closed_is_unknown():
     assert tracker.last_scheduled_backwash is None
 
 
-def test_salt_cycle_outside_the_window_with_the_menu_open_is_manual():
+def test_salt_cycle_outside_the_window_with_the_menu_open_is_manual() -> None:
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     started = T0 + timedelta(hours=2)
 
@@ -921,10 +922,10 @@ def test_salt_cycle_outside_the_window_with_the_menu_open_is_manual():
     assert tracker.last_manual_backwash == started + timedelta(seconds=45)
 
 
-def test_salt_cycle_with_the_schedule_disabled_and_the_menu_closed_is_unknown():
+def test_salt_cycle_with_the_schedule_disabled_and_the_menu_closed_is_unknown() -> None:
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
-    def _disabled(active, menu=False):
+    def _disabled(active, menu=False) -> MagicMock:
         dev = _salt_device(active, menu)
         dev.backwash_interval = 0
         return dev
@@ -936,7 +937,7 @@ def test_salt_cycle_with_the_schedule_disabled_and_the_menu_closed_is_unknown():
     assert tracker.last_manual_backwash is None
 
 
-def test_unknown_cycle_keeps_earlier_manual_and_scheduled_records():
+def test_unknown_cycle_keeps_earlier_manual_and_scheduled_records() -> None:
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     _run_service_menu_cycle(tracker, T0, False)  # scheduled
     _run_service_menu_cycle(tracker, T0 + timedelta(hours=1), True)  # manual
@@ -950,7 +951,7 @@ def test_unknown_cycle_keeps_earlier_manual_and_scheduled_records():
     assert tracker.last_trigger is AsekoBackwashTrigger.UNKNOWN
 
 
-def test_backfill_of_an_unexplained_salt_record_runs_once():
+def test_backfill_of_an_unexplained_salt_record_runs_once() -> None:
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     off_schedule = T0 + timedelta(hours=4)
     tracker._last_backwash = off_schedule  # type: ignore[attr-defined]
@@ -969,7 +970,7 @@ def test_backfill_of_an_unexplained_salt_record_runs_once():
 # ── time zone and midnight (audit B1, B2) ────────────────────────────────────
 
 
-def _in_bratislava() -> Any:
+def _in_bratislava() -> ZoneInfo:
     """Home Assistant in Europe/Bratislava; the autouse fixture puts it back."""
 
     zone = ZoneInfo("Europe/Bratislava")
@@ -977,11 +978,11 @@ def _in_bratislava() -> Any:
     return zone
 
 
-def _every_three_days_at(at: time) -> Any:
+def _every_three_days_at(at: time) -> MagicMock:
     return _device(False, backwash_start_time=at, backwash_interval=3)
 
 
-def test_projection_keeps_the_wall_clock_time_across_daylight_saving():
+def test_projection_keeps_the_wall_clock_time_across_daylight_saving() -> None:
     """A cycle stored before the change to summer time still projects to 12:30."""
     zone = _in_bratislava()
     tracker = BackwashTracker(_hass(), serial_number=110071590)
@@ -998,7 +999,7 @@ def test_projection_keeps_the_wall_clock_time_across_daylight_saving():
     assert projected.utcoffset() == timedelta(hours=2)
 
 
-def test_a_utc_date_projects_like_the_same_local_one():
+def test_a_utc_date_projects_like_the_same_local_one() -> None:
     zone = _in_bratislava()
     device = _every_three_days_at(time(12, 30))
     now = datetime(2026, 9, 11, tzinfo=zone)
@@ -1016,12 +1017,12 @@ def test_a_utc_date_projects_like_the_same_local_one():
     )
 
 
-def test_a_cycle_finishing_after_midnight_keeps_the_day_it_was_scheduled():
+def test_a_cycle_finishing_after_midnight_keeps_the_day_it_was_scheduled() -> None:
     """Plan 23:59, valve 23:59:30-00:01: the next one is three days after the 10th."""
     zone = _in_bratislava()
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
-    def device(active):
+    def device(active) -> MagicMock:
         return _device(active, backwash_start_time=time(23, 59), backwash_interval=3)
 
     start = datetime(2026, 9, 10, 23, 59, 30, tzinfo=zone)
@@ -1034,11 +1035,11 @@ def test_a_cycle_finishing_after_midnight_keeps_the_day_it_was_scheduled():
     ) == datetime(2026, 9, 13, 23, 59, tzinfo=zone)
 
 
-def test_a_cycle_just_before_a_midnight_plan_matches_the_next_day():
+def test_a_cycle_just_before_a_midnight_plan_matches_the_next_day() -> None:
     zone = _in_bratislava()
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
-    def device(active):
+    def device(active) -> MagicMock:
         return _device(active, backwash_start_time=time(0, 0), backwash_interval=3)
 
     start = datetime(2026, 9, 10, 23, 58, tzinfo=zone)
@@ -1051,7 +1052,7 @@ def test_a_cycle_just_before_a_midnight_plan_matches_the_next_day():
     ) == datetime(2026, 9, 14, 0, 0, tzinfo=zone)
 
 
-def test_clearing_re_derives_the_split_after_an_observed_cycle():
+def test_clearing_re_derives_the_split_after_an_observed_cycle() -> None:
     """Clear forgets the verdict too, so the stored cycle is classified again."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     _run_cycle(tracker, T0)  # observed, scheduled
@@ -1071,10 +1072,10 @@ async def _store_roundtrip(tracker: BackwashTracker) -> BackwashTracker:
     """Save ``tracker`` into a fake Store and load a fresh tracker from it."""
     saved: dict[str, Any] = {}
 
-    async def save(data):
+    async def save(data) -> None:
         saved.update(data)
 
-    async def load():
+    async def load() -> dict[str, Any]:
         return dict(saved)
 
     tracker._store.async_save = save  # type: ignore[method-assign]
@@ -1085,7 +1086,7 @@ async def _store_roundtrip(tracker: BackwashTracker) -> BackwashTracker:
     return restored
 
 
-async def test_clearing_the_scheduled_date_keeps_a_newer_manual_verdict():
+async def test_clearing_the_scheduled_date_keeps_a_newer_manual_verdict() -> None:
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     _run_cycle(tracker, T0)  # scheduled
     _run_service_menu_cycle(tracker, T0 + timedelta(hours=21), True)  # manual
@@ -1101,7 +1102,9 @@ async def test_clearing_the_scheduled_date_keeps_a_newer_manual_verdict():
     assert restored.last_scheduled_backwash is None
 
 
-async def test_clearing_the_scheduled_date_keeps_a_newer_not_attributed_verdict():
+async def test_clearing_the_scheduled_date_keeps_a_newer_not_attributed_verdict() -> (
+    None
+):
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     _run_cycle(tracker, T0)  # scheduled
     _run_service_menu_cycle(tracker, T0 + timedelta(hours=21), False)  # menu closed
@@ -1117,7 +1120,9 @@ async def test_clearing_the_scheduled_date_keeps_a_newer_not_attributed_verdict(
     assert restored.last_trigger is AsekoBackwashTrigger.UNKNOWN
 
 
-def test_clearing_keeps_the_scheduled_verdict_when_a_manual_cycle_is_on_record():
+def test_clearing_keeps_the_scheduled_verdict_when_a_manual_cycle_is_on_record() -> (
+    None
+):
     """An older manual cycle blocks the backfill, so the verdict must not go."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     _run_service_menu_cycle(tracker, T0 - timedelta(hours=3), True)  # manual
@@ -1140,43 +1145,43 @@ def _clocked(
     *,
     at: time = SCHEDULE_AT,
     every: int = SCHEDULE_EVERY_N_DAYS,
-) -> Any:
+) -> MagicMock:
     """A scheduled device whose clock is ``offset`` minutes ahead of HA."""
     dev = _device(running, backwash_start_time=at, backwash_interval=every)
     dev.clock_offset = offset
     return dev
 
 
-def _clocked_cycle(tracker, start, offset, **kwargs) -> None:
+def _clocked_cycle(tracker, start, offset, **kwargs: object) -> None:
     tracker.update(_clocked(True, offset, **kwargs), start)
     tracker.update(_clocked(False, offset, **kwargs), start + timedelta(seconds=90))
 
 
-def _frame(tracker, moment, offset=None, **kwargs) -> None:
+def _frame(tracker, moment, offset=None, **kwargs: object) -> None:
     tracker.update(_clocked(False, offset, **kwargs), moment)
 
 
-def test_a_unit_ahead_runs_its_schedule_early_on_home_assistant_time():
+def test_a_unit_ahead_runs_its_schedule_early_on_home_assistant_time() -> None:
     """Unit 5.5 min ahead: its 21:00 is 20:54:30 in HA, and that is scheduled."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     _clocked_cycle(tracker, T0 - timedelta(minutes=5, seconds=30), 5.5)
     assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
 
 
-def test_with_the_offset_known_the_window_is_five_minutes():
+def test_with_the_offset_known_the_window_is_five_minutes() -> None:
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     # on the unit clock this started 10 minutes after the plan
     _clocked_cycle(tracker, T0 + timedelta(minutes=4, seconds=30), 5.5)
     assert tracker.last_trigger is AsekoBackwashTrigger.MANUAL
 
 
-def test_without_an_offset_the_window_stays_fifteen_minutes():
+def test_without_an_offset_the_window_stays_fifteen_minutes() -> None:
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     _clocked_cycle(tracker, T0 + timedelta(minutes=10), None)
     assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
 
 
-def test_a_unit_an_hour_behind_and_drifting_is_still_scheduled():
+def test_a_unit_an_hour_behind_and_drifting_is_still_scheduled() -> None:
     """Missed spring change (-60) and 5.5 min fast: its 21:00 is 21:54:30 in HA."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     _clocked_cycle(tracker, T0 + timedelta(minutes=54, seconds=30), -54.5)
@@ -1184,7 +1189,7 @@ def test_a_unit_an_hour_behind_and_drifting_is_still_scheduled():
 
 
 @pytest.mark.parametrize("offset", [None, 5.5, -54.5, 65.5, 125.0])
-def test_the_projection_shows_the_time_set_on_the_unit(offset):
+def test_the_projection_shows_the_time_set_on_the_unit(offset) -> None:
     """R2: not moved by drift nor by a change of time the unit did not follow."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     tracker._clock_offset_minutes = offset  # type: ignore[attr-defined]
@@ -1195,7 +1200,7 @@ def test_the_projection_shows_the_time_set_on_the_unit(offset):
     ) == T0 + timedelta(days=SCHEDULE_EVERY_N_DAYS)
 
 
-def test_missed_slots_are_stepped_over_on_the_unit_clock():
+def test_missed_slots_are_stepped_over_on_the_unit_clock() -> None:
     """A unit 10 min ahead has run its 21:00 while HA still shows 20:55."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     tracker._clock_offset_minutes = 10.0  # type: ignore[attr-defined]
@@ -1209,13 +1214,13 @@ def test_missed_slots_are_stepped_over_on_the_unit_clock():
 # ── schedule change (audit R1) ───────────────────────────────────────────────
 
 
-def test_the_first_schedule_seen_does_not_restart_anything():
+def test_the_first_schedule_seen_does_not_restart_anything() -> None:
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     _frame(tracker, T0 - timedelta(hours=1))
     assert tracker.next_scheduled_backwash(_clocked(False, None), T0) is None
 
 
-def test_a_new_backwash_time_runs_the_day_after_the_change():
+def test_a_new_backwash_time_runs_the_day_after_the_change() -> None:
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     _clocked_cycle(tracker, T0, None)  # 14 June, every 3 days at 21:00
     changed = datetime(2026, 6, 15, 10, 0, tzinfo=UTC)
@@ -1226,7 +1231,7 @@ def test_a_new_backwash_time_runs_the_day_after_the_change():
     ) == datetime(2026, 6, 16, 8, 30, tzinfo=UTC)
 
 
-def test_a_new_interval_runs_the_day_after_the_change():
+def test_a_new_interval_runs_the_day_after_the_change() -> None:
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     _clocked_cycle(tracker, T0, None)
     changed = T0 + timedelta(hours=1)
@@ -1237,7 +1242,7 @@ def test_a_new_interval_runs_the_day_after_the_change():
     ) == T0 + timedelta(days=1)
 
 
-def test_switching_the_schedule_off_and_on_restarts_it_the_next_day():
+def test_switching_the_schedule_off_and_on_restarts_it_the_next_day() -> None:
     """Several toggles in one evening, as captured on 13 September."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     _clocked_cycle(tracker, T0 - timedelta(days=2), None)
@@ -1253,7 +1258,7 @@ def test_switching_the_schedule_off_and_on_restarts_it_the_next_day():
     ) == T0 + timedelta(days=1)
 
 
-def test_the_restarted_schedule_counts_from_its_first_cycle():
+def test_the_restarted_schedule_counts_from_its_first_cycle() -> None:
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     _frame(tracker, T0 - timedelta(hours=5))
     _frame(tracker, T0 - timedelta(hours=4), every=15)  # change: runs tomorrow
@@ -1265,7 +1270,7 @@ def test_the_restarted_schedule_counts_from_its_first_cycle():
     ) == T0 + timedelta(days=16)
 
 
-def test_a_missed_restart_day_steps_on_by_the_interval():
+def test_a_missed_restart_day_steps_on_by_the_interval() -> None:
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     _frame(tracker, T0 - timedelta(hours=5))
     _frame(tracker, T0 - timedelta(hours=4), every=5)
@@ -1275,7 +1280,7 @@ def test_a_missed_restart_day_steps_on_by_the_interval():
     ) == T0 + timedelta(days=6)
 
 
-def test_the_day_of_the_change_is_the_day_on_the_unit_clock():
+def test_the_day_of_the_change_is_the_day_on_the_unit_clock() -> None:
     """HA 23:57, the unit (+5.5 min) already past midnight: runs a day later."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     late = datetime(2026, 6, 14, 23, 57, tzinfo=UTC)
@@ -1287,7 +1292,7 @@ def test_the_day_of_the_change_is_the_day_on_the_unit_clock():
     ) == datetime(2026, 6, 16, 8, 30, tzinfo=UTC)
 
 
-def test_typing_in_the_last_scheduled_date_replaces_a_restart():
+def test_typing_in_the_last_scheduled_date_replaces_a_restart() -> None:
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     _frame(tracker, T0 - timedelta(hours=5))
     _frame(tracker, T0 - timedelta(hours=4), every=5)
@@ -1298,7 +1303,7 @@ def test_typing_in_the_last_scheduled_date_replaces_a_restart():
     ) == T0 + timedelta(days=3)
 
 
-def test_the_recorded_day_does_not_follow_a_new_time_to_another_day():
+def test_the_recorded_day_does_not_follow_a_new_time_to_another_day() -> None:
     """The day a cycle belonged to is fixed when it is recorded (audit R1)."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     # 14 June 23:00, every 3 days
@@ -1312,7 +1317,7 @@ def test_the_recorded_day_does_not_follow_a_new_time_to_another_day():
     ) == datetime(2026, 6, 17, 1, 0, tzinfo=UTC)
 
 
-async def test_schedule_restart_and_offset_survive_a_restart():
+async def test_schedule_restart_and_offset_survive_a_restart() -> None:
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     _frame(tracker, T0 - timedelta(hours=5), 5.5)
     _frame(tracker, T0 - timedelta(hours=4), 5.5, every=5)
@@ -1341,7 +1346,9 @@ def _unit_bytes(unit: datetime) -> bytes:
     return bytes(data)
 
 
-def _recognise(zone, ha_start: datetime, unit_ahead: timedelta):
+def _recognise(
+    zone, ha_start: datetime, unit_ahead: timedelta
+) -> tuple[ClockTracker, BackwashTracker]:
     """Clock frames and one cycle through the real decoder and both trackers."""
     clock = ClockTracker()
     tracker = BackwashTracker(_hass(), serial_number=110071590)
@@ -1357,7 +1364,7 @@ def _recognise(zone, ha_start: datetime, unit_ahead: timedelta):
     return clock, tracker
 
 
-def test_a_missed_autumn_change_and_drift_are_taken_out():
+def test_a_missed_autumn_change_and_drift_are_taken_out() -> None:
     """25 Oct 2026: HA on winter time, the unit still on summer time, 5.5 min fast."""
     zone = _in_bratislava()
     ha_start = datetime(2026, 10, 25, 7, 24, 30, tzinfo=zone)
@@ -1367,7 +1374,7 @@ def test_a_missed_autumn_change_and_drift_are_taken_out():
     assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
 
 
-def test_a_missed_spring_change_and_drift_are_taken_out():
+def test_a_missed_spring_change_and_drift_are_taken_out() -> None:
     """29 Mar 2026: HA on summer time, the unit still on winter time, 5.5 min fast."""
     zone = _in_bratislava()
     ha_start = datetime(2026, 3, 29, 9, 24, 30, tzinfo=zone)
@@ -1377,7 +1384,7 @@ def test_a_missed_spring_change_and_drift_are_taken_out():
     assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
 
 
-def test_six_minutes_past_the_plan_on_the_unit_clock_is_not_scheduled():
+def test_six_minutes_past_the_plan_on_the_unit_clock_is_not_scheduled() -> None:
     zone = _in_bratislava()
     ha_start = datetime(2026, 3, 29, 9, 30, 30, tzinfo=zone)  # unit 08:36
     _, tracker = _recognise(zone, ha_start, timedelta(minutes=-54.5))
@@ -1388,7 +1395,7 @@ def test_six_minutes_past_the_plan_on_the_unit_clock_is_not_scheduled():
 # ── start-up: a frame before the stored state is loaded ──────────────────────
 
 
-async def test_a_frame_before_the_load_finishes_does_not_wipe_the_history():
+async def test_a_frame_before_the_load_finishes_does_not_wipe_the_history() -> None:
     """Store hands a pending write back to a load: nothing may be saved first."""
     stored = {
         "last_backwash": "2026-09-15T06:25:21+00:00",
@@ -1400,11 +1407,11 @@ async def test_a_frame_before_the_load_finishes_does_not_wipe_the_history():
     release = asyncio.Event()
     saves: list[dict] = []
 
-    async def load():
+    async def load() -> dict[str, Any]:
         await release.wait()
         return dict(saves[-1]) if saves else dict(stored)
 
-    async def save(data):
+    async def save(data) -> None:
         saves.append(dict(data))
 
     hass = _hass()
@@ -1438,7 +1445,9 @@ async def test_a_frame_before_the_load_finishes_does_not_wipe_the_history():
 # ── times: UTC durations, the window offset, the unit-clock slot (T1-T3) ─────
 
 
-def _utc_frames(zone, start_utc: datetime, seconds: int, step: int = 10):
+def _utc_frames(
+    zone, start_utc: datetime, seconds: int, step: int = 10
+) -> list[datetime]:
     """Receive times every ``step`` seconds of real time, as local times."""
     return [
         (start_utc + timedelta(seconds=s)).astimezone(zone)
@@ -1453,7 +1462,7 @@ def _utc_frames(zone, start_utc: datetime, seconds: int, step: int = 10):
         datetime(2026, 10, 25, 0, 59, 30, tzinfo=UTC),  # 02:59:30 +02
     ],
 )
-def test_a_cycle_across_a_change_of_time_is_measured_in_real_seconds(start_utc):
+def test_a_cycle_across_a_change_of_time_is_measured_in_real_seconds(start_utc) -> None:
     """T1: 75 real seconds stay 75 when the local clock jumps an hour."""
     zone = _in_bratislava()
     tracker = BackwashTracker(_hass(), serial_number=110071590)
@@ -1465,7 +1474,7 @@ def test_a_cycle_across_a_change_of_time_is_measured_in_real_seconds(start_utc):
     assert tracker.last_backwash == start_utc + timedelta(seconds=40)
 
 
-def test_a_frame_gap_is_real_time_too():
+def test_a_frame_gap_is_real_time_too() -> None:
     """T1: a gap of 10 real seconds across the spring change is not an hour."""
     zone = _in_bratislava()
     start = datetime(2026, 3, 29, 0, 59, 55, tzinfo=UTC)
@@ -1475,7 +1484,7 @@ def test_a_frame_gap_is_real_time_too():
     assert tracker._relay_on_since == start  # type: ignore[attr-defined]
 
 
-def test_the_offset_when_the_valve_opened_decides():
+def test_the_offset_when_the_valve_opened_decides() -> None:
     """T2: an offset that jumps mid-cycle does not reclassify its start."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     start = T0 + timedelta(minutes=54, seconds=30)
@@ -1486,7 +1495,7 @@ def test_the_offset_when_the_valve_opened_decides():
     assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
 
 
-def test_last_scheduled_is_the_slot_on_the_unit_clock():
+def test_last_scheduled_is_the_slot_on_the_unit_clock() -> None:
     """T3: the unit ran its 21:00; HA saw it at 21:54:30 with the unit 54.5 min behind."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     start = T0 + timedelta(minutes=54, seconds=30)
@@ -1496,7 +1505,7 @@ def test_last_scheduled_is_the_slot_on_the_unit_clock():
     assert tracker.last_backwash == start + timedelta(seconds=45)
 
 
-def test_last_manual_stays_on_home_assistant_time():
+def test_last_manual_stays_on_home_assistant_time() -> None:
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     start = T0 + timedelta(hours=3)
     _clocked_cycle(tracker, start, -54.5)

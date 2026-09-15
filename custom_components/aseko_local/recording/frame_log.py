@@ -85,7 +85,7 @@ def decode_lines(lines: Iterable[bytes]) -> Iterator[dict[str, Any]]:
         yield record
 
 
-def _valid_marker(marker: Any) -> bool:
+def _valid_marker(marker: object) -> bool:
     """A stored case the list can show: an integer number and a readable time."""
     if not isinstance(marker, dict):
         return False

@@ -26,7 +26,10 @@ import zipfile
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from PIL.Image import Image
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -164,7 +167,7 @@ def _prepare(data: bytes) -> tuple[bytes, str | None, str]:
         return data, None, ".bin"
 
 
-def _capture_time(image: Any) -> str | None:
+def _capture_time(image: Image) -> str | None:
     try:
         exif = image.getexif()
         value = exif.get_ifd(EXIF_IFD).get(EXIF_DATETIME_ORIGINAL) or exif.get(306)

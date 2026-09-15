@@ -51,7 +51,7 @@ class DummyWriter:
     async def wait_closed(self) -> None:
         pass
 
-    def get_extra_info(self, name: str):
+    def get_extra_info(self, name: str) -> tuple[str, int] | None:
         # Simuliere Peername für Tests
         if name == "peername":
             return (self.host, self.port)

@@ -7,7 +7,7 @@ from .test_decode_v7 import _make_base_bytes
 from .test_decode_v8 import REFERENCE_FRAME
 
 
-def _value(key: str):
+def _value(key: str) -> object:
     """Decode the base test frame and return the value_fn output for a sensor key."""
     device = decode(bytes(_make_base_bytes()))
     description = next(d for d in SENSORS if d.key == key)

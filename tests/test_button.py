@@ -1,5 +1,6 @@
 """Tests for the Aseko Local button platform (canister-reset buttons)."""
 
+from collections.abc import Callable
 from unittest.mock import MagicMock
 
 import pytest
@@ -11,7 +12,7 @@ from custom_components.aseko_local.button import (
 )
 from custom_components.aseko_local.const import UNIT_TYPE_PROFI, WATER_FLOW_TO_PROBES
 from custom_components.aseko_local.decoding import decode
-from custom_components.aseko_local.models import AsekoDeviceType
+from custom_components.aseko_local.models import AsekoDevice, AsekoDeviceType
 
 # ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -66,20 +67,20 @@ def _make_profi_bytes() -> bytearray:
     return data
 
 
-def _dummy_entry(device):
+def _dummy_entry(device) -> MagicMock:
     class DummyCoordinator:
         reset_consumption = MagicMock()
 
-        def get_devices(self):
+        def get_devices(self) -> list[AsekoDevice]:
             return [device]
 
-        def get_tracker(self, serial_number):
+        def get_tracker(self, serial_number) -> None:
             return None
 
-        def async_add_new_device_listener(self, listener):
+        def async_add_new_device_listener(self, listener) -> Callable[[], None]:
             return lambda: None
 
-        def async_add_new_features_listener(self, listener):
+        def async_add_new_features_listener(self, listener) -> Callable[[], None]:
             return lambda: None
 
     entry = MagicMock(spec=ConfigEntry)
@@ -87,8 +88,8 @@ def _dummy_entry(device):
     return entry
 
 
-def _mock_add_entities(added):
-    def _cb(new_entities, update_before_add=False, *, config_subentry_id=None):
+def _mock_add_entities(added) -> Callable[..., None]:
+    def _cb(new_entities, update_before_add=False, *, config_subentry_id=None) -> None:
         # only the buttons for pumps the unit has shown; the rest are disabled
         added.extend(e for e in new_entities if e.entity_registry_enabled_default)
 

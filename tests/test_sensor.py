@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from unittest.mock import MagicMock
 
 import pytest
@@ -18,7 +19,7 @@ from custom_components.aseko_local.const import (
     WATER_FLOW_TO_PROBES,
 )
 from custom_components.aseko_local.decoding import decode
-from custom_components.aseko_local.models import AsekoDeviceType
+from custom_components.aseko_local.models import AsekoDevice, AsekoDeviceType
 from custom_components.aseko_local.sensor import (
     RETIRED_UNIQUE_ID_SUFFIXES as RETIRED_SENSOR_IDS,
 )
@@ -230,16 +231,16 @@ async def test_async_setup_salt_redox(hass) -> None:
     device = decode(raw_bytes)
 
     class DummyCoordinator:
-        def get_devices(self):
+        def get_devices(self) -> list[AsekoDevice]:
             return [device]
 
-        def get_tracker(self, serial_number):
+        def get_tracker(self, serial_number) -> None:
             return None
 
-        def async_add_new_device_listener(self, listener):
+        def async_add_new_device_listener(self, listener) -> Callable[[], None]:
             return lambda: None
 
-        def async_add_new_features_listener(self, listener):
+        def async_add_new_features_listener(self, listener) -> Callable[[], None]:
             return lambda: None
 
     # Create a MagicMock for ConfigEntry with runtime_data attribute
@@ -256,7 +257,7 @@ async def test_async_setup_salt_redox(hass) -> None:
     # Correct callback signature for async_add_entities
     def mock_add_entities(
         new_entities, update_before_add=False, *, config_subentry_id=None
-    ):
+    ) -> None:
         # Only what the unit has shown: every other quantity the model can
         # have gets an entity too, created disabled (entity.py).
         added_entities.extend(
@@ -371,19 +372,19 @@ async def test_async_setup_salt_clf(hass) -> None:
     device = decode(raw_bytes)
 
     class DummyCoordinator:
-        def get_devices(self):
+        def get_devices(self) -> list[AsekoDevice]:
             return [device]
 
-        def get_tracker(self, serial_number):
+        def get_tracker(self, serial_number) -> None:
             return None
 
-        def last_update_success(self):
+        def last_update_success(self) -> bool:
             return True
 
-        def async_add_new_device_listener(self, listener):
+        def async_add_new_device_listener(self, listener) -> Callable[[], None]:
             return lambda: None
 
-        def async_add_new_features_listener(self, listener):
+        def async_add_new_features_listener(self, listener) -> Callable[[], None]:
             return lambda: None
 
     # Create a MagicMock for ConfigEntry with runtime_data attribute
@@ -400,7 +401,7 @@ async def test_async_setup_salt_clf(hass) -> None:
     # Correct callback signature for async_add_entities
     def mock_add_entities(
         new_entities, update_before_add=False, *, config_subentry_id=None
-    ):
+    ) -> None:
         # Only what the unit has shown: every other quantity the model can
         # have gets an entity too, created disabled (entity.py).
         added_entities.extend(
@@ -502,16 +503,16 @@ async def test_async_setup_net_clf(hass) -> None:
     device = decode(raw_bytes)
 
     class DummyCoordinator:
-        def get_devices(self):
+        def get_devices(self) -> list[AsekoDevice]:
             return [device]
 
-        def get_tracker(self, serial_number):
+        def get_tracker(self, serial_number) -> None:
             return None
 
-        def async_add_new_device_listener(self, listener):
+        def async_add_new_device_listener(self, listener) -> Callable[[], None]:
             return lambda: None
 
-        def async_add_new_features_listener(self, listener):
+        def async_add_new_features_listener(self, listener) -> Callable[[], None]:
             return lambda: None
 
     # Create a MagicMock for ConfigEntry with runtime_data attribute
@@ -528,7 +529,7 @@ async def test_async_setup_net_clf(hass) -> None:
     # Correct callback signature for async_add_entities
     def mock_add_entities(
         new_entities, update_before_add=False, *, config_subentry_id=None
-    ):
+    ) -> None:
         # Only what the unit has shown: every other quantity the model can
         # have gets an entity too, created disabled (entity.py).
         added_entities.extend(
@@ -646,16 +647,16 @@ async def test_async_setup_profi_clf_redox(hass) -> None:
     device = decode(raw_bytes)
 
     class DummyCoordinator:
-        def get_devices(self):
+        def get_devices(self) -> list[AsekoDevice]:
             return [device]
 
-        def get_tracker(self, serial_number):
+        def get_tracker(self, serial_number) -> None:
             return None
 
-        def async_add_new_device_listener(self, listener):
+        def async_add_new_device_listener(self, listener) -> Callable[[], None]:
             return lambda: None
 
-        def async_add_new_features_listener(self, listener):
+        def async_add_new_features_listener(self, listener) -> Callable[[], None]:
             return lambda: None
 
     # Create a MagicMock for ConfigEntry with runtime_data attribute
@@ -672,7 +673,7 @@ async def test_async_setup_profi_clf_redox(hass) -> None:
     # Correct callback signature for async_add_entities
     def mock_add_entities(
         new_entities, update_before_add=False, *, config_subentry_id=None
-    ):
+    ) -> None:
         # Only what the unit has shown: every other quantity the model can
         # have gets an entity too, created disabled (entity.py).
         added_entities.extend(
@@ -953,7 +954,7 @@ async def test_retired_removal_is_idempotent(hass, mock_config_entry) -> None:
 # ── filtration schedule, and the settings-menu flag beside it ───────────────
 
 
-def _decode_salt(byte37: int):
+def _decode_salt(byte37: int) -> AsekoDevice:
     """Decode a SALT frame carrying the given byte[37]."""
     data = _make_salt_redox_bytes()
     data[37] = byte37

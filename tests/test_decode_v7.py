@@ -276,7 +276,7 @@ def test_decode_filtration_period2_real_dtpugh_frames() -> None:
     if not diag_dir.exists():
         pytest.skip("diagnostic files from issue #133 are not available")
 
-    def _first_frame(payload):
+    def _first_frame(payload) -> str:
         if isinstance(payload, dict):
             for v in payload.values():
                 r = _first_frame(v)

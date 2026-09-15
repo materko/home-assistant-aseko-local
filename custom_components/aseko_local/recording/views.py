@@ -25,7 +25,7 @@ import asyncio
 import json
 import logging
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from aiohttp import web
 from homeassistant.components.frontend import add_extra_js_url
@@ -37,6 +37,9 @@ from homeassistant.util import dt as dt_util
 
 from ..const import DOMAIN
 from .photos import PhotoStore, build_export_zip
+
+if TYPE_CHECKING:
+    from .. import AsekoLocalConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -178,7 +181,7 @@ class AsekoPhotoView(HomeAssistantView):
         }
         saved = await hass.async_add_executor_job(store.save, data, received, note)
 
-        async def mark(entry: Any) -> dict[str, Any] | None:
+        async def mark(entry: AsekoLocalConfigEntry) -> dict[str, Any] | None:
             marker = await entry.runtime_data.coordinator.async_mark_after_frame(
                 note,
                 {"photo": saved.file, "captured": saved.captured},

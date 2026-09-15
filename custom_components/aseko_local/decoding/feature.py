@@ -24,7 +24,7 @@ the field.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from .frames import Protocol
 
@@ -51,11 +51,11 @@ class Feature:
     #: else in ``depends_on`` must be listed, or the profile fails to build.
     optional_depends_on: ClassVar[tuple[type[Feature], ...]] = ()
 
-    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> Any:
+    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> object:
         """Default reading from a v7 frame.  Absent when v7 has none."""
         raise NotImplementedError
 
-    def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> Any:
+    def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> object:
         """Default reading from a v8 frame.  Absent when v8 has none."""
         raise NotImplementedError
 

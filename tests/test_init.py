@@ -1,7 +1,6 @@
 """Test Aseko Local setup process."""
 
 import asyncio
-from typing import Any
 
 import pytest
 from homeassistant.config_entries import ConfigEntryState
@@ -172,7 +171,7 @@ async def test_device_recognition(monkeypatch) -> None:
         async def wait_closed(self) -> None:
             pass
 
-        def get_extra_info(self, name: str) -> Any:
+        def get_extra_info(self, name: str) -> tuple[str, int] | None:
             if name == "peername":
                 return ("127.0.0.1", 12345)
             return None

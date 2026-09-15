@@ -43,13 +43,13 @@ def _diagnostics(tmp_path: Path) -> Path:
     return path
 
 
-def test_help_runs():
+def test_help_runs() -> None:
     result = _run("--help")
     assert result.returncode == 0, result.stderr
     assert "--around" in result.stdout
 
 
-def test_lists_the_markers(tmp_path):
+def test_lists_the_markers(tmp_path) -> None:
     result = _run(str(_diagnostics(tmp_path)))
     assert result.returncode == 0, result.stderr
     assert "marker   1" in result.stdout
@@ -57,7 +57,7 @@ def test_lists_the_markers(tmp_path):
     assert "7 records" in result.stdout
 
 
-def test_around_prints_the_frames_near_a_marker(tmp_path):
+def test_around_prints_the_frames_near_a_marker(tmp_path) -> None:
     result = _run(str(_diagnostics(tmp_path)), "--around", "1")
     assert result.returncode == 0, result.stderr
     lines = result.stdout.splitlines()
@@ -66,7 +66,7 @@ def test_around_prints_the_frames_near_a_marker(tmp_path):
     assert sum(" v7 " in line for line in lines) == 5
 
 
-def test_jsonl_writes_every_record(tmp_path):
+def test_jsonl_writes_every_record(tmp_path) -> None:
     out = tmp_path / "frames.jsonl"
     result = _run(str(_diagnostics(tmp_path)), "--jsonl", str(out))
     assert result.returncode == 0, result.stderr

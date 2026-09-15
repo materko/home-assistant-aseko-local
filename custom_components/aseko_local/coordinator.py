@@ -261,7 +261,9 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         return is_new_device, grown
 
     @staticmethod
-    def _notify(listeners: list[Callable[..., None]], serial: int, *args: Any) -> None:
+    def _notify(
+        listeners: list[Callable[..., None]], serial: int, *args: object
+    ) -> None:
         """Call every listener; one that raises does not stop the others."""
         for listener in list(listeners):
             try:

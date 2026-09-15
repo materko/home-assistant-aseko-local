@@ -13,7 +13,9 @@ from __future__ import annotations
 
 import contextlib
 import logging
+from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from unittest.mock import MagicMock
 from zoneinfo import ZoneInfo
 
@@ -35,7 +37,7 @@ from .test_decode_v7 import _make_base_bytes
 
 
 @pytest.fixture(autouse=True)
-def _quiet_logging():
+def _quiet_logging() -> Iterator[None]:
     """Silence logging for this module's tests only, and turn it back on."""
     logging.disable(logging.CRITICAL)
     yield
@@ -163,12 +165,12 @@ def test_new_features_listener_can_unsubscribe() -> None:
 
 
 class _PlatformCoordinator:
-    def get_tracker(self, serial_number):
+    def get_tracker(self, serial_number) -> None:
         return None
 
 
 @pytest.fixture
-def grown_device():
+def grown_device() -> AsekoDevice:
     """A SALT that has just started showing its algicide port."""
     device = decode(_salt_frame(0xC3, flowrate_third_pump=40))
     assert device.features >= ALGICIDE_FIELDS
@@ -253,7 +255,7 @@ def test_the_whole_chain_adds_exactly_the_algicide_entities() -> None:
     platform = _PlatformCoordinator()
     added: list = []
 
-    def on_new_features(device, features):
+    def on_new_features(device, features) -> None:
         added.extend(_build_sensor_entities([device], platform, features))
         added.extend(_build_binary_sensor_entities([device], platform, features))
         added.extend(_build_button_entities([device], platform, features))
@@ -285,7 +287,7 @@ class _AvailableCoordinator(_PlatformCoordinator):
     last_update_success = True
 
 
-def _entities_by_key(device):
+def _entities_by_key(device) -> dict[str, Any]:
     coordinator = _AvailableCoordinator()
     entities = (
         _build_sensor_entities([device], coordinator)
@@ -343,7 +345,7 @@ def test_growth_enables_the_entities_the_integration_disabled(monkeypatch) -> No
     """R7: only integration-disabled entries are enabled; a user's choice stays."""
 
     class _Entry:
-        def __init__(self, disabled_by):
+        def __init__(self, disabled_by) -> None:
             self.disabled_by = disabled_by
 
     entries = {
@@ -357,13 +359,13 @@ def test_growth_enables_the_entities_the_integration_disabled(monkeypatch) -> No
     enabled: list[str] = []
 
     class _Registry:
-        def async_get_entity_id(self, platform, domain, unique_id):
+        def async_get_entity_id(self, platform, domain, unique_id) -> str | None:
             return ids.get(unique_id)
 
-        def async_get(self, entity_id):
+        def async_get(self, entity_id) -> MagicMock | None:
             return entries.get(entity_id)
 
-        def async_update_entity(self, entity_id, disabled_by):
+        def async_update_entity(self, entity_id, disabled_by) -> None:
             assert disabled_by is None
             enabled.append(entity_id)
 
@@ -386,13 +388,13 @@ def test_a_failed_platform_setup_is_asked_again_on_the_next_frame() -> None:
     """Minor fix 1: until the platforms are up, every frame requests the set-up."""
     requested: list[int] = []
 
-    async def cb(device):
+    async def cb(device) -> None:
         requested.append(device.serial_number)
 
     coordinator = _coordinator()
     coordinator.cb_new_device = cb
 
-    def run(coro):
+    def run(coro) -> None:
         with contextlib.suppress(StopIteration):
             coro.send(None)
 
@@ -412,7 +414,7 @@ def test_a_failed_platform_setup_is_asked_again_on_the_next_frame() -> None:
     assert requested == [SERIAL, SERIAL]  # set up: not asked again
 
 
-def test_a_unit_is_offline_after_five_minutes_but_keeps_its_values():
+def test_a_unit_is_offline_after_five_minutes_but_keeps_its_values() -> None:
     """Audit A1: offline is a flag; the last values stay as they were."""
 
     device = decode(bytes(_make_base_bytes()))
@@ -424,7 +426,7 @@ def test_a_unit_is_offline_after_five_minutes_but_keeps_its_values():
     assert "water_temperature" in device.present_features
 
 
-def test_online_counts_real_minutes_across_a_change_of_time(monkeypatch):
+def test_online_counts_real_minutes_across_a_change_of_time(monkeypatch) -> None:
     """A frame 10 real seconds old is fresh even when the local clock jumped."""
 
     zone = ZoneInfo("Europe/Bratislava")

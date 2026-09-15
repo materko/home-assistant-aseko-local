@@ -7,6 +7,7 @@ import pytest
 from custom_components.aseko_local.decoding import decode
 from custom_components.aseko_local.decoding.frames import parse_v8
 from custom_components.aseko_local.models import (
+    AsekoDevice,
     AsekoDeviceType,
     AsekoProbeType,
     AsekoProfileFlag,
@@ -124,27 +125,27 @@ REFERENCE_FRAME_812 = (
 
 
 @pytest.fixture
-def device_sep():
+def device_sep() -> AsekoDevice:
     return decode(REFERENCE_FRAME)
 
 
 @pytest.fixture
-def device_805():
+def device_805() -> AsekoDevice:
     return decode(REFERENCE_FRAME_805)
 
 
 @pytest.fixture
-def device_812():
+def device_812() -> AsekoDevice:
     return decode(REFERENCE_FRAME_812)
 
 
 @pytest.fixture
-def device_105():
+def device_105() -> AsekoDevice:
     return decode(REFERENCE_FRAME_105)
 
 
 @pytest.fixture
-def device_apr():
+def device_apr() -> AsekoDevice:
     return decode(REFERENCE_FRAME_APR)
 
 
@@ -153,27 +154,27 @@ def device_apr():
 # ---------------------------------------------------------------------------
 
 
-def test_serial_number(device_sep):
+def test_serial_number(device_sep) -> None:
     assert device_sep.serial_number == 123456789
 
 
-def test_device_type_is_net(device_sep):
+def test_device_type_is_net(device_sep) -> None:
     assert device_sep.device_type == AsekoDeviceType.NET
 
 
-def test_device_805_type_is_net(device_805):
+def test_device_805_type_is_net(device_805) -> None:
     assert device_805.device_type == AsekoDeviceType.NET
 
 
-def test_device_812_type_is_net(device_812):
+def test_device_812_type_is_net(device_812) -> None:
     assert device_812.device_type == AsekoDeviceType.NET
 
 
-def test_device_105_type_is_salt(device_105):
+def test_device_105_type_is_salt(device_105) -> None:
     assert device_105.device_type == AsekoDeviceType.SALT
 
 
-def test_configuration_contains_ph_and_redox(device_sep):
+def test_configuration_contains_ph_and_redox(device_sep) -> None:
     assert AsekoProbeType.PH in device_sep.configuration
     assert AsekoProbeType.REDOX in device_sep.configuration
 
@@ -183,31 +184,31 @@ def test_configuration_contains_ph_and_redox(device_sep):
 # ---------------------------------------------------------------------------
 
 
-def test_water_temperature_sep(device_sep):
+def test_water_temperature_sep(device_sep) -> None:
     assert device_sep.water_temperature == pytest.approx(31.4)
 
 
-def test_water_temperature_apr(device_apr):
+def test_water_temperature_apr(device_apr) -> None:
     assert device_apr.water_temperature == pytest.approx(18.0)
 
 
-def test_ph_sep(device_sep):
+def test_ph_sep(device_sep) -> None:
     assert device_sep.ph == pytest.approx(7.08)
 
 
-def test_ph_apr(device_apr):
+def test_ph_apr(device_apr) -> None:
     assert device_apr.ph == pytest.approx(6.49)
 
 
-def test_redox_sep(device_sep):
+def test_redox_sep(device_sep) -> None:
     assert device_sep.redox == 779
 
 
-def test_redox_apr(device_apr):
+def test_redox_apr(device_apr) -> None:
     assert device_apr.redox == 809
 
 
-def test_water_flow_to_probes(device_sep):
+def test_water_flow_to_probes(device_sep) -> None:
     assert device_sep.water_flow_to_probes is True
 
 
@@ -216,16 +217,16 @@ def test_water_flow_to_probes(device_sep):
 # ---------------------------------------------------------------------------
 
 
-def test_filtration_pump_running(device_sep):
+def test_filtration_pump_running(device_sep) -> None:
     assert device_sep.filtration_running is True
 
 
-def test_ph_minus_pump_not_running_baseline(device_sep):
+def test_ph_minus_pump_not_running_baseline(device_sep) -> None:
     """Baseline frame has outs[8] == 0 → ph_minus_pump_running is False."""
     assert device_sep.ph_minus_pump_running is False
 
 
-def test_ph_minus_pump_running_when_dosing():
+def test_ph_minus_pump_running_when_dosing() -> None:
     """Frame with outs[8] == 1 (pH− dosing event) → ph_minus_pump_running is True."""
     dosing_frame = (
         b"{v1 123456789 804 0 27 "
@@ -251,33 +252,33 @@ def test_ph_minus_pump_running_when_dosing():
 # ---------------------------------------------------------------------------
 
 
-def test_required_ph_sep(device_sep):
+def test_required_ph_sep(device_sep) -> None:
     assert device_sep.ph_target == pytest.approx(7.4)
 
 
-def test_required_ph_apr(device_apr):
+def test_required_ph_apr(device_apr) -> None:
     assert device_apr.ph_target == pytest.approx(7.4)
 
 
-def test_required_redox_sep(device_sep):
+def test_required_redox_sep(device_sep) -> None:
     # areqs[1] = 73 → 73 × 10 = 730 mV
     assert device_sep.redox_target == 730
 
 
-def test_required_redox_apr(device_apr):
+def test_required_redox_apr(device_apr) -> None:
     # areqs[1] = 74 → 74 × 10 = 740 mV  (matches app screenshot)
     assert device_apr.redox_target == 740
 
 
-def test_pool_volume(device_sep):
+def test_pool_volume(device_sep) -> None:
     assert device_sep.pool_volume == 45
 
 
-def test_delay_after_startup(device_sep):
+def test_delay_after_startup(device_sep) -> None:
     assert device_sep.startup_delay == 2
 
 
-def test_delay_after_dose(device_sep):
+def test_delay_after_dose(device_sep) -> None:
     assert device_sep.dosing_delay == 2
 
 
@@ -286,13 +287,13 @@ def test_delay_after_dose(device_sep):
 # ---------------------------------------------------------------------------
 
 
-def test_timestamp_hour_minute(device_sep):
+def test_timestamp_hour_minute(device_sep) -> None:
     assert device_sep.timestamp is not None
     assert device_sep.timestamp.hour == 22
     assert device_sep.timestamp.minute == 27
 
 
-def test_timestamp_hour_minute_apr(device_apr):
+def test_timestamp_hour_minute_apr(device_apr) -> None:
     assert device_apr.timestamp is not None
     assert device_apr.timestamp.hour == 12
     assert device_apr.timestamp.minute == 27
@@ -303,7 +304,7 @@ def test_timestamp_hour_minute_apr(device_apr):
 # ---------------------------------------------------------------------------
 
 
-def test_absent_probe_returns_none():
+def test_absent_probe_returns_none() -> None:
     """A frame where all ains are -500 must yield None for ph and redox."""
     frame = (
         b"{v1 999 804 0 27 "
@@ -326,17 +327,17 @@ def test_absent_probe_returns_none():
 # ---------------------------------------------------------------------------
 
 
-def test_missing_braces_raises():
+def test_missing_braces_raises() -> None:
     with pytest.raises(ValueError, match="braces"):
         parse_v8(b"v1 999999999 804 0 27 ins: 0\n")
 
 
-def test_bad_header_raises():
+def test_bad_header_raises() -> None:
     with pytest.raises(ValueError, match="header"):
         parse_v8(b"{not a valid v8 header}\n")
 
 
-def test_unknown_header_type_is_tolerated(caplog):
+def test_unknown_header_type_is_tolerated(caplog) -> None:
     """A header type no product line matches must not raise (PR #119).
 
     It decodes with the unknown v8 profile -- no model, so no entities --
@@ -366,12 +367,12 @@ def test_unknown_header_type_is_tolerated(caplog):
 # ---------------------------------------------------------------------------
 
 
-def test_cl_pump_running_false_in_reference_frame(device_sep):
+def test_cl_pump_running_false_in_reference_frame(device_sep) -> None:
     """Baseline frames have outs[9] = 0 → chlorine_pump_running is False."""
     assert device_sep.chlorine_pump_running is False
 
 
-def test_cl_pump_running_true_when_outs9_set():
+def test_cl_pump_running_true_when_outs9_set() -> None:
     """Frame with outs[9] = 1 → chlorine_pump_running is True (confirmed April 19 fekberg)."""
     frame = (
         b"{v1 999999999 804 0 27 "
@@ -386,7 +387,7 @@ def test_cl_pump_running_true_when_outs9_set():
     assert device.ph_minus_pump_running is False
 
 
-def test_ph_minus_pump_running_true_when_outs8_set():
+def test_ph_minus_pump_running_true_when_outs8_set() -> None:
     """Frame with outs[8] = 1 → ph_minus_pump_running is True (confirmed April 15 fekberg)."""
     frame = (
         b"{v1 999999999 804 0 27 "
@@ -401,7 +402,7 @@ def test_ph_minus_pump_running_true_when_outs8_set():
     assert device.chlorine_pump_running is False
 
 
-def test_both_pumps_independent():
+def test_both_pumps_independent() -> None:
     """outs[8] and outs[9] are independently decoded."""
     frame = (
         b"{v1 999999999 804 0 27 "
@@ -416,7 +417,7 @@ def test_both_pumps_independent():
     assert device.chlorine_pump_running is True
 
 
-def test_delays_are_minutes_and_the_profile_says_so():
+def test_delays_are_minutes_and_the_profile_says_so() -> None:
     """R3: areqs[17] / areqs[18] = 2 is "2 min" in the app; kept as 2, flagged as minutes."""
     device = decode(REFERENCE_FRAME)
     assert device.startup_delay == 2
@@ -430,13 +431,13 @@ def test_delays_are_minutes_and_the_profile_says_so():
 # ---------------------------------------------------------------------------
 
 
-def test_crc16_is_read_as_hex():
+def test_crc16_is_read_as_hex() -> None:
     """crc16 is the one hex section; it no longer comes out empty."""
     assert parse_v8(REFERENCE_FRAME).sections["crc16"] == [0xC3C8]
     assert parse_v8(REFERENCE_FRAME).problems == ()
 
 
-def test_one_unreadable_value_does_not_blank_its_section():
+def test_one_unreadable_value_does_not_blank_its_section() -> None:
     """A corrupt token reads None and is reported; its neighbours stay."""
     frame = parse_v8(REFERENCE_FRAME.replace(b"ains: 708 ", b"ains: 7x8 "))
     assert frame.sections["ains"][0] is None
@@ -449,14 +450,14 @@ def test_one_unreadable_value_does_not_blank_its_section():
     assert device.frame_problems == ("ains[0] is not a number",)
 
 
-def test_device_names_the_profile_that_read_it():
+def test_device_names_the_profile_that_read_it() -> None:
     assert decode(REFERENCE_FRAME).profile == "v8 NET"
     assert decode(REFERENCE_FRAME_105).profile == "v8 SALT"
     unknown = decode(REFERENCE_FRAME.replace(b" 804 ", b" 999 "))
     assert unknown.profile == "v8 unknown header type"
 
 
-def test_a_header_without_sections_reads_unknown_and_says_so():
+def test_a_header_without_sections_reads_unknown_and_says_so() -> None:
     """Nothing to read is not an error, but the missing sections are reported."""
     device = decode(b"{v1 123456789 804 0 27}")
     assert device.profile == "v8 NET"
@@ -471,11 +472,11 @@ def test_a_header_without_sections_reads_unknown_and_says_so():
     )
 
 
-def test_a_complete_frame_reports_no_problem():
+def test_a_complete_frame_reports_no_problem() -> None:
     assert decode(REFERENCE_FRAME).frame_problems == ()
 
 
-def test_an_unreadable_probe_value_is_unknown_not_absent():
+def test_an_unreadable_probe_value_is_unknown_not_absent() -> None:
     """Audit N6: only -500 says the probe is missing; a bad token reads unknown."""
     bad = decode(REFERENCE_FRAME.replace(b"ains: 708 ", b"ains: 7x8 "))
     assert bad.ph is None
@@ -486,7 +487,7 @@ def test_an_unreadable_probe_value_is_unknown_not_absent():
     assert "ph" not in absent.present_features
 
 
-def test_changing_bad_tokens_are_one_problem():
+def test_changing_bad_tokens_are_one_problem() -> None:
     """Audit N5: the problem names the place, so it is counted, not multiplied."""
     problems = {
         decode(
@@ -497,7 +498,7 @@ def test_changing_bad_tokens_are_one_problem():
     assert problems == {("ains[0] is not a number",)}
 
 
-def test_bad_values_in_unknown_sections_are_one_problem():
+def test_bad_values_in_unknown_sections_are_one_problem() -> None:
     """Audit: section names a frame invents must not make new kinds of problem."""
     problems = {
         decode(

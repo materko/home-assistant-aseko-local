@@ -15,7 +15,7 @@ FRAME = (
 )
 
 
-def test_crc16_is_hexadecimal_in_both():
+def test_crc16_is_hexadecimal_in_both() -> None:
     runtime = parse_v8(FRAME)
     diagnostics = _parse_v8_frame(FRAME)
 
@@ -23,7 +23,7 @@ def test_crc16_is_hexadecimal_in_both():
     assert diagnostics["sections"]["crc16"]["values"] == [0x1234]
 
 
-def test_one_unreadable_value_keeps_the_rest_of_the_section():
+def test_one_unreadable_value_keeps_the_rest_of_the_section() -> None:
     runtime = parse_v8(FRAME)
     ains = _parse_v8_frame(FRAME)["sections"]["ains"]
 
@@ -33,7 +33,7 @@ def test_one_unreadable_value_keeps_the_rest_of_the_section():
     assert ains["raw"] == "708 bad 774"
 
 
-def test_every_section_matches_the_decoder():
+def test_every_section_matches_the_decoder() -> None:
     runtime = parse_v8(FRAME)
     diagnostics = _parse_v8_frame(FRAME)
 
@@ -44,5 +44,5 @@ def test_every_section_matches_the_decoder():
     assert diagnostics["raw_text"] == FRAME.decode()
 
 
-def test_a_frame_without_braces_is_not_parsed():
+def test_a_frame_without_braces_is_not_parsed() -> None:
     assert _parse_v8_frame(b"v1 123 804 0 27 ins: 1") is None

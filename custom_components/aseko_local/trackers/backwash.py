@@ -95,8 +95,9 @@ Public API:
 from __future__ import annotations
 
 import logging
+from collections.abc import Coroutine
 from datetime import date, datetime, time, timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
@@ -305,7 +306,7 @@ class BackwashTracker:
         """Return how the most recent observed backwash was started."""
         return self._last_trigger
 
-    def load_soon(self):
+    def load_soon(self) -> Coroutine[Any, Any, None]:
         """Mark the tracker loading at once and return ``async_load()`` to run.
 
         For a caller that schedules the load as a task: the flag is set
@@ -863,7 +864,7 @@ def _date_or_none(day: date | None) -> str | None:
     return day.isoformat() if day is not None else None
 
 
-def _slot(day, at: time) -> datetime:
+def _slot(day: date, at: time) -> datetime:
     """``day`` at the wall-clock time ``at``, in Home Assistant's time zone."""
     return datetime.combine(
         day, time(at.hour, at.minute), tzinfo=dt_util.get_default_time_zone()
