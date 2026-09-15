@@ -75,6 +75,17 @@ def flag_or_none(flags: int, mask: int) -> bool | None:
     return bool(flags & mask)
 
 
+def flag_when_known(required: object, flags: int, mask: int) -> bool | NotPresent:
+    """Return whether ``mask`` is set in ``flags``, or NOT_PRESENT while ``required`` is None.
+
+    For a bit that means something only once another value is known -- a
+    pump's running bit, say, which counts only while its flow rate is set.
+    """
+    if required is None:
+        return NOT_PRESENT
+    return bool(flags & mask)
+
+
 def byte_when_flags(
     value: int, flags: int, mask: int, expected: int
 ) -> int | NotPresent:

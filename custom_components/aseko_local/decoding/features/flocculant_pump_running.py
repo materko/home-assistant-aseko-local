@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, override
 
 from ..feature import Feature
-from ..presence import NOT_PRESENT
+from ..frames import flag_when_known
 from .flocculant_flow_rate import FlocculantFlowRate
 
 if TYPE_CHECKING:
@@ -31,6 +31,4 @@ class FlocculantPumpRunning(Feature):
 
     @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool | NotPresent:
-        if device.flocculant_flow_rate is None:
-            return NOT_PRESENT
-        return bool(frame[29] & FLOC_PUMP)
+        return flag_when_known(device.flocculant_flow_rate, frame[29], FLOC_PUMP)

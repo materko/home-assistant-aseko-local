@@ -8,6 +8,7 @@ from custom_components.aseko_local.decoding.frames import (
     V8Frame,
     byte_when_flags,
     flag_or_none,
+    flag_when_known,
 )
 from custom_components.aseko_local.decoding.presence import NOT_PRESENT
 
@@ -18,6 +19,12 @@ from custom_components.aseko_local.decoding.presence import NOT_PRESENT
 )
 def test_flag_or_none(flags, expected) -> None:
     assert flag_or_none(flags, 0x08) is expected
+
+
+def test_flag_when_known_needs_the_required_value() -> None:
+    assert flag_when_known(None, 0x20, 0x20) is NOT_PRESENT
+    assert flag_when_known(0, 0x20, 0x20) is True  # 0 ml/min is a known value
+    assert flag_when_known(60, 0x00, 0x20) is False
 
 
 @pytest.mark.parametrize(

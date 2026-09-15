@@ -17,7 +17,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, override
 
 from ..feature import Feature
-from ..presence import NOT_PRESENT
+from ..frames import flag_when_known
 from .algaecide_flow_rate import AlgaecideFlowRate
 
 if TYPE_CHECKING:
@@ -38,12 +38,8 @@ class AlgaecidePumpRunning(Feature):
 
     @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool | NotPresent:
-        if device.algaecide_flow_rate is None:
-            return NOT_PRESENT
-        return bool(frame[29] & ALGICIDE_PUMP)
+        return flag_when_known(device.algaecide_flow_rate, frame[29], ALGICIDE_PUMP)
 
     def decode_v7_oxy(self, frame: V7Frame, device: AsekoDevice) -> bool | NotPresent:
         """Read the OXY algicide pump bit; absent while no algicide flow rate is set."""
-        if device.algaecide_flow_rate is None:
-            return NOT_PRESENT
-        return bool(frame[29] & ALGICIDE_PUMP_OXY)
+        return flag_when_known(device.algaecide_flow_rate, frame[29], ALGICIDE_PUMP_OXY)
