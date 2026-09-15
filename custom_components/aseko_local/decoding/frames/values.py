@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, time
-from typing import TypeVar
 
 import homeassistant.util
 
@@ -17,13 +16,11 @@ from ..presence import NOT_PRESENT, NotPresent
 
 _LOGGER = logging.getLogger(__name__)
 
-T = TypeVar("T")
-
 # Two 0xFF bytes: a 16-bit value the unit did not fill in.
 UNSPECIFIED_WORD = 0xFFFF
 
 
-def normalize_value(value: int | str | None, type_: type[T]) -> T | None:
+def normalize_value[T](value: int | str | None, type_: type[T]) -> T | None:
     """Normalize a raw value to None if it is unspecified or invalid.
 
     Rules:

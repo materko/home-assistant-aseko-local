@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import time
-from typing import Optional
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -22,10 +22,10 @@ class AsekoCloudMirror:
     ) -> None:
         self._host = cloud_host
         self._port = int(cloud_port)
-        self._queue: "asyncio.Queue[bytes]" = asyncio.Queue(maxsize=1000)
-        self._task: Optional[asyncio.Task] = None
-        self._read_task: Optional[asyncio.Task] = None
-        self._writer: Optional[asyncio.StreamWriter] = None
+        self._queue: asyncio.Queue[bytes] = asyncio.Queue(maxsize=1000)
+        self._task: asyncio.Task | None = None
+        self._read_task: asyncio.Task | None = None
+        self._writer: asyncio.StreamWriter | None = None
         self._last_connect: float = 0.0
         self._reconnect_interval = reconnect_interval
 
@@ -40,17 +40,13 @@ class AsekoCloudMirror:
         """Stop worker task and close connection."""
         if self._task:
             self._task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._task
-            except asyncio.CancelledError:
-                pass
             self._task = None
         if self._read_task:
             self._read_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._read_task
-            except asyncio.CancelledError:
-                pass
             self._read_task = None
         await self._close_writer()
         _LOGGER.debug("Mirror worker stopped.")
@@ -63,10 +59,8 @@ class AsekoCloudMirror:
             self._queue.put_nowait(bytes(frame))
         except asyncio.QueueFull:
             # Drop oldest to keep stream moving
-            try:
+            with contextlib.suppress(asyncio.QueueEmpty):
                 _ = self._queue.get_nowait()
-            except asyncio.QueueEmpty:
-                pass
             try:
                 self._queue.put_nowait(bytes(frame))
             except Exception:
@@ -172,10 +166,8 @@ class AsekoCloudMirror:
         if self._writer:
             try:
                 self._writer.close()
-                try:
+                with contextlib.suppress(Exception):
                     await self._writer.wait_closed()
-                except Exception:
-                    pass
             except Exception:
                 pass
             finally:

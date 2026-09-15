@@ -5,7 +5,7 @@ import logging
 from collections.abc import Callable
 from datetime import UTC, datetime
 from enum import Enum, auto
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar
 
 from .const import (
     DEFAULT_BINDING_ADDRESS,
@@ -65,11 +65,11 @@ class AsekoDeviceServer:
         self,
         host: str = DEFAULT_BINDING_ADDRESS,
         port: int = DEFAULT_BINDING_PORT,
-        on_data: Optional[Callable[[AsekoDevice], Any]] = None,
-        raw_sink: Optional[Callable[[bytes], Any]] = None,
-        v8_raw_sink: Optional[Callable[[bytes], Any]] = None,
-        frame_warning_sink: Optional[Callable[[int, str], Any]] = None,
-        rejected_sink: Optional[Callable[[bytes, str], Any]] = None,
+        on_data: Callable[[AsekoDevice], Any] | None = None,
+        raw_sink: Callable[[bytes], Any] | None = None,
+        v8_raw_sink: Callable[[bytes], Any] | None = None,
+        frame_warning_sink: Callable[[int, str], Any] | None = None,
+        rejected_sink: Callable[[bytes, str], Any] | None = None,
     ) -> None:
         self.host = host
         self.port = port
@@ -82,9 +82,9 @@ class AsekoDeviceServer:
         # (serial, reason) pairs already logged as a warning; repeats go to
         # debug so a unit that keeps sending them does not flood the log.
         self._warned: set[tuple[int, str]] = set()
-        self._forward_cb: Optional[Callable[[bytes], Any]] = None
-        self._forward_v8_cb: Optional[Callable[[bytes], Any]] = None
-        self._server: Optional[asyncio.AbstractServer] = None
+        self._forward_cb: Callable[[bytes], Any] | None = None
+        self._forward_v8_cb: Callable[[bytes], Any] | None = None
+        self._server: asyncio.AbstractServer | None = None
         self._clients: set[asyncio.StreamWriter] = set()
 
     async def start(self) -> None:
@@ -280,7 +280,7 @@ class AsekoDeviceServer:
                         initial.hex(" ", 1),  # print as spaced hex string
                     )
 
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     _LOGGER.debug(
                         "No data received from %s for %d seconds, closing connection",
                         addr,
@@ -416,16 +416,14 @@ class AsekoDeviceServer:
                 pass
 
     # Set Forwarder
-    def set_forward_callback(self, callback: Optional[Callable[[bytes], Any]]) -> None:
+    def set_forward_callback(self, callback: Callable[[bytes], Any] | None) -> None:
         self._forward_cb = callback
         if callback:
             _LOGGER.debug("Forward callback registered")
         else:
             _LOGGER.debug("Forward callback removed")
 
-    def set_forward_v8_callback(
-        self, callback: Optional[Callable[[bytes], Any]]
-    ) -> None:
+    def set_forward_v8_callback(self, callback: Callable[[bytes], Any] | None) -> None:
         self._forward_v8_cb = callback
         if callback:
             _LOGGER.debug("v8 forward callback registered")
@@ -527,11 +525,11 @@ class AsekoDeviceServer:
         cls,
         host: str = DEFAULT_BINDING_ADDRESS,
         port: int = DEFAULT_BINDING_PORT,
-        on_data: Optional[Callable[[AsekoDevice], Any]] = None,
-        raw_sink: Optional[Callable[[bytes], Any]] = None,
-        v8_raw_sink: Optional[Callable[[bytes], Any]] = None,
-        frame_warning_sink: Optional[Callable[[int, str], Any]] = None,
-        rejected_sink: Optional[Callable[[bytes, str], Any]] = None,
+        on_data: Callable[[AsekoDevice], Any] | None = None,
+        raw_sink: Callable[[bytes], Any] | None = None,
+        v8_raw_sink: Callable[[bytes], Any] | None = None,
+        frame_warning_sink: Callable[[int, str], Any] | None = None,
+        rejected_sink: Callable[[bytes, str], Any] | None = None,
     ) -> "AsekoDeviceServer":
         key = f"{host}:{port}"
         if key not in cls._instances:

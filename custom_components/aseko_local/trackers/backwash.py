@@ -114,7 +114,7 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
-def _service_menu_open(device: "AsekoDevice") -> bool:
+def _service_menu_open(device: AsekoDevice) -> bool:
     """Return True if somebody has the unit's settings menu open.
 
     On SALT, byte[37] bit 0x04 marks that menu — the one filtration and
@@ -445,7 +445,7 @@ class BackwashTracker:
             }
         )
 
-    def update(self, device: "AsekoDevice", now: datetime) -> None:
+    def update(self, device: AsekoDevice, now: datetime) -> None:
         """Feed a fresh decoded device state into the tracker.
 
         Call this from the coordinator after every received frame.  No-op
@@ -518,7 +518,7 @@ class BackwashTracker:
             offset_minutes = self._clock_offset_minutes
         return dt_util.as_local(moment) + timedelta(minutes=offset_minutes or 0.0)
 
-    def _note_schedule(self, device: "AsekoDevice", now: datetime) -> None:
+    def _note_schedule(self, device: AsekoDevice, now: datetime) -> None:
         """Restart the schedule phase when the unit shows a changed schedule.
 
         The unit runs its next cycle the day after a change at the new time,
@@ -576,7 +576,7 @@ class BackwashTracker:
         _LOGGER.info("Last scheduled backwash cleared for serial=%s", self._serial)
         self._hass.async_create_task(self.async_save())
 
-    def _backfill_split(self, device: "AsekoDevice") -> None:
+    def _backfill_split(self, device: AsekoDevice) -> None:
         """Classify a stored ``last_backwash`` that predates the split, once.
 
         Stores written before the scheduled/manual split existed hold only
@@ -625,7 +625,7 @@ class BackwashTracker:
 
     def _record_window(
         self,
-        device: "AsekoDevice",
+        device: AsekoDevice,
         started_at: datetime,
         ended_at: datetime,
         service_menu_observed: bool = False,
@@ -692,7 +692,7 @@ class BackwashTracker:
 
     def _unit_slot(
         self,
-        device: "AsekoDevice",
+        device: AsekoDevice,
         moment: datetime,
         offset_minutes: float | None = None,
     ) -> datetime | None:
@@ -704,7 +704,7 @@ class BackwashTracker:
 
     def _classify(
         self,
-        device: "AsekoDevice",
+        device: AsekoDevice,
         started_at: datetime,
         service_menu_observed: bool = False,
         offset_minutes: float | None = None,
@@ -784,7 +784,7 @@ class BackwashTracker:
         )
 
     def next_scheduled_backwash(
-        self, device: "AsekoDevice", now: datetime
+        self, device: AsekoDevice, now: datetime
     ) -> datetime | None:
         """Return the projected next automatic backwash, or None if unknown.
 

@@ -7,7 +7,7 @@ recorded cycle is classified as scheduled or manual from its start time.
 
 from __future__ import annotations
 
-from datetime import datetime, time, timedelta, timezone
+from datetime import UTC, datetime, time, timedelta
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
@@ -25,7 +25,7 @@ from custom_components.aseko_local.trackers.backwash import (
     BackwashTracker,
 )
 
-T0 = datetime(2026, 6, 14, 21, 0, 0, tzinfo=timezone.utc)
+T0 = datetime(2026, 6, 14, 21, 0, 0, tzinfo=UTC)
 
 # The unit's configured backwash time, matching T0's time of day, so a cycle
 # starting at T0 counts as the unit's own scheduled run.
@@ -45,7 +45,7 @@ def _home_assistant_in_utc():
     from homeassistant.util import dt as dt_util
 
     original = dt_util.DEFAULT_TIME_ZONE
-    dt_util.set_default_time_zone(timezone.utc)
+    dt_util.set_default_time_zone(UTC)
     yield
     dt_util.set_default_time_zone(original)
 
@@ -366,7 +366,7 @@ def test_scheduled_time_near_midnight_matches_across_days():
     # other side of the date boundary.
     _run_cycle(
         tracker,
-        datetime(2026, 6, 15, 0, 5, 0, tzinfo=timezone.utc),
+        datetime(2026, 6, 15, 0, 5, 0, tzinfo=UTC),
         device_factory=_near_midnight,
     )
 
@@ -416,7 +416,7 @@ def test_next_scheduled_backwash_projected_from_last_scheduled():
     # the configured 21:00 slot — that is when the unit will actually fire.
     assert tracker.next_scheduled_backwash(
         device, T0 + timedelta(minutes=5)
-    ) == datetime(2026, 6, 17, 21, 0, 0, tzinfo=timezone.utc)
+    ) == datetime(2026, 6, 17, 21, 0, 0, tzinfo=UTC)
 
 
 def test_next_scheduled_backwash_rolls_forward_past_missed_cycles():
@@ -429,7 +429,7 @@ def test_next_scheduled_backwash_rolls_forward_past_missed_cycles():
     # Ten days later: 06-17, 06-20 and 06-23 have all come and gone.
     now = T0 + timedelta(days=10)
     assert tracker.next_scheduled_backwash(device, now) == datetime(
-        2026, 6, 26, 21, 0, 0, tzinfo=timezone.utc
+        2026, 6, 26, 21, 0, 0, tzinfo=UTC
     )
 
 
@@ -515,7 +515,7 @@ def test_manual_seed_marks_source_and_drives_projection():
     assert tracker.last_scheduled_source is AsekoBackwashSource.MANUAL
     # Seeded 2026-06-13 21:00, interval 3 days -> 2026-06-16 21:00.
     assert tracker.next_scheduled_backwash(device, T0) == datetime(
-        2026, 6, 16, 21, 0, 0, tzinfo=timezone.utc
+        2026, 6, 16, 21, 0, 0, tzinfo=UTC
     )
 
 
@@ -1002,7 +1002,7 @@ def test_a_utc_date_projects_like_the_same_local_one():
     now = datetime(2026, 9, 11, tzinfo=zone)
 
     utc = BackwashTracker(_hass(), serial_number=1)
-    utc.set_last_scheduled_backwash(datetime(2026, 9, 10, 10, 30, tzinfo=timezone.utc))
+    utc.set_last_scheduled_backwash(datetime(2026, 9, 10, 10, 30, tzinfo=UTC))
     local = BackwashTracker(_hass(), serial_number=2)
     local.set_last_scheduled_backwash(datetime(2026, 9, 10, 12, 30, tzinfo=zone))
 
@@ -1216,12 +1216,12 @@ def test_the_first_schedule_seen_does_not_restart_anything():
 def test_a_new_backwash_time_runs_the_day_after_the_change():
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     _clocked_cycle(tracker, T0, None)  # 14 June, every 3 days at 21:00
-    changed = datetime(2026, 6, 15, 10, 0, tzinfo=timezone.utc)
+    changed = datetime(2026, 6, 15, 10, 0, tzinfo=UTC)
     _frame(tracker, changed, at=time(8, 30))
 
     assert tracker.next_scheduled_backwash(
         _clocked(False, None, at=time(8, 30)), changed
-    ) == datetime(2026, 6, 16, 8, 30, tzinfo=timezone.utc)
+    ) == datetime(2026, 6, 16, 8, 30, tzinfo=UTC)
 
 
 def test_a_new_interval_runs_the_day_after_the_change():
@@ -1276,13 +1276,13 @@ def test_a_missed_restart_day_steps_on_by_the_interval():
 def test_the_day_of_the_change_is_the_day_on_the_unit_clock():
     """HA 23:57, the unit (+5.5 min) already past midnight: runs a day later."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
-    late = datetime(2026, 6, 14, 23, 57, tzinfo=timezone.utc)
+    late = datetime(2026, 6, 14, 23, 57, tzinfo=UTC)
     _frame(tracker, late - timedelta(minutes=1), 5.5)
     _frame(tracker, late, 5.5, at=time(8, 30))
 
     assert tracker.next_scheduled_backwash(
         _clocked(False, 5.5, at=time(8, 30)), late
-    ) == datetime(2026, 6, 16, 8, 30, tzinfo=timezone.utc)
+    ) == datetime(2026, 6, 16, 8, 30, tzinfo=UTC)
 
 
 def test_typing_in_the_last_scheduled_date_replaces_a_restart():
@@ -1307,7 +1307,7 @@ def test_the_recorded_day_does_not_follow_a_new_time_to_another_day():
 
     assert tracker.next_scheduled_backwash(
         _clocked(False, None, at=time(1, 0)), T0 + timedelta(hours=3)
-    ) == datetime(2026, 6, 17, 1, 0, tzinfo=timezone.utc)
+    ) == datetime(2026, 6, 17, 1, 0, tzinfo=UTC)
 
 
 async def test_schedule_restart_and_offset_survive_a_restart():
@@ -1453,8 +1453,8 @@ def _utc_frames(zone, start_utc: datetime, seconds: int, step: int = 10):
 @pytest.mark.parametrize(
     "start_utc",
     [
-        datetime(2026, 3, 29, 0, 59, 30, tzinfo=timezone.utc),  # 01:59:30 +01
-        datetime(2026, 10, 25, 0, 59, 30, tzinfo=timezone.utc),  # 02:59:30 +02
+        datetime(2026, 3, 29, 0, 59, 30, tzinfo=UTC),  # 01:59:30 +01
+        datetime(2026, 10, 25, 0, 59, 30, tzinfo=UTC),  # 02:59:30 +02
     ],
 )
 def test_a_cycle_across_a_change_of_time_is_measured_in_real_seconds(start_utc):
@@ -1472,7 +1472,7 @@ def test_a_cycle_across_a_change_of_time_is_measured_in_real_seconds(start_utc):
 def test_a_frame_gap_is_real_time_too():
     """T1: a gap of 10 real seconds across the spring change is not an hour."""
     zone = _in_bratislava()
-    start = datetime(2026, 3, 29, 0, 59, 55, tzinfo=timezone.utc)
+    start = datetime(2026, 3, 29, 0, 59, 55, tzinfo=UTC)
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     tracker.update(_device(True), start.astimezone(zone))
     tracker.update(_device(True), (start + timedelta(seconds=10)).astimezone(zone))

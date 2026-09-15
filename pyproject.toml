@@ -7,10 +7,14 @@ target-version = "py313"  # the oldest Python a supported Home Assistant runs on
 # Turned on a few groups at a time, each with its findings fixed; "ALL"
 # (Home Assistant core's setting) is where this is heading.
 select = [
+    "B",   # flake8-bugbear
     "C90", # mccabe complexity, max-complexity below
+    "DTZ", # datetimes with a time zone
     "E",   # pycodestyle errors
     "F",   # pyflakes
     "I",   # isort
+    "SIM", # flake8-simplify
+    "UP",  # pyupgrade
     "W",   # pycodestyle warnings
 ]
 
@@ -63,5 +67,6 @@ max-complexity = 25
     "FBT", # Don't care about booleans as positional arguments in tests, e.g. via @pytest.mark.parametrize()
     # The below are debateable
     "PLR2004", # Magic value used in comparison, ...
-    "S311" # Standard pseudo-random generators are not suitable for cryptographic purposes
+    "S311", # Standard pseudo-random generators are not suitable for cryptographic purposes
+    "DTZ001", # tests build the unit's zone-less wall-clock readings on purpose
 ]

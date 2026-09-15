@@ -174,7 +174,10 @@ def _capture_time(image: Any) -> str | None:
     if not value:
         return None
     try:
-        return datetime.strptime(str(value), "%Y:%m:%d %H:%M:%S").isoformat()
+        # EXIF carries the camera's wall clock and no zone: kept as it is
+        return datetime.strptime(  # noqa: DTZ007
+            str(value), "%Y:%m:%d %H:%M:%S"
+        ).isoformat()
     except ValueError:
         return None
 

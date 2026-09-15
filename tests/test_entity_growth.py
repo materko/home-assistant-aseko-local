@@ -11,6 +11,7 @@ platform builders directly, so they run without the Home Assistant fixtures.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from unittest.mock import MagicMock
 
@@ -98,7 +99,7 @@ def test_a_later_frame_that_adds_features_calls_the_new_features_listener() -> N
     device, features = new_features[0]
     assert device is stored  # the object the existing entities read
     assert features == ALGICIDE_FIELDS
-    assert ALGICIDE_FIELDS <= stored.features
+    assert stored.features >= ALGICIDE_FIELDS
 
 
 def test_presence_is_sticky_and_nothing_is_reported_twice() -> None:
@@ -119,7 +120,7 @@ def test_presence_is_sticky_and_nothing_is_reported_twice() -> None:
     )
 
     assert new_features == [ALGICIDE_FIELDS]
-    assert ALGICIDE_FIELDS <= coordinator.get_device(SERIAL).features
+    assert coordinator.get_device(SERIAL).features >= ALGICIDE_FIELDS
 
 
 def test_an_unchanged_frame_calls_nobody() -> None:
@@ -163,7 +164,7 @@ class _PlatformCoordinator:
 def grown_device():
     """A SALT that has just started showing its algicide port."""
     device = decode(_salt_frame(0xC3, flowrate_third_pump=40))
-    assert ALGICIDE_FIELDS <= device.features
+    assert device.features >= ALGICIDE_FIELDS
     return device
 
 
@@ -390,10 +391,8 @@ def test_a_failed_platform_setup_is_asked_again_on_the_next_frame() -> None:
     coordinator.cb_new_device = cb
 
     def run(coro):
-        try:
+        with contextlib.suppress(StopIteration):
             coro.send(None)
-        except StopIteration:
-            pass
 
     coordinator.hass.loop.create_task.side_effect = run
 
