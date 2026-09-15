@@ -32,10 +32,10 @@ select = [
     "PERF", # performance
     "PGH",  # pygrep hooks
     "PIE",  # flake8-pie
-    # pylint: imports at the top, named values; the complexity limits follow
+    # pylint
     "PLC",
     "PLE",
-    "PLR2004",
+    "PLR",
     "PLW",
     "PT",   # pytest style
     "PTH",  # pathlib

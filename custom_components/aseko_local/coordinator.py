@@ -155,87 +155,27 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         """Receive callback with device update."""
         self._release_frame_waiters(getattr(device, "serial_number", None))
 
-        # A frame from a unit type nobody has mapped.  It gets no entities --
-        # nothing about it is verified -- but it is kept aside so the
-        # diagnostics download can show its raw frame and the generic
-        # decoding, which is exactly what is needed to map it.
         if getattr(device, "device_type", None) is None:
-            serial = getattr(device, "serial_number", None)
-            if serial is not None and serial not in self._unrecognised_devices:
-                _LOGGER.warning(
-                    "❌ Received device with unknown type, not stored! serial=%s. "
-                    "Please share a diagnostics download at "
-                    "https://github.com/hopkins-tk/home-assistant-aseko-local/issues",
-                    serial,
-                )
-            if serial is not None:
-                self._unrecognised_devices[serial] = device
+            self._keep_unrecognised(device)
             return
+        if device.serial_number is None:
+            _LOGGER.error("❌ Received device without serial_number, not stored!")
+            return  # abort, nothing to propagate
 
         _LOGGER.debug(
             "📡 devices_update_callback CALLED with device=%s (serial=%s)",
             device,
-            getattr(device, "serial_number", None),
+            device.serial_number,
         )
-
         new_data: AsekoData = AsekoData() if self.data is None else self.data
-
         # one moment for everything this frame updates: when the server had
         # the whole frame (UTC), or now for a device handed in directly
         received_at = getattr(device, "received_at", None) or dt_util.utcnow()
-
-        if _LOGGER.isEnabledFor(logging.DEBUG):
-            _LOGGER.debug(
-                "🔎 Before update: known serials=%s",
-                [d.serial_number for d in new_data.get_all()],
-            )
-
-        is_new_device = False
-        grown: frozenset[str] = frozenset()
-
-        if device.serial_number is not None:
-            existing = new_data.get(device.serial_number)
-            is_new_device = existing is None
-            _LOGGER.debug(
-                "➡️ Device %s is_new_device=%s", device.serial_number, is_new_device
-            )
-            grown = self._merge_features(device, existing)
-
-            # Fill the observed-backwash fields *before* handing the device to
-            # AsekoData.set(): for an already-known device, set() copies the
-            # attributes off this object onto the stored one, and anything
-            # written afterwards would never reach the entities.
-            # the clock first: the backwash tracker reads its offset
-            self._update_clock(device, received_at)
-            self._update_backwash(device, received_at)
-
-            new_data.set(device.serial_number, device)
-
-            # Stamp server-side receive time (independent of device clock)
-            stored = new_data.get(device.serial_number)
-            if stored is not None:
-                stored.last_seen = received_at
-
-            # Update consumption tracker for this device
-            if device.serial_number not in self._trackers:
-                self._trackers[device.serial_number] = AsekoConsumptionTracker()
-            self._trackers[device.serial_number].update(device, received_at)
-            self._request_consumption_save()
-
-            _LOGGER.debug(
-                "✅ Stored device %s → known serials now: %s",
-                device.serial_number,
-                list(new_data.devices.keys()),
-            )
-        else:
-            _LOGGER.error("❌ Received device without serial_number, not stored!")
-            return  # abort, nothing to propagate
-
-        devices = new_data.get_all()
-        _LOGGER.debug("📊 Currently %s devices in new_data", len(devices))
+        is_new_device, grown = self._store_device(new_data, device, received_at)
 
         _LOGGER.debug(
-            "⚠️ Calling async_set_updated_data() with %s devices", len(devices)
+            "⚠️ Calling async_set_updated_data() with %s devices",
+            len(new_data.get_all()),
         )
         self.async_set_updated_data(new_data)
 
@@ -244,15 +184,7 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
             self.hass.loop.create_task(self.cb_new_device(device))
         if is_new_device:
             _LOGGER.debug("🆕 NEW DEVICE DISCOVERED: %s", device.serial_number)
-            for listener in list(self._new_device_listeners):
-                try:
-                    listener(device)
-                except Exception:
-                    _LOGGER.exception(
-                        "❌ New-device listener %r failed for device serial=%s",
-                        listener,
-                        device.serial_number,
-                    )
+            self._notify(self._new_device_listeners, device.serial_number, device)
         elif grown:
             # The unit has shown quantities it had not shown before -- the
             # shared pump port got configured, a setting was made, byte[37]
@@ -260,21 +192,84 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
             # object the existing entities read) so they can enable the
             # entities created disabled; Home Assistant reloads the entry to
             # add them.
-            stored = new_data.get(device.serial_number)
             _LOGGER.debug(
                 "🧩 Device %s shows new features: %s",
                 device.serial_number,
                 sorted(grown),
             )
-            for listener in list(self._new_features_listeners):
-                try:
-                    listener(stored, grown)
-                except Exception:
-                    _LOGGER.exception(
-                        "❌ New-features listener %r failed for device serial=%s",
-                        listener,
-                        device.serial_number,
-                    )
+            self._notify(
+                self._new_features_listeners,
+                device.serial_number,
+                new_data.get(device.serial_number),
+                grown,
+            )
+
+    def _keep_unrecognised(self, device: AsekoDevice) -> None:
+        """Keep a frame from a unit type nobody has mapped, for diagnostics.
+
+        It gets no entities -- nothing about it is verified -- but the
+        diagnostics download shows its raw frame and the generic decoding,
+        which is exactly what is needed to map it.
+        """
+        serial = getattr(device, "serial_number", None)
+        if serial is None:
+            return
+        if serial not in self._unrecognised_devices:
+            _LOGGER.warning(
+                "❌ Received device with unknown type, not stored! serial=%s. "
+                "Please share a diagnostics download at "
+                "https://github.com/hopkins-tk/home-assistant-aseko-local/issues",
+                serial,
+            )
+        self._unrecognised_devices[serial] = device
+
+    def _store_device(
+        self, new_data: AsekoData, device: AsekoDevice, received_at: datetime
+    ) -> tuple[bool, frozenset[str]]:
+        """Fill the trackers' fields, store the device; (is new, grown features)."""
+        serial = device.serial_number
+        existing = new_data.get(serial)
+        is_new_device = existing is None
+        _LOGGER.debug("➡️ Device %s is_new_device=%s", serial, is_new_device)
+        grown = self._merge_features(device, existing)
+
+        # Fill the observed-backwash fields *before* handing the device to
+        # AsekoData.set(): for an already-known device, set() copies the
+        # attributes off this object onto the stored one, and anything
+        # written afterwards would never reach the entities.
+        # the clock first: the backwash tracker reads its offset
+        self._update_clock(device, received_at)
+        self._update_backwash(device, received_at)
+
+        new_data.set(serial, device)
+
+        # Stamp server-side receive time (independent of device clock)
+        stored = new_data.get(serial)
+        if stored is not None:
+            stored.last_seen = received_at
+
+        # Update consumption tracker for this device
+        tracker = self._trackers.setdefault(serial, AsekoConsumptionTracker())
+        tracker.update(device, received_at)
+        self._request_consumption_save()
+
+        _LOGGER.debug(
+            "✅ Stored device %s → known serials now: %s",
+            serial,
+            list(new_data.devices.keys()),
+        )
+        return is_new_device, grown
+
+    @staticmethod
+    def _notify(listeners: list[Callable[..., None]], serial: int, *args: Any) -> None:
+        """Call every listener; one that raises does not stop the others."""
+        for listener in list(listeners):
+            try:
+                listener(*args)
+            except Exception:
+                _LOGGER.exception(
+                    "❌ Listener %r failed for device serial=%s", listener, serial
+                )
 
     @staticmethod
     def _merge_features(

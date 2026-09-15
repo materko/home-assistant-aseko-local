@@ -6,7 +6,7 @@ import logging
 from collections.abc import Callable
 from datetime import UTC, datetime
 from enum import Enum, auto
-from typing import Any, ClassVar
+from typing import Any, ClassVar, TypedDict, Unpack
 
 from .const import (
     DEFAULT_BINDING_ADDRESS,
@@ -64,6 +64,19 @@ def _holds_whole_v8_frame(data: bytes) -> bool:
     return data.lstrip(b"\r\n\t\x00").startswith(V8_SIGNATURE) and b"\n" in data
 
 
+class ServerSinks(TypedDict, total=False):
+    """Where the server hands what it reads besides decoded devices."""
+
+    #: every aligned v7 frame, and a fragment when the unit hangs up early
+    raw_sink: Callable[[bytes], Any] | None
+    #: every v8 text frame, before it is decoded
+    v8_raw_sink: Callable[[bytes], Any] | None
+    #: (serial number, reason) of an implausible frame
+    frame_warning_sink: Callable[[int, str], Any] | None
+    #: bytes that could not be aligned into a frame, with the reason
+    rejected_sink: Callable[[bytes, str], Any] | None
+
+
 class AsekoDeviceServer:
     """Async TCP server for receiving and parsing Aseko unit data."""
 
@@ -74,19 +87,16 @@ class AsekoDeviceServer:
         host: str = DEFAULT_BINDING_ADDRESS,
         port: int = DEFAULT_BINDING_PORT,
         on_data: Callable[[AsekoDevice], Any] | None = None,
-        raw_sink: Callable[[bytes], Any] | None = None,
-        v8_raw_sink: Callable[[bytes], Any] | None = None,
-        frame_warning_sink: Callable[[int, str], Any] | None = None,
-        rejected_sink: Callable[[bytes, str], Any] | None = None,
+        **sinks: Unpack[ServerSinks],
     ) -> None:
         self.host = host
         self.port = port
         self.on_data = on_data
-        self._raw_sink = raw_sink
-        self._v8_raw_sink = v8_raw_sink
-        self._frame_warning_sink = frame_warning_sink
+        self._raw_sink = sinks.get("raw_sink")
+        self._v8_raw_sink = sinks.get("v8_raw_sink")
+        self._frame_warning_sink = sinks.get("frame_warning_sink")
         # bytes that could not be aligned into a frame, with the reason
-        self._rejected_sink = rejected_sink
+        self._rejected_sink = sinks.get("rejected_sink")
         # (serial, reason) pairs already logged as a warning; repeats go to
         # debug so a unit that keeps sending them does not flood the log.
         self._warned: set[tuple[int, str]] = set()
@@ -245,21 +255,15 @@ class AsekoDeviceServer:
             except Exception:
                 _LOGGER.exception("v8 forward callback raised an exception")
 
-    def replace_sinks(
-        self,
-        raw_sink: Callable[..., Any] | None,
-        v8_raw_sink: Callable[..., Any] | None,
-        frame_warning_sink: Callable[..., Any] | None,
-        rejected_sink: Callable[..., Any] | None,
-    ) -> None:
+    def replace_sinks(self, **sinks: Unpack[ServerSinks]) -> None:
         """Take the sinks of a new config entry; one not given keeps the old."""
-        if raw_sink:
+        if raw_sink := sinks.get("raw_sink"):
             self._raw_sink = raw_sink
-        if v8_raw_sink:
+        if v8_raw_sink := sinks.get("v8_raw_sink"):
             self._v8_raw_sink = v8_raw_sink
-        if frame_warning_sink:
+        if frame_warning_sink := sinks.get("frame_warning_sink"):
             self._frame_warning_sink = frame_warning_sink
-        if rejected_sink:
+        if rejected_sink := sinks.get("rejected_sink"):
             self._rejected_sink = rejected_sink
 
     async def _maybe_call_on_data(self, device: AsekoDevice) -> None:
@@ -282,58 +286,12 @@ class AsekoDeviceServer:
         carry = b""
         try:
             while True:
-                buffered, carry = carry, b""
-                try:
-                    if _holds_whole_v8_frame(buffered):
-                        initial = buffered
-                    else:
-                        # Read up to MESSAGE_SIZE bytes to detect the frame
-                        # type -- or less, once a whole short v8 frame is in
-                        initial = await _read_initial(reader, buffered)
-                        if len(initial) > MESSAGE_SIZE and V8_SIGNATURE not in initial:
-                            initial, carry = (
-                                initial[:MESSAGE_SIZE],
-                                initial[MESSAGE_SIZE:],
-                            )
-
-                    _LOGGER.debug(
-                        "Initial bytes from %s (%d bytes):\n%s",
-                        addr,
-                        len(initial),
-                        initial.hex(" ", 1),  # print as spaced hex string
-                    )
-
-                except TimeoutError:
-                    _LOGGER.debug(
-                        "No data received from %s for %d seconds, closing connection",
-                        addr,
-                        READ_TIMEOUT,
-                    )
+                step = await self._read_message(reader, carry, addr)
+                if step is None:
                     break
-
-                except asyncio.IncompleteReadError as exc:
-                    exc.partial = buffered + exc.partial
-                    if _holds_whole_v8_frame(exc.partial):
-                        # a short v8 frame right before the unit hung up
-                        carry = exc.partial
-                        continue
-                    if len(exc.partial) == 0:
-                        _LOGGER.debug(
-                            "Client %s closed the connection",
-                            addr,
-                        )
-                    else:
-                        _LOGGER.error(
-                            "Client %s closed the connection after %d bytes (expected %d):\n%s",
-                            addr,
-                            len(exc.partial),
-                            MESSAGE_SIZE,
-                            exc.partial.hex(" ", 1),
-                        )
-                        # Store partial frame for diagnostics so users with non-standard
-                        # frame lengths can share the raw data without enabling debug logging.
-                        await self._call_raw_sink(exc.partial)
-                    break
+                initial, carry = step
+                if initial is None:
+                    continue  # a whole v8 frame is carried over
 
                 # Detect frame type, assemble and rewind if necessary
                 try:
@@ -355,64 +313,12 @@ class AsekoDeviceServer:
                     )
                     break
 
-                # v8 text frame: decode, forward, deliver to on_data
                 if frame_type == FrameType.V8:
-                    await self._call_forward_v8_cb(frame)
-                    # Log the frame before decoding it: a frame the decoder
-                    # rejects is exactly the one worth having in the frame log.
-                    await self._call_v8_raw_sink(frame)
-                    try:
-                        device = decode(frame, Protocol.V8)
-                    except ValueError as exc:
-                        _LOGGER.error(
-                            "v8 decode error from %s: %s → closing connection",
-                            addr,
-                            exc,
-                        )
-                        await self._report_rejected_v8(frame, str(exc))
+                    if not await self._deliver_v8(frame, addr, received_at):
                         break
-                    except Exception:
-                        _LOGGER.exception(
-                            "v8 decode error from %s → closing connection", addr
-                        )
-                        break
-                    await self._report_frame_problems(device, addr)
-                    _LOGGER.debug("v8 decoded data from %s: %s", addr, device)
-                    device.received_at = received_at
-                    await self._maybe_call_on_data(device)
                     continue
-
-                # BINARY path — frame is already rewound by _sync_frame
-                try:
-                    # Call raw_sink so diagnostics see the correctly aligned frame
-                    await self._call_raw_sink(frame)
-
-                    # Forward CORRECTED data to cloud
-                    await self._call_forward_cb(frame)
-
-                    # Implausible values are reported, not fatal: the frame is
-                    # still decoded and the connection stays open.
-                    await self._report_implausible(frame, addr)
-
-                    device = decode(frame, Protocol.V7)
-
-                except ValueError as e:
-                    _LOGGER.error(
-                        "Invalid frame from %s: %s → closing connection", addr, e
-                    )
+                if not await self._deliver_v7(frame, addr, received_at):
                     break
-
-                except Exception:
-                    _LOGGER.exception(
-                        "Decoding error for data from %s → closing connection", addr
-                    )
-                    break
-
-                _LOGGER.debug("Decoded data from %s: %s", addr, device)
-
-                # Send decoded data to higher layer
-                device.received_at = received_at
-                await self._maybe_call_on_data(device)
 
                 # If frame had to be rewound, close connection AFTER processing
                 # to force realignment on reconnect
@@ -431,6 +337,104 @@ class AsekoDeviceServer:
             with contextlib.suppress(Exception):
                 writer.close()
                 await writer.wait_closed()
+
+    async def _read_message(
+        self, reader: asyncio.StreamReader, buffered: bytes, addr: Any
+    ) -> tuple[bytes | None, bytes] | None:
+        """The first bytes of the next message and what is carried after them.
+
+        None: the connection is done (quiet too long, or the unit hung up).
+        ``(None, carry)``: the unit hung up right after a whole short v8
+        frame, which is carried over to be handled next.
+        """
+        try:
+            if _holds_whole_v8_frame(buffered):
+                initial, carry = buffered, b""
+            else:
+                # Read up to MESSAGE_SIZE bytes to detect the frame type --
+                # or less, once a whole short v8 frame is in
+                initial, carry = await _read_initial(reader, buffered), b""
+                if len(initial) > MESSAGE_SIZE and V8_SIGNATURE not in initial:
+                    initial, carry = initial[:MESSAGE_SIZE], initial[MESSAGE_SIZE:]
+        except TimeoutError:
+            _LOGGER.debug(
+                "No data received from %s for %d seconds, closing connection",
+                addr,
+                READ_TIMEOUT,
+            )
+            return None
+        except asyncio.IncompleteReadError as exc:
+            partial = buffered + exc.partial
+            if _holds_whole_v8_frame(partial):
+                # a short v8 frame right before the unit hung up
+                return None, partial
+            if not partial:
+                _LOGGER.debug("Client %s closed the connection", addr)
+            else:
+                _LOGGER.error(
+                    "Client %s closed the connection after %d bytes (expected %d):\n%s",
+                    addr,
+                    len(partial),
+                    MESSAGE_SIZE,
+                    partial.hex(" ", 1),
+                )
+                # Store partial frame for diagnostics so users with non-standard
+                # frame lengths can share the raw data without enabling debug logging.
+                await self._call_raw_sink(partial)
+            return None
+        _LOGGER.debug(
+            "Initial bytes from %s (%d bytes):\n%s",
+            addr,
+            len(initial),
+            initial.hex(" ", 1),  # print as spaced hex string
+        )
+        return initial, carry
+
+    async def _deliver_v8(self, frame: bytes, addr: Any, received_at: datetime) -> bool:
+        """Forward, log, decode and hand on a v8 frame; False closes the connection."""
+        await self._call_forward_v8_cb(frame)
+        # Log the frame before decoding it: a frame the decoder rejects is
+        # exactly the one worth having in the frame log.
+        await self._call_v8_raw_sink(frame)
+        try:
+            device = decode(frame, Protocol.V8)
+        except ValueError as exc:
+            _LOGGER.error("v8 decode error from %s: %s → closing connection", addr, exc)
+            await self._report_rejected_v8(frame, str(exc))
+            return False
+        except Exception:
+            _LOGGER.exception("v8 decode error from %s → closing connection", addr)
+            return False
+        await self._report_frame_problems(device, addr)
+        _LOGGER.debug("v8 decoded data from %s: %s", addr, device)
+        device.received_at = received_at
+        await self._maybe_call_on_data(device)
+        return True
+
+    async def _deliver_v7(self, frame: bytes, addr: Any, received_at: datetime) -> bool:
+        """Log, forward, decode and hand on an aligned v7 frame; False closes."""
+        try:
+            # Call raw_sink so diagnostics see the correctly aligned frame
+            await self._call_raw_sink(frame)
+            # Forward CORRECTED data to cloud
+            await self._call_forward_cb(frame)
+            # Implausible values are reported, not fatal: the frame is still
+            # decoded and the connection stays open.
+            await self._report_implausible(frame, addr)
+            device = decode(frame, Protocol.V7)
+        except ValueError as e:
+            _LOGGER.error("Invalid frame from %s: %s → closing connection", addr, e)
+            return False
+        except Exception:
+            _LOGGER.exception(
+                "Decoding error for data from %s → closing connection", addr
+            )
+            return False
+        _LOGGER.debug("Decoded data from %s: %s", addr, device)
+        # Send decoded data to higher layer
+        device.received_at = received_at
+        await self._maybe_call_on_data(device)
+        return True
 
     # Set Forwarder
     def set_forward_callback(self, callback: Callable[[bytes], Any] | None) -> None:
@@ -544,27 +548,14 @@ class AsekoDeviceServer:
         host: str = DEFAULT_BINDING_ADDRESS,
         port: int = DEFAULT_BINDING_PORT,
         on_data: Callable[[AsekoDevice], Any] | None = None,
-        raw_sink: Callable[[bytes], Any] | None = None,
-        v8_raw_sink: Callable[[bytes], Any] | None = None,
-        frame_warning_sink: Callable[[int, str], Any] | None = None,
-        rejected_sink: Callable[[bytes, str], Any] | None = None,
+        **sinks: Unpack[ServerSinks],
     ) -> "AsekoDeviceServer":
         key = f"{host}:{port}"
         if key not in cls._instances:
-            cls._instances[key] = AsekoDeviceServer(
-                host,
-                port,
-                on_data,
-                raw_sink,
-                v8_raw_sink,
-                frame_warning_sink,
-                rejected_sink,
-            )
+            cls._instances[key] = AsekoDeviceServer(host, port, on_data, **sinks)
             await cls._instances[key].start()
         else:
-            cls._instances[key].replace_sinks(
-                raw_sink, v8_raw_sink, frame_warning_sink, rejected_sink
-            )
+            cls._instances[key].replace_sinks(**sinks)
             if on_data:
                 cls._instances[key].on_data = on_data
             # A server stopped by an unload that did not remove it stays in the

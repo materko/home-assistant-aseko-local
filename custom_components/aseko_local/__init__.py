@@ -219,43 +219,48 @@ async def async_setup_entry(
     integration = await async_get_integration(hass, DOMAIN)
     await async_setup_recording(hass, str(integration.version))
 
-    # Optional: Cloud Mirror Forwarder to Aseko Cloud
-    mirror_instance = None
-    mirror_v8_instance = None
-    if config_entry.options.get(CONF_FORWARDER_ENABLED):
-        forwarder_host = config_entry.options.get(CONF_FORWARDER_HOST)
-        if forwarder_host:
-            mirror_instance = AsekoCloudMirror(
-                cloud_host=forwarder_host, cloud_port=DEFAULT_FORWARDER_PORT_V7
-            )
-            await mirror_instance.start()
-            server.set_forward_callback(mirror_instance.enqueue)
-
-            mirror_v8_instance = AsekoCloudMirror(
-                cloud_host=forwarder_host, cloud_port=DEFAULT_FORWARDER_PORT_V8
-            )
-            await mirror_v8_instance.start()
-            server.set_forward_v8_callback(mirror_v8_instance.enqueue)
-
-            _LOGGER.info(
-                "Cloud forwarding enabled to %s (v7:%d, v8:%d)",
-                forwarder_host,
-                DEFAULT_FORWARDER_PORT_V7,
-                DEFAULT_FORWARDER_PORT_V8,
-            )
-        else:
-            _LOGGER.warning("Forwarder enabled but host not set — skipping mirror.")
-
     # Add to runtime_data
     rd = config_entry.runtime_data
     rd.server = server
-    rd.mirror = mirror_instance
-    rd.mirror_v8 = mirror_v8_instance
+    # Optional: Cloud Mirror Forwarder to Aseko Cloud
+    rd.mirror, rd.mirror_v8 = await _async_start_mirrors(config_entry, server)
 
     # domain services, once for all config entries
     _async_register_services(hass)
 
     return True
+
+
+async def _async_start_mirrors(
+    config_entry: AsekoLocalConfigEntry, server: AsekoDeviceServer
+) -> tuple[AsekoCloudMirror | None, AsekoCloudMirror | None]:
+    """Start forwarding to Aseko Cloud when the options ask for it (v7, v8)."""
+    if not config_entry.options.get(CONF_FORWARDER_ENABLED):
+        return None, None
+    forwarder_host = config_entry.options.get(CONF_FORWARDER_HOST)
+    if not forwarder_host:
+        _LOGGER.warning("Forwarder enabled but host not set — skipping mirror.")
+        return None, None
+
+    mirror = AsekoCloudMirror(
+        cloud_host=forwarder_host, cloud_port=DEFAULT_FORWARDER_PORT_V7
+    )
+    await mirror.start()
+    server.set_forward_callback(mirror.enqueue)
+
+    mirror_v8 = AsekoCloudMirror(
+        cloud_host=forwarder_host, cloud_port=DEFAULT_FORWARDER_PORT_V8
+    )
+    await mirror_v8.start()
+    server.set_forward_v8_callback(mirror_v8.enqueue)
+
+    _LOGGER.info(
+        "Cloud forwarding enabled to %s (v7:%d, v8:%d)",
+        forwarder_host,
+        DEFAULT_FORWARDER_PORT_V7,
+        DEFAULT_FORWARDER_PORT_V8,
+    )
+    return mirror, mirror_v8
 
 
 @callback

@@ -10,6 +10,7 @@ document honest.
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Callable
 
 from .feature import NOT_LOCATED, Feature
 from .features import ALL_FEATURES
@@ -88,6 +89,15 @@ def render() -> str:
     """Return the whole document as Markdown."""
     out: list[str] = []
     w = out.append
+    _intro(w)
+    _tables(w)
+    _help_wanted(w)
+    _totals(w)
+    return "\n".join(out)
+
+
+def _intro(w: Callable[[str], None]) -> None:
+    """The title, the legend and the fallback profiles."""
 
     w("# Support matrix")
     w("")
@@ -131,6 +141,9 @@ def render() -> str:
     )
     w("")
 
+
+def _tables(w: Callable[[str], None]) -> None:
+    """One table per protocol: every field against every profile."""
     for protocol in Protocol:
         profiles = _profiles_for(protocol)
         features = _features_for(protocol)
@@ -147,6 +160,9 @@ def render() -> str:
             w(f"| `{feature.field}` | " + " | ".join(cells) + " |")
         w("")
 
+
+def _help_wanted(w: Callable[[str], None]) -> None:
+    """The lists of values that want a capture, a check or a location."""
     w("## Help wanted")
     w("")
     w(
@@ -177,6 +193,9 @@ def render() -> str:
     w("")
     _help_section(w, OBSERVED)
 
+
+def _totals(w: Callable[[str], None]) -> None:
+    """Fields nothing reads, and the counts."""
     unmapped = sorted(
         (f for f in ALL_FEATURES if not f.protocols()), key=lambda f: f.field
     )
@@ -200,4 +219,3 @@ def render() -> str:
         w(f"- with a {protocol.value} reading: {by_protocol[protocol]}")
     w(f"- profiles: {len(ALL_PROFILES)}")
     w("")
-    return "\n".join(out)

@@ -97,6 +97,43 @@ def _require_admin(request: web.Request) -> HomeAssistant:
     return request.app[KEY_HASS]
 
 
+class _UploadRejectedError(Exception):
+    """A photo upload the view answers with an error status."""
+
+    def __init__(self, message: str, status: int) -> None:
+        super().__init__(message)
+        self.message = message
+        self.status = status
+
+
+async def _read_photo_upload(
+    request: web.Request,
+) -> tuple[str | None, bool, int | None, bytes]:
+    """(note, wait, serial number, photo) from the upload form."""
+    note: str | None = None
+    wait = True
+    serial_number: int | None = None
+    data = b""
+    reader = await request.multipart()
+    while (part := await reader.next()) is not None:
+        if part.name == "note":
+            note = (await part.text()).strip()[:200] or None
+        elif part.name == "wait":
+            wait = (await part.text()).strip() not in ("0", "false")
+        elif part.name == "serial_number":
+            text = (await part.text()).strip()
+            serial_number = int(text) if text.isdigit() else None
+        elif part.name == "photo":
+            data = await part.read(decode=False)
+            if len(data) > MAX_UPLOAD_BYTES:
+                msg = "Photo too large"
+                raise _UploadRejectedError(msg, 413)
+    if not data:
+        msg = "No photo in the upload"
+        raise _UploadRejectedError(msg, 400)
+    return note, wait, serial_number, data
+
+
 class AsekoPhotoView(HomeAssistantView):
     """Store a display photo at once, and its marker after the next frame.
 
@@ -118,25 +155,10 @@ class AsekoPhotoView(HomeAssistantView):
         if not entries:
             return self.json_message("Recording is off", 409)
 
-        note: str | None = None
-        wait = True
-        serial_number: int | None = None
-        data = b""
-        reader = await request.multipart()
-        while (part := await reader.next()) is not None:
-            if part.name == "note":
-                note = (await part.text()).strip()[:200] or None
-            elif part.name == "wait":
-                wait = (await part.text()).strip() not in ("0", "false")
-            elif part.name == "serial_number":
-                text = (await part.text()).strip()
-                serial_number = int(text) if text.isdigit() else None
-            elif part.name == "photo":
-                data = await part.read(decode=False)
-                if len(data) > MAX_UPLOAD_BYTES:
-                    return self.json_message("Photo too large", 413)
-        if not data:
-            return self.json_message("No photo in the upload", 400)
+        try:
+            note, wait, serial_number, data = await _read_photo_upload(request)
+        except _UploadRejectedError as err:
+            return self.json_message(err.message, err.status)
         if serial_number is not None:
             # wait only where that unit sends, not for a timeout elsewhere
             entries = [
