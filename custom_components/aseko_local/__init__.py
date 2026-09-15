@@ -197,6 +197,8 @@ async def async_setup_entry(
     await coordinator.async_load_frame_log()
     # exact consumption counters, before the sensors restore rounded litres
     await coordinator.async_load_consumption()
+    # each unit's last clock drift, before frames start arriving
+    await coordinator.async_load_clock()
 
     # Raw-Sink: caches the last frame per device for diagnostics
     raw_sink = coordinator.store_raw_frame

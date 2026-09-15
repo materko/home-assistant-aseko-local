@@ -319,7 +319,8 @@ async def test_async_setup_salt_redox(hass) -> None:
     #   their place in the frame is not known yet, so they read unknown
     # + 2 clock_offset sensor / clock_out_of_sync binary sensor: the unit sends
     #   its clock (bytes 6-11)
-    assert len(added_entities) == 48
+    # + 3 clock_hour_shift / clock_drift sensors, clock_hour_shifted binary sensor
+    assert len(added_entities) == 51
     # Nothing has been observed yet, so the history is unknown rather than
     # guessed from the schedule.
     backwash_history = {
@@ -468,7 +469,8 @@ async def test_async_setup_salt_clf(hass) -> None:
     #   on SALT, not a probe voltage
     # + 2 clock_offset sensor / clock_out_of_sync binary sensor: the unit sends
     #   its clock (bytes 6-11)
-    assert len(added_entities) == 48
+    # + 3 clock_hour_shift / clock_drift sensors, clock_hour_shifted binary sensor
+    assert len(added_entities) == 51
     assert not any(
         getattr(e.entity_description, "key", None) == "free_chlorine_mv"
         for e in added_entities
@@ -769,7 +771,8 @@ async def test_async_setup_profi_clf_redox(hass) -> None:
     #   the coordinator has not stamped yet.
     # + 2 clock_offset sensor / clock_out_of_sync binary sensor: the unit sends
     #   its clock (bytes 6-11)
-    assert len(added_entities) == 49
+    # + 3 clock_hour_shift / clock_drift sensors, clock_hour_shifted binary sensor
+    assert len(added_entities) == 52
     assert any(
         getattr(e.entity_description, "key", None) == "free_chlorine"
         for e in added_entities

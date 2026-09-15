@@ -1169,32 +1169,34 @@ def test_without_an_offset_the_window_stays_fifteen_minutes():
     assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
 
 
-def test_a_unit_an_hour_behind_is_matched_and_projected_an_hour_later():
-    """A unit left on the old time: its 21:00 is 22:00 in Home Assistant."""
+def test_a_unit_an_hour_behind_and_drifting_is_still_scheduled():
+    """Missed spring change (-60) and 5.5 min fast: its 21:00 is 21:54:30 in HA."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
-    _clocked_cycle(tracker, T0 + timedelta(hours=1), -60.2)
-
+    _clocked_cycle(tracker, T0 + timedelta(minutes=54, seconds=30), -54.5)
     assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
-    assert tracker.next_scheduled_backwash(
-        _clocked(False, -60.2), T0 + timedelta(hours=2)
-    ) == T0 + timedelta(days=SCHEDULE_EVERY_N_DAYS, hours=1)
 
 
-def test_the_projection_keeps_the_minutes_set_on_the_unit():
-    """5.5 minutes of drift do not move 21:00; the clock offset shows them."""
+@pytest.mark.parametrize("offset", [None, 5.5, -54.5, 65.5, 125.0])
+def test_the_projection_shows_the_time_set_on_the_unit(offset):
+    """R2: not moved by drift nor by a change of time the unit did not follow."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
-    _clocked_cycle(tracker, T0 - timedelta(minutes=5, seconds=30), 5.5)
+    tracker._clock_offset_minutes = offset  # type: ignore[attr-defined]
+    tracker.set_last_scheduled_backwash(T0)
+
     assert tracker.next_scheduled_backwash(
-        _clocked(False, 5.5), T0 + timedelta(hours=1)
+        _clocked(False, offset), T0 + timedelta(hours=3)
     ) == T0 + timedelta(days=SCHEDULE_EVERY_N_DAYS)
 
 
-def test_the_projection_moves_by_whole_hours_only():
+def test_missed_slots_are_stepped_over_on_the_unit_clock():
+    """A unit 10 min ahead has run its 21:00 while HA still shows 20:55."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
-    _clocked_cycle(tracker, T0 - timedelta(minutes=65), 65.0)
+    tracker._clock_offset_minutes = 10.0  # type: ignore[attr-defined]
+    tracker.set_last_scheduled_backwash(T0 - timedelta(days=SCHEDULE_EVERY_N_DAYS))
+
     assert tracker.next_scheduled_backwash(
-        _clocked(False, 65.0), T0 + timedelta(hours=1)
-    ) == T0 + timedelta(days=SCHEDULE_EVERY_N_DAYS, hours=-1)
+        _clocked(False, 10.0), T0 - timedelta(minutes=5)
+    ) == T0 + timedelta(days=SCHEDULE_EVERY_N_DAYS)
 
 
 # ── schedule change (audit R1) ───────────────────────────────────────────────
@@ -1318,27 +1320,3 @@ async def test_schedule_restart_and_offset_survive_a_restart():
     assert restored.next_scheduled_backwash(
         _clocked(False, None, every=7), T0 + timedelta(hours=4)
     ) == T0 + timedelta(days=2)
-
-
-@pytest.mark.parametrize(
-    ("offset", "hours"),
-    [
-        (29.9, 0),
-        (30.1, 0),
-        (59.9, 0),
-        (60.0, 1),
-        (119.0, 1),
-        (125.0, 2),
-        (-59.0, 0),
-        (-61.0, -1),
-    ],
-)
-def test_the_projection_moves_by_the_whole_hours_of_the_offset(offset, hours):
-    """R2: only a change of time moves it, and that is whole hours."""
-    tracker = BackwashTracker(_hass(), serial_number=110071590)
-    tracker._clock_offset_minutes = offset  # type: ignore[attr-defined]
-    tracker.set_last_scheduled_backwash(T0)
-
-    assert tracker.next_scheduled_backwash(
-        _clocked(False, offset), T0 + timedelta(hours=3)
-    ) == T0 + timedelta(days=SCHEDULE_EVERY_N_DAYS, hours=-hours)

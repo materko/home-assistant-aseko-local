@@ -1,4 +1,4 @@
-"""How far a unit's clock is off Home Assistant's, and whether that is too far.
+"""How far a unit's clock is off Home Assistant's: time change, drift, alert.
 
 Every frame that carries the unit's own clock (``unit_clock``) is compared
 with the moment Home Assistant received it:
@@ -11,8 +11,25 @@ that minute and the offset is folded into +/-12 h (there is no date to tell
 a day apart).
 
 The published offset is the median of the last ``SAMPLES`` readings, so one
-late or odd frame does not move it.  ``out_of_sync`` needs every one of the
-last ``SAMPLES`` readings on the same side:
+late or odd frame does not move it.
+
+The offset is split into whole **hours** (a change of time the unit did not
+follow: summer / winter time, a clock set an hour off) and **drift** (the
+minutes a clock gains or loses over weeks).  One number cannot tell them
+apart -- -54.5 min is a unit an hour behind that runs 5.5 min fast, or one
+54.5 min slow -- but the drift moves by seconds a day and a change of time
+jumps by an hour, so the split is taken against the last known drift:
+
+    hours = round((offset - last drift) / 60 min)
+    drift = offset - hours
+
+The first split, with no drift known yet, takes the drift as under 30
+minutes.  A clock moved by more than 30 minutes at once is therefore read as
+a change of hours.  The coordinator stores the drift, so a restart keeps it.
+
+``out_of_sync`` looks at the **drift** only (a missed change of time has its
+own ``hour_shift``) and needs every one of the last ``SAMPLES`` readings on
+the same side:
 
 * on  -- all at least ``alert_minutes`` off;
 * off -- all less than ``alert_minutes`` minus the hysteresis: a fifth of the
@@ -23,9 +40,7 @@ last ``SAMPLES`` readings on the same side:
   With fewer readings than that it is None.
 
 Nothing is compared while no frames arrive, so an offline unit keeps its last
-offset instead of drifting further away from a clock that moves on.  Nothing
-is stored either: after a restart three frames, half a minute, give the
-answer again.
+values instead of drifting further away from a clock that moves on.
 """
 
 from __future__ import annotations
@@ -38,8 +53,9 @@ from homeassistant.util import dt as dt_util
 
 DEFAULT_ALERT_MINUTES = 15
 SAMPLES = 3
-_HALF_DAY = 12 * 3600
-_DAY = 24 * 3600
+_HOUR = 3600
+_HALF_DAY = 12 * _HOUR
+_DAY = 24 * _HOUR
 
 
 def offset_seconds(unit_clock: datetime | time, received: datetime) -> float:
@@ -53,12 +69,20 @@ def offset_seconds(unit_clock: datetime | time, received: datetime) -> float:
 
 
 class ClockTracker:
-    """Offset of one unit's clock and whether it is past the alert limit."""
+    """Offset of one unit's clock, split into hours and drift, and the alert."""
 
-    def __init__(self, alert_minutes: float = DEFAULT_ALERT_MINUTES) -> None:
+    def __init__(
+        self,
+        alert_minutes: float = DEFAULT_ALERT_MINUTES,
+        drift_minutes: float | None = None,
+    ) -> None:
         self.alert_minutes = float(alert_minutes)
         self._samples: deque[float] = deque(maxlen=SAMPLES)
         self.offset_minutes: float | None = None
+        #: whole hours of the offset: a change of time the unit did not follow
+        self.hour_shift: int | None = None
+        #: the rest, in minutes: what the clock gained or lost
+        self.drift_minutes: float | None = drift_minutes
         self.out_of_sync: bool | None = None
 
     @property
@@ -71,15 +95,20 @@ class ClockTracker:
         if unit_clock is None:
             return
         self._samples.append(offset_seconds(unit_clock, received))
-        self.offset_minutes = round(median(self._samples) / 60, 1)
+        offset = median(self._samples)
+        last_drift = (self.drift_minutes or 0.0) * 60
+        hours = round((offset - last_drift) / _HOUR)
+        self.offset_minutes = round(offset / 60, 1)
+        self.hour_shift = hours
+        self.drift_minutes = round((offset - hours * _HOUR) / 60, 1)
         if len(self._samples) < SAMPLES:
             return
         limit = self.alert_minutes * 60
-        if all(abs(s) >= limit for s in self._samples):
+        drifts = [abs(s - hours * _HOUR) for s in self._samples]
+        if all(d >= limit for d in drifts):
             self.out_of_sync = True
-        elif (
-            all(abs(s) < self._clear_below_seconds for s in self._samples)
-            or self.out_of_sync is None
+        elif all(d < self._clear_below_seconds for d in drifts) or (
+            self.out_of_sync is None
         ):
             # the first answer is off unless three readings say otherwise
             self.out_of_sync = False

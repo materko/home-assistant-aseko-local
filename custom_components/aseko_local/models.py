@@ -382,6 +382,11 @@ class AsekoDevice:
     # limit set in the integration's options.  None until measured.
     clock_offset: float | None = None
     clock_out_of_sync: bool | None = None
+    # the offset split: whole hours (a change of time the unit did not
+    # follow) and the drift in minutes; clock_hour_shifted: hours are not 0
+    clock_hour_shift: int | None = None
+    clock_drift: float | None = None
+    clock_hour_shifted: bool | None = None
 
     def online(self) -> bool:
         """Return True if a frame was received within ``OFFLINE_AFTER``.

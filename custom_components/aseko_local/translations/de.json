@@ -126,6 +126,9 @@
       },
       "clock_out_of_sync": {
         "name": "Uhr nicht synchron"
+      },
+      "clock_hour_shifted": {
+        "name": "Uhr um Stunden versetzt"
       }
     },
     "sensor": {
@@ -354,6 +357,12 @@
       },
       "clock_offset": {
         "name": "Uhrabweichung"
+      },
+      "clock_hour_shift": {
+        "name": "Uhr Stundenversatz"
+      },
+      "clock_drift": {
+        "name": "Uhrendrift"
       }
     },
     "number": {

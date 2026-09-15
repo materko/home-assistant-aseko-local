@@ -49,9 +49,11 @@ until a scheduled cycle on it, or later, has been seen.
 The schedule is set on the unit's own clock, which runs apart from Home
 Assistant's (``trackers.clock``).  Once the offset is measured, classification
 compares the cycle's start with the schedule on the unit's clock, within the
-tighter ``OFFSET_MATCH_TOLERANCE``.  The projection shifts only by the whole hours
-of that offset, minutes dropped (a unit left on summer time): the minutes stay
-as they are set on the unit, and ``clock_offset`` tells how far they are off.
+tighter ``OFFSET_MATCH_TOLERANCE``.  The offset is the whole difference, drift
+and a change of time (summer / winter) the unit did not follow alike.  The
+projection is not moved by it: it shows the backwash time exactly as it is
+set on the unit, and ``clock_offset`` tells how far that is from Home
+Assistant's clock.
 
 The recorded timestamps are stored persistently via the Home Assistant
 ``Store`` API and survive:
@@ -455,18 +457,6 @@ class BackwashTracker:
             return None
         return timedelta(minutes=self._clock_offset_minutes)
 
-    @property
-    def _hour_shift(self) -> timedelta:
-        """The whole hours of the offset, minutes dropped: what the projection moves by.
-
-        Only a change of time (summer / winter, a clock set an hour off) is
-        meant to move the projected slot, and that is always whole hours:
-        59 minutes ahead moves nothing, 65 moves one hour, -125 two back.
-        """
-        if self._clock_offset_minutes is None:
-            return timedelta(0)
-        return timedelta(hours=int(self._clock_offset_minutes / 60))
-
     def _on_unit_clock(self, moment: datetime) -> datetime:
         """``moment`` (Home Assistant's clock) as the unit's clock shows it."""
         return moment + (self._offset or timedelta(0))
@@ -731,10 +721,10 @@ class BackwashTracker:
         After a change of the schedule the projection starts from the day
         after the change instead (see the module docstring).
 
-        The slot is the unit's backwash time on the unit's clock.  It is
-        shifted by the whole hours of the clock offset only -- a unit that
-        did not switch to or from summer time -- and keeps the minutes set on
-        the unit; ``clock_offset`` says how many minutes it is off.
+        The result is the unit's backwash time as it is set on the unit, on
+        the unit's day, not moved by the clock offset (drift or a change of
+        time); ``clock_offset`` says how far the unit's clock is off.  Missed
+        slots are stepped over on the unit's clock too.
 
         Returns None while neither a scheduled cycle nor a schedule change is
         known: a manual backwash says nothing about the unit's schedule
@@ -749,7 +739,6 @@ class BackwashTracker:
             return None
 
         step = timedelta(days=interval)
-        shift = self._hour_shift
         if self._restart_day is not None:
             next_at = _slot(self._restart_day, scheduled_time)
         elif self._last_scheduled_backwash is not None:
@@ -768,9 +757,10 @@ class BackwashTracker:
             next_at = _slot(day, scheduled_time) + step
         else:
             return None
-        while next_at - shift <= now:
+        unit_now = self._on_unit_clock(now)
+        while next_at <= unit_now:
             next_at += step
-        return next_at - shift
+        return next_at
 
 
 def _parse_date(raw: object) -> date | None:

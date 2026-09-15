@@ -226,6 +226,17 @@ BINARY_SENSORS: tuple[AsekoLocalBinarySensorEntityDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda device: device.clock_out_of_sync,
     ),
+    AsekoLocalBinarySensorEntityDescription(
+        # The unit's clock is whole hours off: it did not follow a change
+        # between summer and winter time, or was set an hour off.
+        key="clock_hour_shifted",
+        feature="unit_clock",
+        translation_key="clock_hour_shifted",
+        icon="mdi:clock-time-eight-outline",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda device: device.clock_hour_shifted,
+    ),
 )
 
 

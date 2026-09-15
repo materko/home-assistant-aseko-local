@@ -121,7 +121,7 @@ def test_a_small_drift_does_not_alert():
     assert tracker.out_of_sync is False
 
 
-@pytest.mark.parametrize("minutes", [15.0, -15.0, 60.0, -61.0])
+@pytest.mark.parametrize("minutes", [15.0, -15.0, 25.0, -29.0])
 def test_past_the_limit_either_way_alerts(minutes):
     tracker = ClockTracker()
     _feed(tracker, [minutes] * SAMPLES)
@@ -162,12 +162,13 @@ def test_a_first_window_inside_the_band_is_off():
 
 @pytest.mark.parametrize(
     ("limit", "clears_below"),
-    [(1, 48), (2, 96), (10, 480), (15, 720), (180, 10620)],
+    [(1, 48), (2, 96), (10, 480), (15, 720), (30, 1620)],
 )
 def test_every_limit_can_clear(limit, clears_below):
     """Audit K1: the hysteresis is a fifth of the limit, at most 3 min."""
-    tracker = ClockTracker(alert_minutes=limit)
-    _feed(tracker, [limit * 2] * SAMPLES)
+    # a drift that grew there, so the split does not read it as hours
+    tracker = ClockTracker(alert_minutes=limit, drift_minutes=limit * 1.5)
+    _feed(tracker, [limit * 1.5] * SAMPLES)
     assert tracker.out_of_sync is True
 
     # exactly on the line still counts as off the limit
@@ -194,3 +195,42 @@ def test_two_units_are_tracked_apart():
     _feed(ahead, [30.0] * SAMPLES)
     _feed(fine, [0.5] * SAMPLES)
     assert (ahead.out_of_sync, fine.out_of_sync) == (True, False)
+
+
+# ── hours and drift ──────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("drift_before", "offset", "hours", "drift"),
+    [
+        (None, 5.5, 0, 5.5),  # first reading: drift under 30 min
+        (None, 25.0, 0, 25.0),
+        (None, -54.5, -1, 5.5),
+        (5.5, 5.6, 0, 5.6),  # an ordinary day
+        (5.5, 65.5, 1, 5.5),  # autumn change not followed
+        (5.5, -54.5, -1, 5.5),  # spring change not followed
+        (25.0, 31.0, 0, 31.0),  # a drift that grew past 30 min stays drift
+        (5.5, 45.5, 1, -14.5),  # a clock moved 40 min at once reads as an hour
+    ],
+)
+def test_the_offset_splits_into_hours_and_drift(drift_before, offset, hours, drift):
+    tracker = ClockTracker(drift_minutes=drift_before)
+    _feed(tracker, [offset] * SAMPLES)
+    assert tracker.offset_minutes == offset
+    assert tracker.hour_shift == hours
+    assert tracker.drift_minutes == drift
+
+
+def test_a_missed_change_of_time_alone_does_not_alert():
+    """The alert is about drift; the hour shift has its own flag."""
+    tracker = ClockTracker(drift_minutes=5.5)
+    _feed(tracker, [-54.5] * SAMPLES)
+    assert tracker.hour_shift == -1
+    assert tracker.out_of_sync is False
+
+
+def test_drift_past_the_limit_alerts_under_a_missed_change_of_time():
+    tracker = ClockTracker(drift_minutes=14.0)
+    _feed(tracker, [76.0] * SAMPLES)  # an hour ahead and 16 min fast
+    assert (tracker.hour_shift, tracker.drift_minutes) == (1, 16.0)
+    assert tracker.out_of_sync is True
