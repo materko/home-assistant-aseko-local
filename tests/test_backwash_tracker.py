@@ -34,16 +34,20 @@ SCHEDULE_EVERY_N_DAYS = 3
 
 
 @pytest.fixture(autouse=True)
-def _home_assistant_in_utc(monkeypatch):
+def _home_assistant_in_utc():
     """These tests state the schedule in UTC; Home Assistant's test zone is not.
 
     The tracker projects and classifies in Home Assistant's time zone, so pin it
-    to UTC here.  Tests about local time set their own zone on top.
+    to UTC here.  Tests about local time set their own zone on top.  The zone
+    goes through ``set_default_time_zone`` (which clears its cache) and is put
+    back afterwards, so the test plugin's own teardown finds what it set.
     """
     from homeassistant.util import dt as dt_util
 
-    monkeypatch.setattr(dt_util, "get_default_time_zone", lambda: timezone.utc)
-    monkeypatch.setattr(dt_util, "DEFAULT_TIME_ZONE", timezone.utc)
+    original = dt_util.DEFAULT_TIME_ZONE
+    dt_util.set_default_time_zone(timezone.utc)
+    yield
+    dt_util.set_default_time_zone(original)
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -953,14 +957,14 @@ def test_backfill_of_an_unexplained_salt_record_runs_once():
 # ── time zone and midnight (audit B1, B2) ────────────────────────────────────
 
 
-def _in_bratislava(monkeypatch) -> Any:
+def _in_bratislava() -> Any:
+    """Home Assistant in Europe/Bratislava; the autouse fixture puts it back."""
     from zoneinfo import ZoneInfo
 
     from homeassistant.util import dt as dt_util
 
     zone = ZoneInfo("Europe/Bratislava")
-    monkeypatch.setattr(dt_util, "get_default_time_zone", lambda: zone)
-    monkeypatch.setattr(dt_util, "DEFAULT_TIME_ZONE", zone)
+    dt_util.set_default_time_zone(zone)
     return zone
 
 
@@ -968,9 +972,9 @@ def _every_three_days_at(at: time) -> Any:
     return _device(False, backwash_start_time=at, backwash_interval=3)
 
 
-def test_projection_keeps_the_wall_clock_time_across_daylight_saving(monkeypatch):
+def test_projection_keeps_the_wall_clock_time_across_daylight_saving():
     """A cycle stored before the change to summer time still projects to 12:30."""
-    zone = _in_bratislava(monkeypatch)
+    zone = _in_bratislava()
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     # as restored from storage: a fixed +01:00 offset, not the zone's rules
     tracker._last_scheduled_backwash = datetime.fromisoformat(  # type: ignore[attr-defined]
@@ -985,8 +989,8 @@ def test_projection_keeps_the_wall_clock_time_across_daylight_saving(monkeypatch
     assert projected.utcoffset() == timedelta(hours=2)
 
 
-def test_a_utc_date_projects_like_the_same_local_one(monkeypatch):
-    zone = _in_bratislava(monkeypatch)
+def test_a_utc_date_projects_like_the_same_local_one():
+    zone = _in_bratislava()
     device = _every_three_days_at(time(12, 30))
     now = datetime(2026, 9, 11, tzinfo=zone)
 
@@ -1003,9 +1007,9 @@ def test_a_utc_date_projects_like_the_same_local_one(monkeypatch):
     )
 
 
-def test_a_cycle_finishing_after_midnight_keeps_the_day_it_was_scheduled(monkeypatch):
+def test_a_cycle_finishing_after_midnight_keeps_the_day_it_was_scheduled():
     """Plan 23:59, valve 23:59:30-00:01: the next one is three days after the 10th."""
-    zone = _in_bratislava(monkeypatch)
+    zone = _in_bratislava()
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
     def device(active):
@@ -1021,8 +1025,8 @@ def test_a_cycle_finishing_after_midnight_keeps_the_day_it_was_scheduled(monkeyp
     ) == datetime(2026, 9, 13, 23, 59, tzinfo=zone)
 
 
-def test_a_cycle_just_before_a_midnight_plan_matches_the_next_day(monkeypatch):
-    zone = _in_bratislava(monkeypatch)
+def test_a_cycle_just_before_a_midnight_plan_matches_the_next_day():
+    zone = _in_bratislava()
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
     def device(active):
