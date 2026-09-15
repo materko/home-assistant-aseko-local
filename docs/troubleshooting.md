@@ -60,9 +60,12 @@ An entity you disabled yourself stays disabled.
 
 The schedule the unit shows is in **its own** clock. Compare
 **Clock offset** (`devices[].device.clock_offset_minutes`: minutes the unit
-is ahead, negative behind) with the shift you see. Around ±60 minutes after a
-change between summer and winter time usually means the unit did not switch;
-set its clock on the unit. **Clock out of sync** turns on past the limit set
+is ahead, negative behind) with the shift you see. `next_scheduled_backwash`
+moves by whole hours of it only and keeps the minutes set on the unit, so a
+few minutes of drift show up there as the offset, not as a changed time.
+Around ±60 minutes after a change between summer and winter time usually means
+the unit did not switch; set its clock on the unit. After a change of the
+backwash time or interval, the next cycle is the day after the change. **Clock out of sync** turns on past the limit set
 in the integration's settings (15 minutes by default). See the README,
 *Unit clock*.
 

@@ -947,11 +947,14 @@ def test_backfill_of_an_unexplained_salt_record_runs_once():
     tracker._last_backwash = off_schedule  # type: ignore[attr-defined]
 
     tracker.update(_salt_device(False, False), off_schedule + timedelta(minutes=5))
+    saves = tracker._hass.async_create_task.call_count  # type: ignore[attr-defined]
     tracker.update(_salt_device(False, False), off_schedule + timedelta(minutes=6))
 
     assert tracker.last_trigger is AsekoBackwashTrigger.UNKNOWN
     assert tracker.last_manual_backwash is None
-    assert tracker._hass.async_create_task.call_count == 1  # type: ignore[attr-defined]
+    # the first frame saved the classification (and the schedule it saw);
+    # the second one has nothing new to save
+    assert tracker._hass.async_create_task.call_count == saves  # type: ignore[attr-defined]
 
 
 # ── time zone and midnight (audit B1, B2) ────────────────────────────────────
@@ -1119,3 +1122,199 @@ def test_clearing_keeps_the_scheduled_verdict_when_a_manual_cycle_is_on_record()
 
     assert tracker.last_scheduled_backwash is None
     assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
+
+
+# ── unit clock offset (audit R2) ─────────────────────────────────────────────
+
+
+def _clocked(
+    running: bool,
+    offset: float | None,
+    *,
+    at: time = SCHEDULE_AT,
+    every: int = SCHEDULE_EVERY_N_DAYS,
+) -> Any:
+    """A scheduled device whose clock is ``offset`` minutes ahead of HA."""
+    dev = _device(running, backwash_start_time=at, backwash_interval=every)
+    dev.clock_offset = offset
+    return dev
+
+
+def _clocked_cycle(tracker, start, offset, **kwargs) -> None:
+    tracker.update(_clocked(True, offset, **kwargs), start)
+    tracker.update(_clocked(False, offset, **kwargs), start + timedelta(seconds=90))
+
+
+def _frame(tracker, moment, offset=None, **kwargs) -> None:
+    tracker.update(_clocked(False, offset, **kwargs), moment)
+
+
+def test_a_unit_ahead_runs_its_schedule_early_on_home_assistant_time():
+    """Unit 5.5 min ahead: its 21:00 is 20:54:30 in HA, and that is scheduled."""
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    _clocked_cycle(tracker, T0 - timedelta(minutes=5, seconds=30), 5.5)
+    assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
+
+
+def test_with_the_offset_known_the_window_is_five_minutes():
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    # on the unit clock this started 10 minutes after the plan
+    _clocked_cycle(tracker, T0 + timedelta(minutes=4, seconds=30), 5.5)
+    assert tracker.last_trigger is AsekoBackwashTrigger.MANUAL
+
+
+def test_without_an_offset_the_window_stays_fifteen_minutes():
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    _clocked_cycle(tracker, T0 + timedelta(minutes=10), None)
+    assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
+
+
+def test_a_unit_an_hour_behind_is_matched_and_projected_an_hour_later():
+    """A unit left on the old time: its 21:00 is 22:00 in Home Assistant."""
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    _clocked_cycle(tracker, T0 + timedelta(hours=1), -60.2)
+
+    assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
+    assert tracker.next_scheduled_backwash(
+        _clocked(False, -60.2), T0 + timedelta(hours=2)
+    ) == T0 + timedelta(days=SCHEDULE_EVERY_N_DAYS, hours=1)
+
+
+def test_the_projection_keeps_the_minutes_set_on_the_unit():
+    """5.5 minutes of drift do not move 21:00; the clock offset shows them."""
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    _clocked_cycle(tracker, T0 - timedelta(minutes=5, seconds=30), 5.5)
+    assert tracker.next_scheduled_backwash(
+        _clocked(False, 5.5), T0 + timedelta(hours=1)
+    ) == T0 + timedelta(days=SCHEDULE_EVERY_N_DAYS)
+
+
+def test_the_projection_moves_by_whole_hours_only():
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    _clocked_cycle(tracker, T0 - timedelta(minutes=65), 65.0)
+    assert tracker.next_scheduled_backwash(
+        _clocked(False, 65.0), T0 + timedelta(hours=1)
+    ) == T0 + timedelta(days=SCHEDULE_EVERY_N_DAYS, hours=-1)
+
+
+# ── schedule change (audit R1) ───────────────────────────────────────────────
+
+
+def test_the_first_schedule_seen_does_not_restart_anything():
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    _frame(tracker, T0 - timedelta(hours=1))
+    assert tracker.next_scheduled_backwash(_clocked(False, None), T0) is None
+
+
+def test_a_new_backwash_time_runs_the_day_after_the_change():
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    _clocked_cycle(tracker, T0, None)  # 14 June, every 3 days at 21:00
+    changed = datetime(2026, 6, 15, 10, 0, tzinfo=timezone.utc)
+    _frame(tracker, changed, at=time(8, 30))
+
+    assert tracker.next_scheduled_backwash(
+        _clocked(False, None, at=time(8, 30)), changed
+    ) == datetime(2026, 6, 16, 8, 30, tzinfo=timezone.utc)
+
+
+def test_a_new_interval_runs_the_day_after_the_change():
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    _clocked_cycle(tracker, T0, None)
+    changed = T0 + timedelta(hours=1)
+    _frame(tracker, changed, every=7)
+
+    assert tracker.next_scheduled_backwash(
+        _clocked(False, None, every=7), changed
+    ) == T0 + timedelta(days=1)
+
+
+def test_switching_the_schedule_off_and_on_restarts_it_the_next_day():
+    """Several toggles in one evening, as captured on 13 September."""
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    _clocked_cycle(tracker, T0 - timedelta(days=2), None)
+    evening = T0 + timedelta(hours=1, minutes=50)  # 22:50
+    for minute, every in enumerate((0, 15, 0, 15, 0, 15)):
+        _frame(tracker, evening + timedelta(minutes=minute), every=every)
+        if every == 0:
+            off = _clocked(False, None, every=0)
+            assert tracker.next_scheduled_backwash(off, evening) is None
+
+    assert tracker.next_scheduled_backwash(
+        _clocked(False, None, every=15), evening + timedelta(minutes=10)
+    ) == T0 + timedelta(days=1)
+
+
+def test_the_restarted_schedule_counts_from_its_first_cycle():
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    _frame(tracker, T0 - timedelta(hours=5))
+    _frame(tracker, T0 - timedelta(hours=4), every=15)  # change: runs tomorrow
+    _clocked_cycle(tracker, T0 + timedelta(days=1), None, every=15)
+
+    assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
+    assert tracker.next_scheduled_backwash(
+        _clocked(False, None, every=15), T0 + timedelta(days=1, hours=1)
+    ) == T0 + timedelta(days=16)
+
+
+def test_a_missed_restart_day_steps_on_by_the_interval():
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    _frame(tracker, T0 - timedelta(hours=5))
+    _frame(tracker, T0 - timedelta(hours=4), every=5)
+
+    assert tracker.next_scheduled_backwash(
+        _clocked(False, None, every=5), T0 + timedelta(days=2)
+    ) == T0 + timedelta(days=6)
+
+
+def test_the_day_of_the_change_is_the_day_on_the_unit_clock():
+    """HA 23:57, the unit (+5.5 min) already past midnight: runs a day later."""
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    late = datetime(2026, 6, 14, 23, 57, tzinfo=timezone.utc)
+    _frame(tracker, late - timedelta(minutes=1), 5.5)
+    _frame(tracker, late, 5.5, at=time(8, 30))
+
+    assert tracker.next_scheduled_backwash(
+        _clocked(False, 5.5, at=time(8, 30)), late
+    ) == datetime(2026, 6, 16, 8, 30, tzinfo=timezone.utc)
+
+
+def test_typing_in_the_last_scheduled_date_replaces_a_restart():
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    _frame(tracker, T0 - timedelta(hours=5))
+    _frame(tracker, T0 - timedelta(hours=4), every=5)
+    tracker.set_last_scheduled_backwash(T0 - timedelta(days=2))
+
+    assert tracker.next_scheduled_backwash(
+        _clocked(False, None, every=5), T0 - timedelta(hours=3)
+    ) == T0 + timedelta(days=3)
+
+
+def test_the_recorded_day_does_not_follow_a_new_time_to_another_day():
+    """The day a cycle belonged to is fixed when it is recorded (audit R1)."""
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    # 14 June 23:00, every 3 days
+    _clocked_cycle(tracker, T0 + timedelta(hours=2), None, at=time(23, 0))
+    # the time now reads 01:00, with no restart pending (as after a typed
+    # date was cleared): nearest to 23:00 would be 15 June, the record says 14
+    tracker._restart_day = None  # type: ignore[attr-defined]
+
+    assert tracker.next_scheduled_backwash(
+        _clocked(False, None, at=time(1, 0)), T0 + timedelta(hours=3)
+    ) == datetime(2026, 6, 17, 1, 0, tzinfo=timezone.utc)
+
+
+async def test_schedule_restart_and_offset_survive_a_restart():
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    _frame(tracker, T0 - timedelta(hours=5), 5.5)
+    _frame(tracker, T0 - timedelta(hours=4), 5.5, every=5)
+    restored = await _store_roundtrip(tracker)
+
+    assert restored.next_scheduled_backwash(
+        _clocked(False, None, every=5), T0 - timedelta(hours=3)
+    ) == T0 + timedelta(days=1)
+    assert restored._clock_offset_minutes == 5.5  # type: ignore[attr-defined]
+    # a change while Home Assistant was down shows up on the first frame
+    _frame(restored, T0 + timedelta(hours=4), None, every=7)  # 15 June 01:00
+    assert restored.next_scheduled_backwash(
+        _clocked(False, None, every=7), T0 + timedelta(hours=4)
+    ) == T0 + timedelta(days=2)

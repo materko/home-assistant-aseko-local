@@ -193,8 +193,9 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
             # AsekoData.set(): for an already-known device, set() copies the
             # attributes off this object onto the stored one, and anything
             # written afterwards would never reach the entities.
-            self._update_backwash(device)
+            # the clock first: the backwash tracker reads its offset
             self._update_clock(device)
+            self._update_backwash(device)
 
             new_data.set(device.serial_number, device)
 
