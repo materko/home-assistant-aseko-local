@@ -12,14 +12,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, override
 
-from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
-from ..presence import NOT_PRESENT
+from ..frames import flag_or_none
 
 if TYPE_CHECKING:
     from ...models import AsekoDevice
     from ..frames import V7Frame
-    from ..presence import NotPresent
 
 
 VSP_ENABLED = 0x08
@@ -31,7 +29,5 @@ class VariableSpeedPumpEnabled(Feature):
     field = "variable_speed_pump_enabled"
 
     @override
-    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool | NotPresent:
-        if frame[22] == UNSPECIFIED_VALUE:
-            return NOT_PRESENT
-        return bool(frame[22] & VSP_ENABLED)
+    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool | None:
+        return flag_or_none(frame[22], VSP_ENABLED)

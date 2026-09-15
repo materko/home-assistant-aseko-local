@@ -15,12 +15,10 @@ from typing import TYPE_CHECKING, override
 from ...const import UNSPECIFIED_VALUE
 from ...models import AsekoHeatingCondition
 from ..feature import Feature
-from ..presence import NOT_PRESENT
 
 if TYPE_CHECKING:
     from ...models import AsekoDevice
     from ..frames import V7Frame
-    from ..presence import NotPresent
 
 
 TIME_WINDOW = 0x01
@@ -36,10 +34,10 @@ class HeatingCondition(Feature):
     @override
     def decode_v7(
         self, frame: V7Frame, device: AsekoDevice
-    ) -> AsekoHeatingCondition | NotPresent | None:
+    ) -> AsekoHeatingCondition | None:
         b = frame[22]
         if b == UNSPECIFIED_VALUE:
-            return NOT_PRESENT
+            return None  # this frame does not say
         if b & TIME_WINDOW and b & OUTSIDE_TEMPERATURE:
             return None  # never seen together
         if b & TIME_WINDOW:

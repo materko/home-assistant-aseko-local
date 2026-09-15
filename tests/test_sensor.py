@@ -325,7 +325,10 @@ async def test_async_setup_salt_redox(hass) -> None:
     #   their place in the frame is not known yet, so they read unknown
     # + 2 clock_offset sensor / clock_out_of_sync binary sensor: the unit sends
     #   its clock (bytes 6-11)
-    assert len(added_entities) == 48
+    # + 5 byte[22] / byte[78] settings (backwash schedule, VS pump enabled and
+    #   type, heating condition, heating allowed): the frame fills them with
+    #   0xFF, which reads unknown, like the byte[37] settings, not absent
+    assert len(added_entities) == 53
     # Nothing has been observed yet, so the history is unknown rather than
     # guessed from the schedule.
     backwash_history = {
@@ -470,7 +473,10 @@ async def test_async_setup_salt_clf(hass) -> None:
     #   on SALT, not a probe voltage
     # + 2 clock_offset sensor / clock_out_of_sync binary sensor: the unit sends
     #   its clock (bytes 6-11)
-    assert len(added_entities) == 48
+    # + 5 byte[22] / byte[78] settings (backwash schedule, VS pump enabled and
+    #   type, heating condition, heating allowed): the frame fills them with
+    #   0xFF, which reads unknown, like the byte[37] settings, not absent
+    assert len(added_entities) == 53
     assert not any(
         getattr(e.entity_description, "key", None) == "free_chlorine_mv"
         for e in added_entities

@@ -448,6 +448,29 @@ def test_a_value_unknown_in_this_frame_stays_present() -> None:
     assert home.service_menu_open is None
 
 
+def test_unset_byte22_and_byte78_settings_read_unknown_but_stay_present() -> None:
+    """A unit with these settings always sends 0 or 1 bits; 0xFF is an odd frame.
+
+    Every captured SALT frame carries a real value in bytes 22 and 78, so the
+    entities exist; a frame with 0xFF there shows them unknown, not
+    unavailable, like the byte[37] settings.
+    """
+    data = _make_base_bytes()  # SALT
+    data[22] = 0xFF
+    data[78] = 0xFF
+    device = decode(bytes(data))
+    fields = (
+        "backwash_schedule_enabled",
+        "variable_speed_pump_enabled",
+        "heating_condition",
+        "heating_allowed",
+        "variable_speed_pump_type",
+    )
+    for field in fields:
+        assert getattr(device, field) is None, field
+        assert field in device.features, field
+
+
 def test_shared_port_routing_decides_which_chemical_is_present() -> None:
     data = _make_base_bytes()
     data[101] = 40

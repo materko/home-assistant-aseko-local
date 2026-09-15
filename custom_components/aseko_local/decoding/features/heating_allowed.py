@@ -11,14 +11,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, override
 
-from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
-from ..presence import NOT_PRESENT
+from ..frames import flag_or_none
 
 if TYPE_CHECKING:
     from ...models import AsekoDevice
     from ..frames import V7Frame
-    from ..presence import NotPresent
 
 
 MASK = 0x80
@@ -30,7 +28,5 @@ class HeatingAllowed(Feature):
     field = "heating_allowed"
 
     @override
-    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool | NotPresent:
-        if frame[78] == UNSPECIFIED_VALUE:
-            return NOT_PRESENT
-        return bool(frame[78] & MASK)
+    def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool | None:
+        return flag_or_none(frame[78], MASK)

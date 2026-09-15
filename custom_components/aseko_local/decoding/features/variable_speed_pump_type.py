@@ -18,12 +18,10 @@ from typing import TYPE_CHECKING, override
 from ...const import UNSPECIFIED_VALUE
 from ...models import AsekoVariableSpeedPumpType
 from ..feature import Feature
-from ..presence import NOT_PRESENT
 
 if TYPE_CHECKING:
     from ...models import AsekoDevice
     from ..frames import V7Frame
-    from ..presence import NotPresent
 
 
 TYPE_BITS = 0x0C
@@ -42,7 +40,7 @@ class VariableSpeedPumpType(Feature):
     @override
     def decode_v7(
         self, frame: V7Frame, device: AsekoDevice
-    ) -> AsekoVariableSpeedPumpType | NotPresent | None:
+    ) -> AsekoVariableSpeedPumpType | None:
         if frame[78] == UNSPECIFIED_VALUE:
-            return NOT_PRESENT
+            return None  # this frame does not say
         return _BY_BITS.get(frame[78] & TYPE_BITS)
