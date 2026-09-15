@@ -12,9 +12,11 @@ platform builders directly, so they run without the Home Assistant fixtures.
 from __future__ import annotations
 
 import contextlib
+import json
 import logging
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
 from zoneinfo import ZoneInfo
@@ -24,14 +26,19 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from custom_components.aseko_local import entity as entity_module
+from custom_components.aseko_local import sensor as sensor_module
 from custom_components.aseko_local.binary_sensor import _build_binary_sensor_entities
 from custom_components.aseko_local.button import _build_button_entities
+from custom_components.aseko_local.const import UNIT_TYPE_HOME_CLF
 from custom_components.aseko_local.coordinator import AsekoLocalDataUpdateCoordinator
 from custom_components.aseko_local.datetime import _build_entities as _build_datetime
 from custom_components.aseko_local.decoding import decode
 from custom_components.aseko_local.entity import enabled_unique_ids
-from custom_components.aseko_local.models import AsekoDevice
-from custom_components.aseko_local.sensor import _build_sensor_entities
+from custom_components.aseko_local.models import AsekoConnectionState, AsekoDevice
+from custom_components.aseko_local.sensor import (
+    CONNECTION_STATUS_SENSOR,
+    _build_sensor_entities,
+)
 
 from .test_decode_v7 import _make_base_bytes
 
@@ -414,16 +421,57 @@ def test_a_failed_platform_setup_is_asked_again_on_the_next_frame() -> None:
     assert requested == [SERIAL, SERIAL]  # set up: not asked again
 
 
-def test_a_unit_is_offline_after_five_minutes_but_keeps_its_values() -> None:
+def test_a_unit_is_offline_after_a_minute_but_keeps_its_values() -> None:
     """Audit A1: offline is a flag; the last values stay as they were."""
 
-    device = decode(bytes(_make_base_bytes()))
-    device.last_seen = dt_util.now() - timedelta(minutes=4)
-    assert device.online() is True  # a settings menu can keep it quiet for minutes
-    device.last_seen = dt_util.now() - timedelta(minutes=6)
+    device = decode(_salt_frame(0xD3))  # P1, menu closed
+    device.last_seen = dt_util.now() - timedelta(seconds=50)
+    assert device.online() is True
+    assert device.connection_state() is AsekoConnectionState.ONLINE
+    device.last_seen = dt_util.now() - timedelta(seconds=70)
     assert device.online() is False
+    assert device.connection_state() is AsekoConnectionState.OFFLINE
     assert device.water_temperature == 24.5
     assert "water_temperature" in device.present_features
+
+
+def test_a_salt_with_its_menu_open_shows_service_menu_at_once() -> None:
+    """Frames may go on (a backwash) or stop for hours (a filtration run by hand)."""
+
+    device = decode(_salt_frame(0xD7))  # P1, menu open
+    assert device.service_menu_open is True
+    device.last_seen = dt_util.now()  # still sending
+    assert device.connection_state() is AsekoConnectionState.SERVICE_MENU
+    device.last_seen = dt_util.now() - timedelta(hours=2)  # quiet since
+    assert device.connection_state() is AsekoConnectionState.SERVICE_MENU
+
+    closed = decode(_salt_frame(0xD3))
+    closed.last_seen = dt_util.now()
+    assert closed.connection_state() is AsekoConnectionState.ONLINE
+
+
+def test_home_menu_bit_does_not_mean_service_menu() -> None:
+    """On HOME byte[37] 0x04 is a standing pump override, and frames keep coming."""
+
+    data = _make_base_bytes()
+    data[4] = UNIT_TYPE_HOME_CLF
+    data[37] = 0x57
+    device = decode(bytes(data))
+    assert device.service_menu_open is True
+    device.last_seen = dt_util.now()
+    assert device.connection_state() is AsekoConnectionState.ONLINE
+    device.last_seen = dt_util.now() - timedelta(seconds=70)
+    assert device.connection_state() is AsekoConnectionState.OFFLINE
+
+
+def test_connection_status_offers_every_state() -> None:
+    assert CONNECTION_STATUS_SENSOR.options == ["online", "offline", "service_menu"]
+    for language in ("en", "cs", "de", "fr"):
+        path = Path(sensor_module.__file__).parent / "translations" / f"{language}.json"
+        states = json.loads(path.read_text(encoding="utf-8"))["entity"]["sensor"][
+            "connection_status"
+        ]["state"]
+        assert set(states) == set(CONNECTION_STATUS_SENSOR.options), language
 
 
 def test_online_counts_real_minutes_across_a_change_of_time(monkeypatch) -> None:

@@ -260,7 +260,8 @@
         "name": "Stav připojení",
         "state": {
           "online": "Online",
-          "offline": "Offline"
+          "offline": "Offline",
+          "service_menu": "Otevřené servisní menu"
         }
       },
       "last_seen": {

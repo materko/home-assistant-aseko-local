@@ -30,6 +30,7 @@ from . import AsekoLocalConfigEntry
 from .coordinator import AsekoLocalDataUpdateCoordinator
 from .entity import AsekoLocalEntity, async_enable_entities, enabled_unique_ids
 from .models import (
+    AsekoConnectionState,
     AsekoDevice,
     AsekoElectrodePolarity,
     AsekoHeatingCondition,
@@ -796,9 +797,9 @@ CONNECTION_STATUS_SENSOR = AsekoSensorEntityDescription(
     key="connection_status",
     translation_key="connection_status",
     device_class=SensorDeviceClass.ENUM,
-    options=["online", "offline"],
+    options=[state.value for state in AsekoConnectionState],
     icon="mdi:lan-connect",
-    value_fn=lambda device: "online" if device.online() else "offline",
+    value_fn=lambda device: device.connection_state().value,
 )
 
 # ---------- Setup ----------
@@ -1103,7 +1104,7 @@ class AsekoLocalSensorEntity(AsekoLocalEntity, SensorEntity):
 
 
 class AsekoConnectionStatusSensorEntity(AsekoLocalSensorEntity):
-    """Connection status sensor: always available, shows 'online' or 'offline'.
+    """Connection status sensor: always available, shows 'online', 'offline' or 'service_menu'.
 
     Overrides the base available property so the sensor remains visible even
     when the device is offline – instead of going unavailable it shows 'offline'.

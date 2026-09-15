@@ -150,7 +150,21 @@ class AsekoFiltrationSchedule(Enum):
 
 
 # A unit that sent nothing for this long is offline (Connection status).
-OFFLINE_AFTER = timedelta(minutes=5)
+OFFLINE_AFTER = timedelta(seconds=60)
+
+
+class AsekoConnectionState(Enum):
+    """What the Connection status entity shows.
+
+    Enum values map to the translation keys under
+    entity.sensor.connection_status.state.
+    """
+
+    ONLINE = "online"
+    OFFLINE = "offline"
+    # the last frame said the settings menu is open: frames may go on (a
+    # backwash) or stop until it is closed (a filtration run by hand)
+    SERVICE_MENU = "service_menu"
 
 
 @dataclass
@@ -391,9 +405,8 @@ class AsekoDevice:
     def online(self) -> bool:
         """Return True if a frame was received within ``OFFLINE_AFTER``.
 
-        Five minutes, not one: with its settings menu open a unit sends
-        nothing for minutes.  The other entities keep their last values while
-        a unit is offline; this is the flag that says they are not fresh.
+        The other entities keep their last values while a unit is offline;
+        this is the flag that says they are not fresh.
         """
         # compared normalised to UTC: a change of summer / winter time in
         # Home Assistant must not age or rejuvenate the last frame
@@ -402,6 +415,27 @@ class AsekoDevice:
             and homeassistant.util.dt.as_utc(self.last_seen)
             > homeassistant.util.dt.utcnow() - OFFLINE_AFTER
         )
+
+    def connection_state(self) -> AsekoConnectionState:
+        """Return what the Connection status entity shows.
+
+        A unit whose last frame had the settings menu open says so at once
+        instead of online or offline.  What it sends next depends on what is
+        done in the menu: frames go on during a backwash started there, but
+        stop during a filtration run by hand until the menu is closed, which
+        can take hours.  Neither can be told from the menu frame, so there is
+        no timeout and the state does not claim offline.  Only where the
+        menu bit means a person at the unit (``MENU_BIT_IS_PRESENCE_ONLY``);
+        on HOME the same bit is a standing pump override that keeps sending.
+        """
+        if (
+            self.service_menu_open
+            and AsekoProfileFlag.MENU_BIT_IS_PRESENCE_ONLY in self.flags
+        ):
+            return AsekoConnectionState.SERVICE_MENU
+        if self.online():
+            return AsekoConnectionState.ONLINE
+        return AsekoConnectionState.OFFLINE
 
 
 @dataclass

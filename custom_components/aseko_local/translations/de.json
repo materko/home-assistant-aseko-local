@@ -260,7 +260,8 @@
         "name": "Verbindungsstatus",
         "state": {
           "online": "Online",
-          "offline": "Offline"
+          "offline": "Offline",
+          "service_menu": "Servicemenü geöffnet"
         }
       },
       "last_seen": {
