@@ -36,6 +36,7 @@ from homeassistant.helpers.http import KEY_HASS
 from homeassistant.util import dt as dt_util
 
 from ..const import DOMAIN
+from ..runtime import loaded_entries
 from .photos import PhotoStore, build_export_zip
 
 if TYPE_CHECKING:
@@ -84,14 +85,6 @@ async def async_setup_recording(hass: HomeAssistant, version: str) -> None:
     hass.http.register_view(AsekoExportedView())
     hass.http.register_view(AsekoRecordingView())
     hass.http.register_view(AsekoDeleteRecordingView())
-
-
-def _loaded_entries(hass: HomeAssistant) -> list[Any]:
-    return [
-        entry
-        for entry in hass.config_entries.async_entries(DOMAIN)
-        if getattr(entry, "runtime_data", None)
-    ]
 
 
 def _require_admin(request: web.Request) -> HomeAssistant:
@@ -152,7 +145,7 @@ class AsekoPhotoView(HomeAssistantView):
         """Store a photo at once and write its marker after the next frame."""
         hass = _require_admin(request)
         received = dt_util.utcnow()
-        entries = _loaded_entries(hass)
+        entries = loaded_entries(hass)
         if not entries:
             return self.json_message("No Aseko Local entry is loaded", 409)
         entries = [e for e in entries if e.runtime_data.coordinator.frame_log.enabled]
@@ -242,7 +235,7 @@ class AsekoForgetView(HomeAssistantView):
     async def post(self, request: web.Request) -> web.Response:
         """Clear the case list of every entry; the frames stay."""
         hass = _require_admin(request)
-        for entry in _loaded_entries(hass):
+        for entry in loaded_entries(hass):
             entry.runtime_data.coordinator.forget_markers()
         return self.json({"ok": True})
 
@@ -275,7 +268,7 @@ class AsekoStatusView(HomeAssistantView):
                         "markers": entry.runtime_data.coordinator.frame_log.markers(),
                         "not_downloaded": entry.runtime_data.coordinator.frame_log.not_downloaded(),
                     }
-                    for entry in _loaded_entries(hass)
+                    for entry in loaded_entries(hass)
                 ],
                 "photos": photos,
             }
@@ -297,7 +290,7 @@ class AsekoExportView(HomeAssistantView):
         hass = _require_admin(request)
         only_new = request.query.get("new") == "1"
         created = dt_util.now()
-        loaded = _loaded_entries(hass)
+        loaded = loaded_entries(hass)
         entries = []
         wanted_photos: set[str] = set()
         newest: dict[str, int] = {}
@@ -362,7 +355,7 @@ class AsekoExportedView(HomeAssistantView):
             marks = {str(entry_id): int(n) for entry_id, n in through.items()}
         except (ValueError, KeyError, TypeError, AttributeError):
             return self.json_message('Expected {"through": {entry_id: n}}', 400)
-        for entry in _loaded_entries(hass):
+        for entry in loaded_entries(hass):
             if entry.entry_id in marks:
                 entry.runtime_data.coordinator.mark_exported(marks[entry.entry_id])
         return self.json({"marked": marks})
@@ -383,7 +376,7 @@ class AsekoRecordingView(HomeAssistantView):
             enabled = None
         if not isinstance(enabled, bool):
             return self.json_message('Expected {"enabled": true|false}', 400)
-        for entry in _loaded_entries(hass):
+        for entry in loaded_entries(hass):
             entry.runtime_data.coordinator.set_recording(enabled=enabled)
         return self.json({"enabled": enabled})
 
@@ -397,7 +390,7 @@ class AsekoDeleteRecordingView(HomeAssistantView):
     async def post(self, request: web.Request) -> web.Response:
         """Delete the recording of every entry and its photos."""
         hass = _require_admin(request)
-        for entry in _loaded_entries(hass):
+        for entry in loaded_entries(hass):
             entry.runtime_data.coordinator.clear_recording()
         photos = await hass.async_add_executor_job(photo_store(hass).clear)
         return self.json({"photos_deleted": photos})

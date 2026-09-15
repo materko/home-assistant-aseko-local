@@ -35,6 +35,7 @@ from .coordinator import AsekoLocalDataUpdateCoordinator
 from .forwarder import AsekoCloudMirror
 from .models import AsekoDevice
 from .recording.views import async_setup_recording
+from .runtime import loaded_entries
 from .server import AsekoDeviceServer, ServerConnectionError
 from .trackers.consumption import PUMP_KEYS
 
@@ -292,10 +293,10 @@ def _async_register_consumption_service(hass: HomeAssistant) -> None:
             pump = call.data.get("pump", "all")
             counter = call.data.get("counter", "canister")
             serial_number = call.data.get("serial_number")
-            for entry in hass.config_entries.async_entries(DOMAIN):
-                rd = getattr(entry, "runtime_data", None)
-                if rd:
-                    rd.coordinator.reset_consumption(pump, counter, serial_number)
+            for entry in loaded_entries(hass):
+                entry.runtime_data.coordinator.reset_consumption(
+                    pump, counter, serial_number
+                )
 
         hass.services.async_register(
             DOMAIN,
@@ -332,9 +333,8 @@ def _async_register_backwash_services(hass: HomeAssistant) -> None:
             unit_now = min(
                 (
                     now
-                    for entry in hass.config_entries.async_entries(DOMAIN)
-                    if getattr(entry, "runtime_data", None)
-                    and (now := entry.runtime_data.coordinator.unit_clock_now(serial))
+                    for entry in loaded_entries(hass)
+                    if (now := entry.runtime_data.coordinator.unit_clock_now(serial))
                     is not None
                 ),
                 default=dt_util.now(),
@@ -347,9 +347,9 @@ def _async_register_backwash_services(hass: HomeAssistant) -> None:
                 raise ServiceValidationError(msg)
 
             matched = False
-            for entry in hass.config_entries.async_entries(DOMAIN):
-                rd = getattr(entry, "runtime_data", None)
-                if rd and rd.coordinator.set_last_scheduled_backwash(timestamp, serial):
+            for entry in loaded_entries(hass):
+                coordinator = entry.runtime_data.coordinator
+                if coordinator.set_last_scheduled_backwash(timestamp, serial):
                     matched = True
 
             if not matched:
@@ -381,9 +381,8 @@ def _async_register_backwash_services(hass: HomeAssistant) -> None:
             serial = call.data.get("serial_number")
 
             matched = False
-            for entry in hass.config_entries.async_entries(DOMAIN):
-                rd = getattr(entry, "runtime_data", None)
-                if rd and rd.coordinator.clear_last_scheduled_backwash(serial):
+            for entry in loaded_entries(hass):
+                if entry.runtime_data.coordinator.clear_last_scheduled_backwash(serial):
                     matched = True
 
             if not matched:
@@ -419,11 +418,7 @@ def _async_register_mark_dump_service(hass: HomeAssistant) -> None:
             note = call.data.get("note")
             wait = call.data.get("wait_for_next_frame", True)
             serial_number = call.data.get("serial_number")
-            loaded = [
-                entry
-                for entry in hass.config_entries.async_entries(DOMAIN)
-                if getattr(entry, "runtime_data", None)
-            ]
+            loaded = loaded_entries(hass)
             if not loaded:
                 msg = "No Aseko Local entry is loaded"
                 raise ServiceValidationError(msg)
