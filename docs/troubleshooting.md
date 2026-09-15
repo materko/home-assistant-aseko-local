@@ -64,7 +64,8 @@ is ahead, negative behind; `clock_hour_shift` and `clock_drift_minutes` split
 it) with the shift you see. `next_scheduled_backwash` shows the time set on the
 unit, not moved by the offset, so a unit that is off runs its backwash that
 much earlier or later on Home Assistant's clock. Recognising a scheduled cycle
-uses the whole offset, so it is not affected. **Clock hour shifted** on after a
+takes the drift and a missed change of summer / winter time out and allows
+±5 minutes around the set time, so it is not affected. **Clock hour shifted** on after a
 change between summer and winter time means the unit did not switch; set its
 clock on the unit. After a change of the
 backwash time or interval, the next cycle is the day after the change

@@ -205,7 +205,7 @@ The limit is **15 minutes** by default, 1–30; change *Alert when the unit cloc
 
 A v8 unit sends no date and only whole minutes: its offset is read to about a minute and within ±12 hours, so a clock a day off is not seen.
 
-The unit may not switch between summer and winter time on its own, and its clock drifts over weeks. The integration never sets the unit's clock. While no frames arrive the entities keep their last value — see `connection_status` for whether they are fresh. Recognising a scheduled backwash uses the whole difference, recalculated all the time; `next_scheduled_backwash` shows the time set on the unit — see [Backwash](#backwash-asin-aqua-home-salt-oxygen-profi).
+The unit may not switch between summer and winter time on its own, and its clock drifts over weeks. The integration never sets the unit's clock. While no frames arrive the entities keep their last value — see `connection_status` for whether they are fresh. Recognising a scheduled backwash takes the drift and a missed change of summer / winter time into account and allows **±5 minutes** around `backwash_time`, recalculated from every frame; `next_scheduled_backwash` shows the time set on the unit — see [Backwash](#backwash-asin-aqua-home-salt-oxygen-profi).
 
 ## Chemical consumption & canister management
 
@@ -355,16 +355,18 @@ The device does **not** report *why* the valve opened.
 
 **ASIN Aqua Salt** reports when its settings menu is open, and a manual backwash is started from that menu:
 
-| Menu during the cycle | Valve opened in the window around `backwash_time` (schedule enabled) | Otherwise |
+| Menu during the cycle | Valve opened within **±5 min** of `backwash_time` on the unit's clock — drift and summer / winter time taken out (schedule enabled) | Otherwise |
 |---|---|---|
 | open | **scheduled** | **manual** |
 | closed | **scheduled** | **not attributed** — neither the schedule nor a person explains it |
 
 A not attributed cycle updates `sensor.last_backwash` only; `last_scheduled_backwash` and `last_manual_backwash` keep their values, and the diagnostics show `last_backwash_trigger: unknown`.
 
-**Other models** (Home, Oxygen, Profi) do not report the menu this way (on HOME the bit is a standing pump override), so only the time decides there: in the window around `backwash_time` on a unit whose schedule is enabled → **scheduled**; anything else, including any cycle with `backwash_every_n_days = 0` → **manual**.
+**Other models** (Home, Oxygen, Profi) do not report the menu this way (on HOME the bit is a standing pump override), so only the time decides there: within **±5 minutes** of `backwash_time` on the unit's clock (drift and summer / winter time taken out) on a unit whose schedule is enabled → **scheduled**; anything else, including any cycle with `backwash_every_n_days = 0` → **manual**.
 
 `backwash_time` is set on the **unit's clock**, which runs apart from Home Assistant's ([Unit clock](#unit-clock)). The window is **±5 minutes** of `backwash_time` on the unit's clock: the valve start, taken on Home Assistant's clock, is moved by the **current** `clock_offset` — drift and a missed change of summer / winter time together, recalculated from every frame — before it is compared. Until the offset is known (a fresh install, the first frames) the window is ±15 minutes of `backwash_time` on Home Assistant's clock. What is left for the window to absorb is up to one transmit interval (~30 s) of lag before the frame reports the valve as open.
+
+For example, with `backwash_time` 08:30 on a unit that did not switch to summer time (an hour behind) and runs 5.5 minutes fast, `clock_offset` is −54.5 minutes. The valve opens at 09:24:30 on Home Assistant's clock; moved by −54.5 minutes that is 08:30 on the unit's clock, within ±5 minutes → **scheduled**. A cycle at 09:40 on Home Assistant's clock is 08:45:30 on the unit's clock, outside → not scheduled.
 
 `next_scheduled_backwash` is projected from the last **scheduled** cycle: the day of the `backwash_time` slot that cycle belonged to (fixed when the cycle is recorded; the day before when it ran past midnight), plus the configured interval, stepped forward if cycles were missed while Home Assistant was down. A manual backwash deliberately does not move it — starting one by hand does not tell us (nor, on the unit, change) the schedule phase. Since it builds on the classification, it inherits any error in it.
 
