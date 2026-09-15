@@ -10,10 +10,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, override
 
-from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
-from ..frames import byte_or_absent
-from ..presence import NOT_PRESENT
+from ..frames import byte_or_absent, byte_when_flags
 
 if TYPE_CHECKING:
     from ...models import AsekoDevice
@@ -21,7 +19,10 @@ if TYPE_CHECKING:
     from ..presence import NotPresent
 
 
-SHARED_PORT_IS_ALGICIDE = 0x80
+# byte[37] bit 0x80 routes the shared third-pump port: set for algicide,
+# clear for flocculant
+SHARED_PORT_ROUTING = 0x80
+ROUTED_TO_ALGICIDE = 0x80
 
 
 class AlgaecideDoseTarget(Feature):
@@ -38,7 +39,6 @@ class AlgaecideDoseTarget(Feature):
         self, frame: V7Frame, device: AsekoDevice
     ) -> int | NotPresent:
         """Shared third-pump port, ours only while byte[37] bit 0x80 is set."""
-        b = frame[37]
-        if b == UNSPECIFIED_VALUE or not b & SHARED_PORT_IS_ALGICIDE:
-            return NOT_PRESENT
-        return byte_or_absent(frame[54])
+        return byte_when_flags(
+            frame[54], frame[37], SHARED_PORT_ROUTING, ROUTED_TO_ALGICIDE
+        )

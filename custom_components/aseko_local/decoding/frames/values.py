@@ -64,6 +64,20 @@ def byte_or_absent(value: int) -> int | NotPresent:
     return NOT_PRESENT if value == UNSPECIFIED_VALUE else value
 
 
+def byte_when_flags(
+    value: int, flags: int, mask: int, expected: int
+) -> int | NotPresent:
+    """``byte_or_absent(value)`` while ``flags & mask == expected``, else NOT_PRESENT.
+
+    For a byte whose meaning depends on a setting in another byte -- a port
+    shared by two uses, say, routed by a bit.  An unset settings byte (0xFF)
+    says nothing about the routing, so it reads NOT_PRESENT as well.
+    """
+    if flags == UNSPECIFIED_VALUE or (flags & mask) != expected:
+        return NOT_PRESENT
+    return byte_or_absent(value)
+
+
 def decode_time(data: bytes) -> time | None:
     """Decode an (hour, minute) byte pair; 0xFF in the hour means unset."""
     if data[0] == UNSPECIFIED_VALUE:
