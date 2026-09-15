@@ -405,6 +405,25 @@ def test_decode_electrolyzer_data_waiting_direction() -> None:
     assert device.electrode_polarity == AsekoElectrodePolarity.WAITING
 
 
+@pytest.mark.parametrize(
+    ("byte21", "byte29", "expected"),
+    [
+        (22, 0x10, 22),  # running
+        (0, 0x08, 0),  # stopped: the unit sends 0 almost always
+        (18, 0x08, 18),  # stopped, but the unit still sends a value: reported as sent
+        (0, 0x10, 0),  # running, 0 around a start
+        (0xFF, 0x10, None),  # not filled in
+    ],
+)
+def test_chlorine_production_is_byte21_as_sent(byte21, byte29, expected) -> None:
+    """byte[21] is reported whatever byte[29] says; electrolysis_running is separate."""
+    data = _make_base_bytes()
+    data[4] = 0x0E  # SALT with REDOX probe
+    data[21] = byte21
+    data[29] = byte29
+    assert decode(bytes(data)).chlorine_production == expected
+
+
 def test_decode_profi() -> None:
     """Test decoding of PROFI device data."""
 

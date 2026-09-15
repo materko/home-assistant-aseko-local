@@ -44,7 +44,7 @@ No representative hex frame is recorded in this document.
 | 16–17 | `free_chlorine` / `redox` | CLF: / 100 mg/l; REDOX: × 1 mV | confirmed | 0.77 and 0.93 mg/l on the CLF unit; 593..670 mV on the REDOX unit |
 | 18–19 | `redox` (second slot) | × 1 mV | — | read instead of 16–17 when not `0xFFFF` (CLF + REDOX units); `0xFFFF` on a basic SALT |
 | 20 | `salinity` | / 10 (g/l = kg/m³) | confirmed | |
-| 21 | `chlorine_production` | raw | confirmed | read while `byte[29]` 0x10 is set; `0` when the electrolyzer is not running |
+| 21 | `chlorine_production` | raw | confirmed | reported as sent; `0` in almost every frame with the electrolyzer off (`byte[29]` 0x10 clear), 18 of 6 568 such frames carried 3–25 g/h |
 | 22 | settings flags | bitmask | confirmed | see [§4](#byte22--settings-flags) |
 | 23–24 | `air_temperature` | int16 BE / 10 °C, window −30.0 … 60.0 | confirmed | see [§5 Air temperature](#air-temperature) |
 | 25–26 | `water_temperature` | uint16 BE / 10 °C | confirmed | |
@@ -202,7 +202,7 @@ Other observed values: `0xB7`, `0xB3` (algicide), `0x37`, `0x33` (flocculant; PR
 
 ### Electrolyzer
 
-`electrolysis_running` = `byte[29]` 0x10; `chlorine_production` = `byte[21]` (0 when not running); `electrode_polarity` = `byte[29]` 0x40 (set = right, clear = left, *waiting* while 0x10 is clear); `salinity` = `byte[20]` / 10. The electrolyzer and the third pump can run at the same time.
+`electrolysis_running` = `byte[29]` 0x10; `chlorine_production` = `byte[21]` as sent (0 in almost every frame while not running); `electrode_polarity` = `byte[29]` 0x40 (set = right, clear = left, *waiting* while 0x10 is clear); `salinity` = `byte[20]` / 10. The electrolyzer and the third pump can run at the same time.
 
 ### Third pump routing
 

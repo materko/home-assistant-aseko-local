@@ -207,7 +207,7 @@ SALT = Profile(
             "byte[29] 0x40 = right, clear = left, switched by hand both ways; confirmed on the own SALT by toggling it on the unit with a frame-log marker after each change, 2026-09-13/14"
         ),
         ChlorineProduction: confirmed(
-            "byte[21] while 0x10 set (PR #87); matches the app and unit display, 2026-09-11"
+            "byte[21] as sent (PR #87); matches the app and unit display, 2026-09-11; 0 in almost every frame with the electrolyser off, 18 of 6 568 stopped frames carried 3-25 g/h (marked test cases, 2026-09-13/14)"
         ),
         FiltrationRunning: confirmed("byte[29] 0x08 in every active phase (PR #87)"),
         FiltrationSchedule: confirmed(
