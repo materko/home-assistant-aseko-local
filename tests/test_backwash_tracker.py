@@ -1674,8 +1674,8 @@ def test_without_a_clock_at_the_start_the_wide_window_still_applies() -> None:
 # ── a typed-in date while the store is still being read (audit F2) ───────────
 
 
-async def test_the_history_is_not_written_while_it_is_still_being_read() -> None:
-    """A set that a finishing load would replace is refused, not lost."""
+async def test_a_typed_in_date_lands_once_the_stored_history_is_in() -> None:
+    """``loading`` is on until the store answers; the services refuse until then."""
     stored = {
         "last_backwash": "2026-09-09T06:30:00+00:00",
         "last_scheduled_backwash": "2026-09-09T06:30:00+00:00",

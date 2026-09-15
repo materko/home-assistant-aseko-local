@@ -31,7 +31,10 @@ from .const import (
     DOMAIN,
     MARK_DUMP_WAIT_TIMEOUT,
 )
-from .coordinator import AsekoLocalDataUpdateCoordinator
+from .coordinator import (
+    AsekoLocalDataUpdateCoordinator,
+    BackwashHistoryLoadingError,
+)
 from .forwarder import AsekoCloudMirror
 from .models import AsekoDevice
 from .recording.views import async_setup_recording
@@ -308,6 +311,26 @@ def _async_register_consumption_service(hass: HomeAssistant) -> None:
 
 
 @callback
+def _check_backwash_history_ready(hass: HomeAssistant, serial: int | None) -> None:
+    """Raise unless every entry's matching unit has its stored history in.
+
+    Asked once, before the first entry is written: each coordinator refuses
+    its own half-done change, but a service walks every loaded entry, so
+    without this a ready entry could be changed and a later one then refuse
+    the whole call.
+    """
+    loading = [
+        serial_number
+        for entry in loaded_entries(hass)
+        for serial_number in entry.runtime_data.coordinator.loading_backwash_serials(
+            serial
+        )
+    ]
+    if loading:
+        raise BackwashHistoryLoadingError(loading)
+
+
+@callback
 def _async_register_backwash_services(hass: HomeAssistant) -> None:
     """``set_last_scheduled_backwash`` and ``clear_last_scheduled_backwash``."""
     if not hass.services.has_service(DOMAIN, SERVICE_SET_LAST_SCHEDULED_BACKWASH):
@@ -346,6 +369,8 @@ def _async_register_backwash_services(hass: HomeAssistant) -> None:
                 )
                 raise ServiceValidationError(msg)
 
+            _check_backwash_history_ready(hass, serial)
+
             matched = False
             for entry in loaded_entries(hass):
                 coordinator = entry.runtime_data.coordinator
@@ -379,6 +404,8 @@ def _async_register_backwash_services(hass: HomeAssistant) -> None:
             the next frame.
             """
             serial = call.data.get("serial_number")
+
+            _check_backwash_history_ready(hass, serial)
 
             matched = False
             for entry in loaded_entries(hass):

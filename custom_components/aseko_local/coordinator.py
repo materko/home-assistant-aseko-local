@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from datetime import datetime, timedelta
 from types import CoroutineType
 from typing import Any
@@ -57,11 +57,19 @@ class RecordingOffError(Exception):
 
 
 class BackwashHistoryLoadingError(ServiceValidationError):
-    """The backwash history of a unit is still being read from its store.
+    """The backwash history of the named units is still being read.
 
     A ``ServiceValidationError`` so both the services and the datetime entity
     show the user what happened and that trying again works.
     """
+
+    def __init__(self, serials: Iterable[int]) -> None:
+        """Name the units whose history is not in yet."""
+        names = ", ".join(str(serial) for serial in sorted(serials))
+        super().__init__(
+            f"The stored backwash history of {names} is still being read; "
+            "try again in a moment"
+        )
 
 
 class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
@@ -441,17 +449,12 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         # Every target is checked before the first one is written: a tracker
         # whose stored history is still on its way in would have the entry
         # replaced by the stored state, and could not save it either.  Refused
-        # as a whole rather than applied to some of the units.
-        loading = sorted(
-            serial for serial, tracker in trackers.items() if tracker.loading
-        )
+        # as a whole rather than applied to some of the units.  A service
+        # spanning several entries asks every one of them first, through
+        # ``loading_backwash_serials``, before any of them writes.
+        loading = self.loading_backwash_serials(serial_number)
         if loading:
-            msg = (
-                "The stored backwash history of "
-                + ", ".join(str(serial) for serial in loading)
-                + " is still being read; try again in a moment"
-            )
-            raise BackwashHistoryLoadingError(msg)
+            raise BackwashHistoryLoadingError(loading)
 
         for serial, tracker in trackers.items():
             action(tracker)
@@ -461,6 +464,14 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
 
         self.async_update_listeners()
         return True
+
+    def loading_backwash_serials(self, serial_number: int | None = None) -> list[int]:
+        """Return the matching units of this entry whose history is not in yet."""
+        return sorted(
+            serial
+            for serial, tracker in self._backwash_trackers.items()
+            if (serial_number is None or serial == serial_number) and tracker.loading
+        )
 
     def async_add_new_device_listener(
         self, listener: Callable[[AsekoDevice], None]

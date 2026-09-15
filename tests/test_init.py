@@ -36,6 +36,7 @@ from custom_components.aseko_local.models import AsekoDevice, AsekoDeviceType
 from custom_components.aseko_local.server import (
     AsekoDeviceServer,
 )
+from custom_components.aseko_local.trackers.backwash import BackwashTracker
 
 from .conftest import FakeListener
 from .const import MOCK_CONFIG
@@ -473,6 +474,45 @@ async def test_backwash_services_without_a_matching_unit_are_refused(
         await hass.services.async_call(
             DOMAIN, SERVICE_CLEAR_LAST_SCHEDULED_BACKWASH, {}, blocking=True
         )
+
+
+@pytest.mark.parametrize("reading_first", [False, True])
+async def test_a_unit_still_reading_its_history_stops_the_service_everywhere(
+    hass, loaded_entry, reading_first
+) -> None:
+    """Audit R1: no entry is changed while another one's history is not in yet."""
+    second = _entry(hass, "second", 12412)
+    assert await async_setup_entry(hass, second)
+    ready = loaded_entry.runtime_data.coordinator
+    reading = second.runtime_data.coordinator
+    if reading_first:
+        ready, reading = reading, ready
+    ready.devices_update_callback(_salt_device())
+    await hass.async_block_till_done()
+    ready.set_last_scheduled_backwash(dt_util.now() - timedelta(days=1), 1234)
+    stored = ready.get_device(1234).last_scheduled_backwash
+
+    blocked = BackwashTracker(hass, 4321)
+    blocked._loading = True  # as load_soon leaves it until the store answers
+    reading._backwash_trackers[4321] = blocked
+    try:
+        for service, data in (
+            (SERVICE_SET_LAST_SCHEDULED_BACKWASH, {"timestamp": dt_util.now()}),
+            (SERVICE_CLEAR_LAST_SCHEDULED_BACKWASH, {}),
+        ):
+            with pytest.raises(ServiceValidationError, match="4321"):
+                await hass.services.async_call(DOMAIN, service, data, blocking=True)
+            assert ready.get_device(1234).last_scheduled_backwash == stored
+
+        # with its history in, the same call reaches every unit
+        blocked._loading = False
+        await hass.services.async_call(
+            DOMAIN, SERVICE_CLEAR_LAST_SCHEDULED_BACKWASH, {}, blocking=True
+        )
+        assert ready.get_device(1234).last_scheduled_backwash is None
+    finally:
+        reading._backwash_trackers.pop(4321)
+        await async_unload_entry(hass, second)
 
 
 async def test_set_last_scheduled_backwash_is_judged_on_the_unit_clock(
