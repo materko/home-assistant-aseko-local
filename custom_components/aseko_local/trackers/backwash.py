@@ -220,6 +220,12 @@ class BackwashTracker:
         # tracker), kept so a restart does not lose it before frames arrive.
         self._clock_offset_minutes: float | None = None
 
+        # True from ``load_soon`` until the stored state is in.  Until then
+        # nothing is saved and frames are not taken: Home Assistant's Store
+        # hands a pending write back to a load, so a save made before the
+        # load finished would replace the stored history with an empty one.
+        self._loading = False
+
     @property
     def serial_number(self) -> int:
         """Return the device serial number this tracker belongs to."""
@@ -281,9 +287,22 @@ class BackwashTracker:
         """Return how the most recent observed backwash was started."""
         return self._last_trigger
 
+    def load_soon(self):
+        """Mark the tracker loading at once and return ``async_load()`` to run.
+
+        For a caller that schedules the load as a task: the flag is set
+        before the next frame can reach ``update``.
+        """
+        self._loading = True
+        return self.async_load()
+
     async def async_load(self) -> None:
         """Load the persistent state from storage.  Call once at startup."""
-        data = await self._store.async_load()
+        self._loading = True
+        try:
+            data = await self._store.async_load()
+        finally:
+            self._loading = False
         if not data:
             return
 
@@ -361,7 +380,14 @@ class BackwashTracker:
         ``clear_last_scheduled_backwash``: clearing the only stored value left
         the old one on disk, and it came back on the next restart.  Every
         caller reaches this after a change, so there is nothing to save on.
+
+        Skipped while the stored state is still loading (see ``_loading``).
         """
+        if self._loading:
+            _LOGGER.debug(
+                "Backwash state for serial=%s not saved: still loading", self._serial
+            )
+            return
         await self._store.async_save(
             {
                 "last_backwash": (
@@ -410,6 +436,10 @@ class BackwashTracker:
         """
         if device.backwash_running is None:
             # NET or unknown — nothing to track.
+            return
+        if self._loading:
+            # the stored history is not in yet; a frame or two at start-up
+            # is not worth overwriting it for
             return
 
         offset = getattr(device, "clock_offset", None)

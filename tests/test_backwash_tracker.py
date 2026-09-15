@@ -1381,3 +1381,54 @@ def test_six_minutes_past_the_plan_on_the_unit_clock_is_not_scheduled():
     _, tracker = _recognise(zone, ha_start, timedelta(minutes=-54.5))
 
     assert tracker.last_trigger is AsekoBackwashTrigger.MANUAL
+
+
+# ── start-up: a frame before the stored state is loaded ──────────────────────
+
+
+async def test_a_frame_before_the_load_finishes_does_not_wipe_the_history():
+    """Store hands a pending write back to a load: nothing may be saved first."""
+    import asyncio
+
+    stored = {
+        "last_backwash": "2026-09-15T06:25:21+00:00",
+        "last_scheduled_backwash": "2026-09-15T06:25:21+00:00",
+        "last_scheduled_source": "observed",
+        "last_manual_backwash": "2026-08-11T11:23:08+00:00",
+        "last_trigger": "scheduled",
+    }
+    release = asyncio.Event()
+    saves: list[dict] = []
+
+    async def load():
+        await release.wait()
+        return dict(saves[-1]) if saves else dict(stored)
+
+    async def save(data):
+        saves.append(dict(data))
+
+    hass = _hass()
+    tasks: list[asyncio.Task] = []
+    hass.async_create_task.side_effect = lambda coro, *a, **k: tasks.append(
+        asyncio.ensure_future(coro)
+    )
+    tracker = BackwashTracker(hass, serial_number=110071590)
+    tracker._store.async_load = load  # type: ignore[method-assign]
+    tracker._store.async_save = save  # type: ignore[method-assign]
+
+    # what the coordinator does on the first frame after a restart
+    hass.async_create_task(tracker.load_soon())
+    tracker.update(_clocked(False, 5.5, at=time(8, 30), every=15), T0)
+    await asyncio.sleep(0)
+    assert saves == []
+
+    release.set()
+    await asyncio.gather(*tasks)
+    tracker.update(_clocked(False, 5.5, at=time(8, 30), every=15), T0)
+    await asyncio.gather(*tasks)
+
+    assert tracker.last_backwash == datetime.fromisoformat(stored["last_backwash"])
+    assert tracker.last_manual_backwash == datetime.fromisoformat(
+        stored["last_manual_backwash"]
+    )
+    assert saves and saves[-1]["last_backwash"] == stored["last_backwash"]

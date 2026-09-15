@@ -311,7 +311,7 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         if serial not in self._backwash_trackers:
             new_tracker = BackwashTracker(self.hass, serial)
             self._backwash_trackers[serial] = new_tracker
-            self.hass.async_create_task(new_tracker.async_load())
+            self.hass.async_create_task(new_tracker.load_soon())
 
         tracker = self._backwash_trackers[serial]
         tracker.update(device, now)
@@ -750,7 +750,7 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
                 continue
             tracker = BackwashTracker(self.hass, serial)
             self._backwash_trackers[serial] = tracker
-            await tracker.async_load()
+            await tracker.load_soon()
 
     def async_start_stale_check(self) -> None:
         """Start a periodic task that pushes updates so entities detect offline state."""
