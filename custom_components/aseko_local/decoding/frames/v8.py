@@ -69,6 +69,11 @@ class V8Frame:
         v = self.get(section, index)
         return None if v is None or v == UNSPECIFIED_V8 else v
 
+    def flag(self, section: str, index: int) -> bool | None:
+        """Return ``get`` as a bool (non-zero is on), or None when it is unreadable or not sent."""
+        v = self.get(section, index)
+        return None if v is None else bool(v)
+
 
 @dataclass(frozen=True)
 class V8Section:

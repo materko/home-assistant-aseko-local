@@ -54,5 +54,4 @@ class FiltrationRunning(Feature):
 
     @override
     def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> bool | None:
-        raw = frame.get("outs", 2)
-        return bool(raw) if raw is not None else None
+        return frame.flag("outs", 2)

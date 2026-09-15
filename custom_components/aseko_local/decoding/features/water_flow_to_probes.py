@@ -23,5 +23,4 @@ class WaterFlowToProbes(Feature):
 
     @override
     def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> bool | None:
-        raw = frame.get("ins", 8)
-        return bool(raw) if raw is not None else None
+        return frame.flag("ins", 8)
