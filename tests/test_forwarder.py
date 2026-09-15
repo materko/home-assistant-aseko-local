@@ -180,3 +180,27 @@ async def test_a_frame_whose_write_failed_goes_out_first(monkeypatch) -> None:
     await mirror.stop()
 
     assert writer.data == [b"A", b"B"]
+
+
+@pytest.mark.asyncio
+async def test_repeated_write_failures_back_off(monkeypatch) -> None:
+    """Audit B3: a cloud that keeps failing writes is not retried in a tight loop."""
+    attempts = {"n": 0}
+
+    class AlwaysFails(DummyWriter):
+        def write(self, frame: bytes) -> None:
+            attempts["n"] += 1
+            raise OSError("broken pipe")
+
+    async def open_connection(host: str, port: int):
+        return None, AlwaysFails()
+
+    monkeypatch.setattr(asyncio, "open_connection", open_connection)
+    mirror = AsekoCloudMirror("localhost", 12345)
+    await mirror.start()
+    await mirror.enqueue(b"A")
+    await asyncio.sleep(0.3)
+    await mirror.stop()
+
+    # the first attempt fails, then the worker waits a second before the next
+    assert attempts["n"] == 1

@@ -109,7 +109,6 @@ class AsekoCloudMirror:
                         self._reader = reader
                         self._last_connect = time.time()
                         self._connected_event.set()
-                        backoff = 1.0
                         _LOGGER.debug(
                             "Mirror connected to %s:%d", self._host, self._port
                         )
@@ -141,8 +140,10 @@ class AsekoCloudMirror:
                 except Exception as e:
                     _LOGGER.error("Mirror write failed: %s", e)
                     await self._close_writer()
-                    # keep the frame as pending: it goes out first next time
-                    await asyncio.sleep(0)  # yield
+                    # keep the frame as pending: it goes out first next time,
+                    # after the same growing pause as a failed connect
+                    await asyncio.sleep(min(backoff, 10.0))
+                    backoff = min(backoff * 2.0, 10.0)
 
             except asyncio.CancelledError:
                 break

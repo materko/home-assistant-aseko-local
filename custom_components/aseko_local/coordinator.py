@@ -239,8 +239,9 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
             # The unit has shown quantities it had not shown before -- the
             # shared pump port got configured, a setting was made, byte[37]
             # became readable.  Hand the platforms the stored device (the
-            # object the existing entities read) so they can add the missing
-            # entities without a reload.
+            # object the existing entities read) so they can enable the
+            # entities created disabled; Home Assistant reloads the entry to
+            # add them.
             stored = new_data.get(device.serial_number)
             _LOGGER.debug(
                 "🧩 Device %s shows new features: %s",

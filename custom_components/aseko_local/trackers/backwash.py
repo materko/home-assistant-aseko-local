@@ -44,7 +44,7 @@ The recorded timestamps are stored persistently via the Home Assistant
     * Home Assistant restarts
     * Integration reloads
     * Integration updates
-    * Network interruptions (with a 60s grace period)
+    * Network interruptions (a gap of up to ``MAX_FRAME_GAP`` keeps a cycle open)
 
 Modelled after JS-DE-Tech's hacs-aseko-asin-aqua-home-clf integration:
     * https://github.com/JS-DE-Tech/hacs-aseko-asin-aqua-home-clf
@@ -68,6 +68,7 @@ from typing import TYPE_CHECKING
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
+from homeassistant.util import dt as dt_util
 
 from ..models import (
     AsekoBackwashSource,
@@ -391,6 +392,8 @@ class BackwashTracker:
             return
         self._last_scheduled_backwash = None
         self._last_scheduled_source = None
+        # the verdict on the stored cycle goes with it, so the backfill runs
+        self._last_trigger = None
         _LOGGER.info("Last scheduled backwash cleared for serial=%s", self._serial)
         self._hass.async_create_task(self.async_save())
 
@@ -582,15 +585,36 @@ class BackwashTracker:
             return None
 
         step = timedelta(days=interval)
-        next_at = _at_time_of_day(last_scheduled, scheduled_time) + step
+        # The unit's schedule slot the recorded cycle belongs to: the one
+        # nearest to it, which may be the day before when the recorded
+        # midpoint (or a typed-in date) fell past midnight.  Built in Home
+        # Assistant's time zone, so adding days keeps the wall-clock time
+        # across a daylight-saving change.
+        next_at = _nearest_slot(last_scheduled, scheduled_time) + step
         while next_at <= now:
             next_at += step
         return next_at
 
 
-def _at_time_of_day(moment: datetime, at: time) -> datetime:
-    """Return ``moment``'s date at the given wall-clock time, same tz."""
-    return moment.replace(hour=at.hour, minute=at.minute, second=0, microsecond=0)
+def _slot(day, at: time) -> datetime:
+    """``day`` at the wall-clock time ``at``, in Home Assistant's time zone."""
+    return datetime.combine(
+        day, time(at.hour, at.minute), tzinfo=dt_util.get_default_time_zone()
+    )
+
+
+def _nearest_slot(moment: datetime, at: time) -> datetime:
+    """The daily ``at`` slot closest to ``moment`` (day before, same day or after).
+
+    ``moment`` may carry any offset -- a timestamp restored from storage keeps
+    the fixed offset it was saved with, a typed-in one may be UTC -- so it is
+    turned into local time before its calendar day is taken.
+    """
+    local = dt_util.as_local(moment)
+    return min(
+        (_slot(local.date() + timedelta(days=offset), at) for offset in (-1, 0, 1)),
+        key=lambda slot: abs(slot - local),
+    )
 
 
 def _within_tolerance(moment: datetime, at: time, tolerance: timedelta) -> bool:
@@ -599,8 +623,4 @@ def _within_tolerance(moment: datetime, at: time, tolerance: timedelta) -> bool:
     Checks the previous and next day as well so a cycle scheduled near
     midnight still matches when the two land on different dates.
     """
-    same_day = _at_time_of_day(moment, at)
-    return any(
-        abs(moment - (same_day + timedelta(days=offset))) <= tolerance
-        for offset in (-1, 0, 1)
-    )
+    return abs(moment - _nearest_slot(moment, at)) <= tolerance

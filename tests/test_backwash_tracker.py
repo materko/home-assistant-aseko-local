@@ -933,3 +933,103 @@ def test_backfill_of_an_unexplained_salt_record_runs_once():
     assert tracker.last_trigger is AsekoBackwashTrigger.UNKNOWN
     assert tracker.last_manual_backwash is None
     assert tracker._hass.async_create_task.call_count == 1  # type: ignore[attr-defined]
+
+
+# ── time zone and midnight (audit B1, B2) ────────────────────────────────────
+
+
+def _in_bratislava(monkeypatch) -> Any:
+    from zoneinfo import ZoneInfo
+
+    from homeassistant.util import dt as dt_util
+
+    zone = ZoneInfo("Europe/Bratislava")
+    monkeypatch.setattr(dt_util, "get_default_time_zone", lambda: zone)
+    monkeypatch.setattr(dt_util, "DEFAULT_TIME_ZONE", zone)
+    return zone
+
+
+def _every_three_days_at(at: time) -> Any:
+    return _device(False, backwash_start_time=at, backwash_interval=3)
+
+
+def test_projection_keeps_the_wall_clock_time_across_daylight_saving(monkeypatch):
+    """A cycle stored before the change to summer time still projects to 12:30."""
+    zone = _in_bratislava(monkeypatch)
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    # as restored from storage: a fixed +01:00 offset, not the zone's rules
+    tracker._last_scheduled_backwash = datetime.fromisoformat(  # type: ignore[attr-defined]
+        "2026-03-27T12:30:45+01:00"
+    )
+
+    projected = tracker.next_scheduled_backwash(
+        _every_three_days_at(time(12, 30)), datetime(2026, 3, 28, tzinfo=zone)
+    )
+
+    assert projected == datetime(2026, 3, 30, 12, 30, tzinfo=zone)
+    assert projected.utcoffset() == timedelta(hours=2)
+
+
+def test_a_utc_date_projects_like_the_same_local_one(monkeypatch):
+    zone = _in_bratislava(monkeypatch)
+    device = _every_three_days_at(time(12, 30))
+    now = datetime(2026, 9, 11, tzinfo=zone)
+
+    utc = BackwashTracker(_hass(), serial_number=1)
+    utc.set_last_scheduled_backwash(datetime(2026, 9, 10, 10, 30, tzinfo=timezone.utc))
+    local = BackwashTracker(_hass(), serial_number=2)
+    local.set_last_scheduled_backwash(datetime(2026, 9, 10, 12, 30, tzinfo=zone))
+
+    assert utc.next_scheduled_backwash(device, now) == datetime(
+        2026, 9, 13, 12, 30, tzinfo=zone
+    )
+    assert local.next_scheduled_backwash(device, now) == utc.next_scheduled_backwash(
+        device, now
+    )
+
+
+def test_a_cycle_finishing_after_midnight_keeps_the_day_it_was_scheduled(monkeypatch):
+    """Plan 23:59, valve 23:59:30-00:01: the next one is three days after the 10th."""
+    zone = _in_bratislava(monkeypatch)
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+
+    def device(active):
+        return _device(active, backwash_start_time=time(23, 59), backwash_interval=3)
+
+    start = datetime(2026, 9, 10, 23, 59, 30, tzinfo=zone)
+    tracker.update(device(True), start)
+    tracker.update(device(False), start + timedelta(seconds=90))
+
+    assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
+    assert tracker.next_scheduled_backwash(
+        device(False), start + timedelta(hours=1)
+    ) == datetime(2026, 9, 13, 23, 59, tzinfo=zone)
+
+
+def test_a_cycle_just_before_a_midnight_plan_matches_the_next_day(monkeypatch):
+    zone = _in_bratislava(monkeypatch)
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+
+    def device(active):
+        return _device(active, backwash_start_time=time(0, 0), backwash_interval=3)
+
+    start = datetime(2026, 9, 10, 23, 58, tzinfo=zone)
+    tracker.update(device(True), start)
+    tracker.update(device(False), start + timedelta(seconds=90))
+
+    assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
+    assert tracker.next_scheduled_backwash(
+        device(False), start + timedelta(hours=1)
+    ) == datetime(2026, 9, 14, 0, 0, tzinfo=zone)
+
+
+def test_clearing_re_derives_the_split_after_an_observed_cycle():
+    """Clear forgets the verdict too, so the stored cycle is classified again."""
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    _run_cycle(tracker, T0)  # observed, scheduled
+    assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
+
+    tracker.clear_last_scheduled_backwash()
+    tracker.update(_scheduled_device(False), T0 + timedelta(minutes=5))
+
+    assert tracker.last_scheduled_backwash == T0 + timedelta(seconds=45)
