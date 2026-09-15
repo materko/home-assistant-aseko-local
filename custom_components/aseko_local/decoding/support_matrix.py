@@ -12,6 +12,7 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Callable
 
+from .evidence import EvidenceStatus
 from .feature import NOT_LOCATED, Feature
 from .features import ALL_FEATURES
 from .frames import Protocol
@@ -24,10 +25,6 @@ UNSURE = "❓"
 ABSENT = "—"
 NOT_LOCATED_MARK = "🔍"
 
-# Evidence entries start with one of these words.  Anything else counts as
-# unsure, as does a listed feature with no evidence recorded at all.
-_CONFIRMED_PREFIXES = ("confirmed", "derived")
-
 
 def _status(profile: Profile, feature: type[Feature]) -> str:
     if feature not in profile.features:
@@ -35,23 +32,17 @@ def _status(profile: Profile, feature: type[Feature]) -> str:
     reading = profile.overrides.get(feature)
     if reading in NOT_LOCATED:
         return NOT_LOCATED_MARK
-    evidence = profile.evidence.get(feature, "")
-    word = evidence.split(":", 1)[0].strip().lower()
-    if word.startswith("confirmed on "):
-        # "confirmed on HOME: ..." confirms HOME, not the profile quoting it
-        mark = CONFIRMED if _model_word(profile) in word.split() else UNSURE
-    elif any(word.startswith(prefix) for prefix in _CONFIRMED_PREFIXES):
+    evidence = profile.evidence.get(feature)
+    if evidence is None:
+        mark = UNSURE  # a fallback profile's feature without an entry
+    elif evidence.confirms(profile.model):
+        # "confirmed on HOME" confirms HOME, not the profile quoting it
         mark = CONFIRMED
-    elif word.startswith("observed"):
+    elif evidence.status is EvidenceStatus.OBSERVED:
         mark = OBSERVED
     else:
         mark = UNSURE
     return f"{mark} `{reading}`" if reading else mark
-
-
-def _model_word(profile: Profile) -> str:
-    """Return the model as evidence names it: "salt", "home", "oxy", "net", "profi"."""
-    return profile.name.split(" ", 1)[-1].lower()
 
 
 def _profiles_for(protocol: Protocol) -> list[Profile]:
@@ -80,8 +71,8 @@ def _help_section(w: Callable[[str], None], mark: str) -> None:
         w(f"### {profile.name}")
         w("")
         for feature in listed:
-            evidence = profile.evidence.get(feature, "no evidence recorded")
-            w(f"- `{feature.field}` — {evidence}")
+            evidence = profile.evidence.get(feature)
+            w(f"- `{feature.field}` — {evidence or 'no evidence recorded'}")
         w("")
 
 

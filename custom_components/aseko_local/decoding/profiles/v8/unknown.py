@@ -8,6 +8,7 @@ reports it in diagnostics as unrecognised, like the v7 unknown unit type.
 
 from __future__ import annotations
 
+from ...evidence import assumed
 from ...frames import Protocol
 from ...profile import Profile
 from .common import FEATURES
@@ -18,6 +19,6 @@ UNKNOWN = Profile(
     model=None,
     features=FEATURES,
     evidence=dict.fromkeys(
-        FEATURES, "unverified: unknown header type, read with the common v8 layout"
+        FEATURES, assumed("unknown header type, read with the common v8 layout")
     ),
 )

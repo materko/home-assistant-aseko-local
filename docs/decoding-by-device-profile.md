@@ -36,6 +36,7 @@ decoding/
     v7/            common.py (shared feature groups) + home, salt, oxy, net, profi, unknown
     v8/            common.py (shared layout) + net, salt, unknown; header type → model
   presence.py      NOT_PRESENT
+  evidence.py      Evidence: confirmed / derived / confirmed_on / observed / assumed / not_located
   engine.py        the generic loop
   support_matrix.py  renders docs/support_matrix.md
 ```
@@ -88,7 +89,7 @@ A **profile** is one (protocol, model) combination in its own module:
 
 - `features` — what the profile reads (groups from `common.py`); a missing feature is one the model does not have, or one nobody has decoded yet;
 - `overrides` — the reading to use where this model differs from the protocol default;
-- `evidence` — why each entry is believed, spelled out per profile ([rules](evidence-rules.md));
+- `evidence` — why each entry is believed, spelled out per profile as `confirmed(...)`, `observed(...)`, `assumed(...)` … from `evidence.py`, whose status sets the support-matrix mark ([rules](evidence-rules.md));
 - `flags` — model facts consumers need, instead of `device_type` checks: `MENU_BIT_IS_PRESENCE_ONLY` (read by the backwash tracker and the `service_menu` state of Connection status; adding it to a profile turns both on for that model), `DELAYS_IN_MINUTES` (v8 delays, read by `sensor.py`).
 
 A profile is validated and its plan built once, at import; `overrides` and `evidence` are read-only afterwards. A profile changes by editing its module, never in memory.

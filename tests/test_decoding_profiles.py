@@ -16,6 +16,14 @@ import pytest
 
 from custom_components.aseko_local.const import UNIT_TYPE_PROFI, WATER_FLOW_TO_PROBES
 from custom_components.aseko_local.decoding import decode, engine
+from custom_components.aseko_local.decoding.evidence import (
+    Evidence,
+    EvidenceStatus,
+    assumed,
+    confirmed,
+    confirmed_on,
+    not_located,
+)
 from custom_components.aseko_local.decoding.feature import Feature
 from custom_components.aseko_local.decoding.features import (
     ALL_FEATURES,
@@ -614,7 +622,7 @@ def test_a_profile_cannot_be_changed_in_memory() -> None:
     with pytest.raises(TypeError):
         v7.HOME.overrides[FiltrationSchedule] = "decode_v7"  # type: ignore[index]
     with pytest.raises(TypeError):
-        v7.HOME.evidence[FiltrationSchedule] = "confirmed: nothing"  # type: ignore[index]
+        v7.HOME.evidence[FiltrationSchedule] = confirmed("nothing")  # type: ignore[index]
 
 
 def test_every_feature_of_a_model_profile_has_evidence() -> None:
@@ -625,3 +633,61 @@ def test_every_feature_of_a_model_profile_has_evidence() -> None:
         if profile not in FALLBACK_PROFILES
     }
     assert {name: fields for name, fields in missing.items() if fields} == {}
+
+
+def test_fallback_profiles_have_evidence_for_every_feature_too() -> None:
+    for profile in FALLBACK_PROFILES:
+        assert set(profile.features) == set(profile.evidence), profile.name
+
+
+def _ph_profile(
+    evidence: object, overrides: dict | None = None, model=AsekoDeviceType.SALT
+) -> Profile:
+    return Profile(
+        name="evidence check",
+        protocol=Protocol.V7,
+        model=model,
+        features=(Configuration, Ph),
+        overrides=overrides or {},
+        evidence={Ph: evidence},
+    )
+
+
+def test_evidence_must_be_an_evidence_entry() -> None:
+    """A plain string would dodge the status check; it fails at import instead."""
+    with pytest.raises(TypeError, match="must be an Evidence"):
+        _ph_profile("confirmed: typo-proof")
+
+
+def test_confirmed_on_the_profiles_own_model_is_refused() -> None:
+    with pytest.raises(ValueError, match="own model is confirmed"):
+        _ph_profile(confirmed_on(AsekoDeviceType.SALT, "byte[14]"))
+    _ph_profile(confirmed_on(AsekoDeviceType.HOME, "byte[14]"))  # another model: fine
+
+
+def test_not_located_evidence_goes_with_a_not_located_reading_only() -> None:
+    with pytest.raises(ValueError, match="not_located"):
+        _ph_profile(not_located("the manual shows it"))
+    with pytest.raises(ValueError, match="not_located"):
+        _ph_profile(assumed("as on OXY"), overrides={Ph: "decode_v7_not_located"})
+    _ph_profile(
+        not_located("the manual shows it"), overrides={Ph: "decode_v7_not_located"}
+    )
+
+
+@pytest.mark.parametrize(
+    ("make", "message"),
+    [
+        (lambda: confirmed(" "), "needs a note"),
+        (lambda: Evidence(EvidenceStatus.CONFIRMED_ON, "byte[14]"), "confirmed on"),
+        (
+            lambda: Evidence(
+                EvidenceStatus.OBSERVED, "byte[14]", (AsekoDeviceType.HOME,)
+            ),
+            "confirmed on",
+        ),
+    ],
+)
+def test_an_evidence_entry_is_checked_when_it_is_made(make, message) -> None:
+    with pytest.raises(ValueError, match=message):
+        make()

@@ -12,10 +12,11 @@ uses the default reading from the feature's own file.
 
 ``evidence`` records why each entry is believed, in the words of the
 captures, issues and the documents in docs/device analyzes/ that
-established it.  "confirmed" means checked against the unit's display or the
-Aseko Live app; "observed" means seen in real frames with plausible values but
-not compared; "uncertain", "assumed" and "unverified" mean the earlier decoder
-read it that way and nothing has contradicted it yet.  Every profile spells
+established it, with a status from ``decoding.evidence``: ``confirmed`` means
+checked against the unit's display or the Aseko Live app; ``observed`` means
+seen in real frames with plausible values but not compared; ``assumed`` means
+taken over from another model or the earlier decoder, with nothing
+contradicting it yet (docs/evidence-rules.md has them all).  Every profile spells
 its evidence out in full so that nothing is inherited from another model.
 The support matrix in the docs is generated from these dictionaries.
 """

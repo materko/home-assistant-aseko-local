@@ -48,7 +48,7 @@ MODEL = Profile(
     model=AsekoDeviceType.MODEL,
     features=(*IDENTITY, *CHLORINE_PROBES, *FILTRATION, ...),  # groups from common.py
     overrides={AlgaecideFlowRate: "decode_v7_not_located"},
-    evidence={...},          # one entry per listed feature
+    evidence={...},          # one confirmed(...) / observed(...) / assumed(...) per feature
     flags=frozenset(),       # e.g. AsekoProfileFlag.DELAYS_IN_MINUTES
 )
 ```

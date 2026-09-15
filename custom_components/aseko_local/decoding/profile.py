@@ -27,6 +27,8 @@ from ..const import (
     UNIT_TYPE_SALT,
 )
 from ..models import AsekoDeviceType, AsekoProfileFlag
+from .evidence import Evidence, EvidenceStatus
+from .feature import NOT_LOCATED
 from .frames import Protocol
 
 if TYPE_CHECKING:
@@ -51,7 +53,7 @@ class Profile:
     #: Feature -> name of the reading to use instead of the protocol default.
     overrides: Mapping[type[Feature], str] = field(default_factory=dict)
     #: Feature -> why we believe this profile reads it the way it does.
-    evidence: Mapping[type[Feature], str] = field(default_factory=dict)
+    evidence: Mapping[type[Feature], Evidence] = field(default_factory=dict)
     flags: frozenset[AsekoProfileFlag] = frozenset()
 
     #: Decoding order with the bound reading for each feature.  Built once.
@@ -113,10 +115,8 @@ class Profile:
             if not feature.has_reading(reading):
                 msg = f"{self.name}: {feature.__name__} has no reading {reading!r}"
                 raise ValueError(msg)
-        for feature in self.evidence:
-            if feature not in listed:
-                msg = f"{self.name}: evidence for unlisted {feature.__name__}"
-                raise ValueError(msg)
+        for feature, evidence in self.evidence.items():
+            self._validate_evidence(feature, evidence, listed)
         for feature in self.features:
             self.reading_for(feature)  # raises when there is nothing to call
             for dependency in feature.depends_on:
@@ -129,6 +129,31 @@ class Profile:
                         f"{dependency.__name__}, which is not listed"
                     )
                     raise ValueError(msg)
+
+    def _validate_evidence(
+        self, feature: type[Feature], evidence: Evidence, listed: set[type[Feature]]
+    ) -> None:
+        """Check one evidence entry against the profile it sits in."""
+        name = f"{self.name}: {feature.__name__}"
+        if feature not in listed:
+            msg = f"{self.name}: evidence for unlisted {feature.__name__}"
+            raise ValueError(msg)
+        if not isinstance(evidence, Evidence):
+            msg = f"{name}: evidence must be an Evidence, not {evidence!r}"
+            raise TypeError(msg)
+        if (
+            evidence.status is EvidenceStatus.CONFIRMED_ON
+            and self.model in evidence.models
+        ):
+            msg = f"{name}: confirmed on its own model is confirmed"
+            raise ValueError(msg)
+        not_located_reading = self.overrides.get(feature) in NOT_LOCATED
+        if not_located_reading != (evidence.status is EvidenceStatus.NOT_LOCATED):
+            msg = (
+                f"{name}: not_located evidence goes with a *_not_located "
+                "override, and only with one"
+            )
+            raise ValueError(msg)
 
 
 def _ordered(features: tuple[type[Feature], ...]) -> list[type[Feature]]:
