@@ -8,7 +8,7 @@ from typing import Any
 import voluptuous as vol
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.const import CONF_HOST, CONF_PORT
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.selector import (
     NumberSelector,
@@ -74,7 +74,7 @@ def parse_port(value: Any) -> int:
     return port
 
 
-async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
+async def validate_input(data: dict[str, Any]) -> dict[str, Any]:
     """Validate the user input allows us to connect."""
     existing = AsekoDeviceServer.get(data[CONF_HOST], data[CONF_PORT])
     if existing is not None and existing.running:
@@ -120,7 +120,7 @@ class AsekoLocalConfigFlow(ConfigFlow, domain=DOMAIN):
                 errors[CONF_PORT] = "invalid_port"
         if user_input is not None and not errors:
             try:
-                info = await validate_input(self.hass, user_input)
+                info = await validate_input(user_input)
             except CannotConnectError:
                 errors["base"] = "cannot_connect"
             except Exception:  # pylint: disable=broad-except
@@ -158,7 +158,7 @@ class AsekoLocalConfigFlow(ConfigFlow, domain=DOMAIN):
                 errors[CONF_PORT] = "invalid_port"
         if user_input is not None and not errors:
             try:
-                info = await validate_input(self.hass, user_input)
+                info = await validate_input(user_input)
             except CannotConnectError:
                 errors["base"] = "cannot_connect"
             except Exception:  # pylint: disable=broad-except

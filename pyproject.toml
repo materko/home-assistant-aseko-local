@@ -8,6 +8,7 @@ target-version = "py313"  # the oldest Python a supported Home Assistant runs on
 # (Home Assistant core's setting) is where this is heading.
 select = [
     "A",    # flake8-builtins
+    "ARG",  # unused arguments
     "ASYNC", # async
     "B",    # flake8-bugbear
     "BLE",  # blind except
@@ -100,6 +101,10 @@ keep-runtime-typing = true
 max-complexity = 25
 
 [tool.ruff.lint.per-file-ignores]
+"custom_components/aseko_local/decoding/{feature.py,features/*.py}" = [
+    # every reading takes the frame and the device, whether it needs both or not
+    "ARG002",
+]
 "scripts/**/*.py" = [
     "T201", # command-line tools print their output
     "INP001", # standalone scripts, not a package
