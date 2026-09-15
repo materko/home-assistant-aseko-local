@@ -1,10 +1,12 @@
 from collections.abc import Callable
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from custom_components.aseko_local import sensor as sensor_module
 from custom_components.aseko_local.binary_sensor import (
     BINARY_SENSORS,
     AsekoLocalBinarySensorEntity,
@@ -19,17 +21,30 @@ from custom_components.aseko_local.const import (
     WATER_FLOW_TO_PROBES,
 )
 from custom_components.aseko_local.decoding import decode
-from custom_components.aseko_local.models import AsekoDevice, AsekoDeviceType
-from custom_components.aseko_local.sensor import (
-    RETIRED_UNIQUE_ID_SUFFIXES as RETIRED_SENSOR_IDS,
+from custom_components.aseko_local.models import (
+    AsekoDevice,
+    AsekoDeviceType,
+    AsekoProfileFlag,
 )
 from custom_components.aseko_local.sensor import (
+    CONNECTION_STATUS_SENSOR,
+    CONSUMPTION_SENSORS,
     SENSORS,
+    AsekoConnectionStatusSensorEntity,
     AsekoConsumptionSensorEntity,
     AsekoLocalSensorEntity,
     async_migrate_unique_ids,
     async_setup_entry,
 )
+from custom_components.aseko_local.sensor import (
+    RETIRED_UNIQUE_ID_SUFFIXES as RETIRED_SENSOR_IDS,
+)
+from custom_components.aseko_local.sensor import (
+    async_remove_retired_entities as sensor_remove_retired_entities,
+)
+from custom_components.aseko_local.trackers.consumption import AsekoConsumptionTracker
+
+from .test_entity_growth import _coordinator as _growth_coordinator
 
 
 # Helper function to create a base bytearray for a device
@@ -997,6 +1012,141 @@ def test_no_filtration_mode_sensor_remains() -> None:
     """
     assert not any(d.key == "filtration_mode" for d in SENSORS)
     assert "filtration_mode" in RETIRED_SENSOR_IDS
+
+
+@pytest.mark.asyncio
+async def test_retired_filtration_mode_sensor_is_removed(
+    hass, mock_config_entry
+) -> None:
+    """The sensor platform's own clean-up, not the binary sensor one."""
+    registry = er.async_get(hass)
+    retired = registry.async_get_or_create(
+        "sensor", DOMAIN, "1234filtration_mode", config_entry=mock_config_entry
+    )
+    keep_sensor = registry.async_get_or_create(
+        "sensor", DOMAIN, "1234filtration_schedule", config_entry=mock_config_entry
+    )
+    keep_binary = registry.async_get_or_create(
+        "binary_sensor", DOMAIN, "1234filtration_mode", config_entry=mock_config_entry
+    )
+
+    sensor_remove_retired_entities(hass, mock_config_entry)
+    sensor_remove_retired_entities(hass, mock_config_entry)  # nothing left: no error
+
+    assert registry.async_get(retired.entity_id) is None
+    assert registry.async_get(keep_sensor.entity_id) is not None
+    assert registry.async_get(keep_binary.entity_id) is not None
+
+
+@pytest.mark.asyncio
+async def test_sensors_follow_units_and_quantities_seen_later(monkeypatch) -> None:
+    enabled: list[list[str]] = []
+    monkeypatch.setattr(sensor_module, "async_migrate_unique_ids", lambda h, e: None)
+    monkeypatch.setattr(
+        sensor_module, "async_remove_retired_entities", lambda h, e: None
+    )
+    monkeypatch.setattr(
+        sensor_module,
+        "async_enable_entities",
+        lambda hass, platform, unique_ids: enabled.append(list(unique_ids)),
+    )
+    coordinator = _growth_coordinator()
+    coordinator.config_entry.options = {}
+    coordinator.devices_update_callback(decode(bytes(_make_salt_redox_bytes())))
+    entry = MagicMock()
+    entry.runtime_data.coordinator = coordinator
+    added: list = []
+
+    await async_setup_entry(MagicMock(), entry, added.extend)
+    first = len(added)
+    assert f"1234{CONNECTION_STATUS_SENSOR.key}" in {e.unique_id for e in added}
+    (new_device,) = coordinator._new_device_listeners
+    (new_features,) = coordinator._new_features_listeners
+
+    other = decode(bytes(_make_net_clf_bytes()))
+    new_device(other)
+    assert any(e.unique_id == "110200612ph" for e in added[first:])
+    total = len(added)
+
+    enabled.clear()
+    new_features(other, frozenset({"ph"}))
+    assert enabled == [["110200612ph"]]
+    assert len(added) == total  # enabled, not added again
+
+
+def _consumption_entity(device: AsekoDevice, tracker) -> AsekoConsumptionSensorEntity:
+    coordinator = MagicMock()
+    coordinator.get_tracker.return_value = tracker
+    description = next(d for d in CONSUMPTION_SENSORS if d.key == "chlor_consumed")
+    return AsekoConsumptionSensorEntity(device, coordinator, description)
+
+
+def test_consumption_reads_litres_from_the_tracker() -> None:
+    tracker = AsekoConsumptionTracker()
+    tracker.seed("cl", total_ml=5000.0, canister_ml=1234.5678)
+
+    assert _consumption_entity(AsekoDevice(serial_number=1), tracker).native_value == (
+        1.235
+    )
+    assert _consumption_entity(AsekoDevice(serial_number=1), None).native_value is None
+    assert _consumption_entity(AsekoDevice(), tracker).native_value is None
+
+
+@pytest.mark.parametrize(
+    ("last_value", "serial", "restored", "expected_ml"),
+    [
+        (None, 1, False, 0.0),  # nothing stored before
+        ("not a number", 1, False, 0.0),
+        ("1.5", None, False, 0.0),  # no unit to seed
+        ("1.5", 1, True, 0.0),  # the exact store already restored this pump
+        ("1.5", 1, False, 1500.0),  # first start after an upgrade: seed from litres
+    ],
+)
+@pytest.mark.asyncio
+async def test_restored_litres_seed_only_a_tracker_the_store_left_empty(
+    monkeypatch, last_value, serial, restored, expected_ml
+) -> None:
+    monkeypatch.setattr(CoordinatorEntity, "async_added_to_hass", AsyncMock())
+    tracker = AsekoConsumptionTracker()
+    if restored:
+        tracker.load_store({"cl": {"total": 0.0, "canister": 0.0}})
+    entity = _consumption_entity(AsekoDevice(serial_number=serial), tracker)
+    last = None if last_value is None else MagicMock(native_value=last_value)
+    entity.async_get_last_sensor_data = AsyncMock(return_value=last)
+
+    await entity.async_added_to_hass()
+
+    assert tracker.get("cl", "canister") == expected_ml
+
+
+def test_v8_delays_are_in_minutes() -> None:
+    description = next(d for d in SENSORS if d.feature == "startup_delay")
+    v7 = AsekoLocalSensorEntity(AsekoDevice(serial_number=1), MagicMock(), description)
+    v8 = AsekoLocalSensorEntity(
+        AsekoDevice(
+            serial_number=2, flags=frozenset({AsekoProfileFlag.DELAYS_IN_MINUTES})
+        ),
+        MagicMock(),
+        description,
+    )
+    assert v7.native_unit_of_measurement == "s"
+    assert v8.native_unit_of_measurement == "min"
+
+    temperature = next(d for d in SENSORS if d.key == "waterTemp")
+    plain = AsekoLocalSensorEntity(
+        AsekoDevice(serial_number=1), MagicMock(), temperature
+    )
+    assert plain.native_unit_of_measurement == "°C"
+
+
+def test_connection_status_stays_available_while_the_unit_is_offline() -> None:
+    coordinator = MagicMock()
+    coordinator.last_update_success = False
+    entity = AsekoConnectionStatusSensorEntity(
+        AsekoDevice(serial_number=1), coordinator, CONNECTION_STATUS_SENSOR
+    )
+    assert entity.available is True
+    assert entity.native_value == "offline"
 
 
 def test_schedule_and_service_menu_absent_without_filtration() -> None:

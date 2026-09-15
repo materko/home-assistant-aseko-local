@@ -1,15 +1,13 @@
 """Set-up, unload and set-up again of real config entries (audit R1).
 
-The TCP listener is the only stand-in: ``asyncio.start_server`` returns a
-server object that reports whether it was closed, so the tests see exactly
-what the integration's own ``running`` check sees.
+The TCP listener is the only stand-in: the ``listeners`` fixture (conftest)
+makes ``asyncio.start_server`` return a server object that reports whether it
+was closed, so the tests see exactly what the integration's own ``running``
+check sees.
 """
 
 from __future__ import annotations
 
-import asyncio
-
-import pytest
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_HOST, CONF_PORT
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -18,34 +16,6 @@ from custom_components.aseko_local import async_setup_entry, async_unload_entry
 from custom_components.aseko_local.config_flow import _remove_entry_server
 from custom_components.aseko_local.const import DOMAIN
 from custom_components.aseko_local.server import AsekoDeviceServer
-
-
-class FakeListener:
-    def __init__(self) -> None:
-        self.closed = False
-
-    def is_serving(self) -> bool:
-        return not self.closed
-
-    def close(self) -> None:
-        self.closed = True
-
-    async def wait_closed(self) -> None:
-        pass
-
-
-@pytest.fixture
-def listeners(monkeypatch) -> list[tuple[int, FakeListener]]:
-    """Every listener the integration opened, with its port."""
-    opened: list[tuple[int, FakeListener]] = []
-
-    async def start_server(handler, host, port) -> object:
-        listener = FakeListener()
-        opened.append((port, listener))
-        return listener
-
-    monkeypatch.setattr(asyncio, "start_server", start_server)
-    return opened
 
 
 def _entry(hass, entry_id: str, port: int) -> MockConfigEntry:

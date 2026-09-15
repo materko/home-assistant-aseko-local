@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 import pytest
 from homeassistant.config_entries import ConfigEntry
 
+from custom_components.aseko_local import button as button_module
 from custom_components.aseko_local.button import (
     AsekoResetButtonEntity,
     async_setup_entry,
@@ -162,3 +163,47 @@ async def test_press_resets_canister_counter(hass) -> None:
     entry.runtime_data.coordinator.reset_consumption.assert_called_once_with(
         pump_key="cl", counter="canister", serial_number=device.serial_number
     )
+
+
+# ── units seen later ────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_buttons_follow_units_and_pumps_seen_later(monkeypatch) -> None:
+    """A new unit gets its buttons; a pump a known unit starts showing is enabled."""
+    enabled: list[list[str]] = []
+    monkeypatch.setattr(
+        button_module,
+        "async_enable_entities",
+        lambda hass, platform, unique_ids: enabled.append(list(unique_ids)),
+    )
+    net = decode(_make_net_bytes())
+    entry = _dummy_entry(net)
+    listeners: dict[str, Callable] = {}
+
+    def keep(kind: str) -> Callable[[Callable], Callable[[], None]]:
+        def add(listener: Callable) -> Callable[[], None]:
+            listeners[kind] = listener
+            return lambda: None
+
+        return add
+
+    coordinator = entry.runtime_data.coordinator
+    coordinator.async_add_new_device_listener = keep("device")
+    coordinator.async_add_new_features_listener = keep("features")
+    added: list = []
+
+    await async_setup_entry(MagicMock(), entry, added.extend)
+    assert {e.unique_id for e in added} >= {"1001chlor_refill_reset"}
+    first = len(added)
+
+    listeners["device"](AsekoDevice(serial_number=42))  # no pumps at all
+    assert len(added) == first
+
+    listeners["device"](decode(_make_profi_bytes()))
+    assert {e.unique_id for e in added[first:]} >= {"3003floc_refill_reset"}
+
+    enabled.clear()
+    listeners["features"](net, frozenset({"ph"}))
+    listeners["features"](net, frozenset({"chlorine_pump_running"}))
+    assert enabled == [[], ["1001chlor_refill_reset"]]
