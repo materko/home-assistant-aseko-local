@@ -14,7 +14,10 @@ with the annotated raw frame and the generic values.
 Ask for (or record) marked test cases with the test cases card — one change on
 the unit per marker — and the zip from **Download new**. The frame next to each
 marker is the evidence. `python scripts/frame_log_tool.py DIAGNOSTICS.json --around N`
-prints the frames around marker N.
+prints the frames around marker N. For one frame, `python scripts/hex_tools.py HEX --table`
+(v7: every byte, `--byteinfo N` for one) and `python scripts/v8_tools.py 'FRAME' --annotate`
+(v8: every section value) show the raw values; `--generate-test` prints a test skeleton
+whose expected values you fill in from what the unit showed.
 
 ## 2. Find the bytes
 
