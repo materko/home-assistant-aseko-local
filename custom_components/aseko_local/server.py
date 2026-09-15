@@ -139,16 +139,30 @@ class AsekoDeviceServer:
         """Check if the server is running."""
         return self._server is not None and self._server.is_serving()
 
-    async def _maybe_await(self, result: object) -> None:
-        if asyncio.iscoroutine(result):
-            await result
+    async def _safe_call(
+        self, callback: Callable[..., Any] | None, *args: object, name: str
+    ) -> None:
+        """Call a sink or callback that may be async; one that raises costs only its own call."""
+        if callback is None:
+            return
+        try:
+            result = callback(*args)
+            if asyncio.iscoroutine(result):
+                await result
+        except Exception:
+            _LOGGER.exception("%s raised an exception", name)
 
-    async def _call_raw_sink(self, data: bytes) -> None:
-        if self._raw_sink:
-            try:
-                await self._maybe_await(self._raw_sink(data))
-            except Exception:
-                _LOGGER.exception("Raw sink raised an exception")
+    def _log_once(self, serial: int, reason: str, message: str, *args: object) -> None:
+        """Log a unit's problem as a warning the first time, at debug level after.
+
+        The register of (serial, reason) pairs is capped at MAX_WARNED, so an
+        odd stream cannot grow it forever; past the cap everything is debug.
+        """
+        key = (serial, reason)
+        first = key not in self._warned and len(self._warned) < MAX_WARNED
+        if first:
+            self._warned.add(key)
+        (_LOGGER.warning if first else _LOGGER.debug)(message, *args)
 
     @staticmethod
     def _implausible_values(frame: bytes) -> list[str]:
@@ -173,22 +187,17 @@ class AsekoDeviceServer:
     async def _report_implausible(self, frame: bytes, addr: object) -> None:
         serial = int.from_bytes(frame[0:4], "big")
         for reason in self._implausible_values(frame):
-            key = (serial, reason)
-            first = key not in self._warned and len(self._warned) < MAX_WARNED
-            log = _LOGGER.warning if first else _LOGGER.debug
-            if first:
-                self._warned.add(key)
-            log(
+            self._log_once(
+                serial,
+                reason,
                 "Implausible v7 frame from %s (serial %s): %s; decoding it anyway",
                 addr,
                 serial,
                 reason,
             )
-            if self._frame_warning_sink:
-                try:
-                    await self._maybe_await(self._frame_warning_sink(serial, reason))
-                except Exception:
-                    _LOGGER.exception("Frame warning sink raised an exception")
+            await self._safe_call(
+                self._frame_warning_sink, serial, reason, name="Frame warning sink"
+            )
 
     async def _report_frame_problems(self, device: AsekoDevice, addr: object) -> None:
         """Log and count values the parser could not read; the frame still counts."""
@@ -197,17 +206,12 @@ class AsekoDeviceServer:
             return
         for problem in device.frame_problems:
             reason = f"v8 value unreadable: {problem}"
-            key = (serial, reason)
-            first = key not in self._warned and len(self._warned) < MAX_WARNED
-            log = _LOGGER.warning if first else _LOGGER.debug
-            if first:
-                self._warned.add(key)
-            log("v8 frame from %s (serial %s): %s", addr, serial, reason)
-            if self._frame_warning_sink:
-                try:
-                    await self._maybe_await(self._frame_warning_sink(serial, reason))
-                except Exception:
-                    _LOGGER.exception("Frame warning sink raised an exception")
+            self._log_once(
+                serial, reason, "v8 frame from %s (serial %s): %s", addr, serial, reason
+            )
+            await self._safe_call(
+                self._frame_warning_sink, serial, reason, name="Frame warning sink"
+            )
 
     async def _report_rejected_v8(self, frame: bytes, reason: str) -> None:
         """Count a v8 frame the decoder rejected, under its serial if readable."""
@@ -219,42 +223,12 @@ class AsekoDeviceServer:
             )
         except (ValueError, IndexError):
             return
-        try:
-            await self._maybe_await(
-                self._frame_warning_sink(serial, f"v8 frame rejected: {reason}")
-            )
-        except Exception:
-            _LOGGER.exception("Frame warning sink raised an exception")
-
-    async def _call_rejected_sink(self, data: bytes, reason: str) -> None:
-        if self._rejected_sink:
-            try:
-                await self._maybe_await(self._rejected_sink(data, reason))
-            except Exception:
-                _LOGGER.exception("Rejected sink raised an exception")
-
-    async def _call_v8_raw_sink(self, data: bytes) -> None:
-        if self._v8_raw_sink:
-            try:
-                await self._maybe_await(self._v8_raw_sink(data))
-            except Exception:
-                _LOGGER.exception("v8 raw sink raised an exception")
-
-    async def _call_forward_cb(self, data: bytes) -> None:
-        if self._forward_cb:
-            try:
-                _LOGGER.debug("Forward callback called with %d bytes", len(data))
-                await self._maybe_await(self._forward_cb(data))
-            except Exception:
-                _LOGGER.exception("Forward callback raised an exception")
-
-    async def _call_forward_v8_cb(self, data: bytes) -> None:
-        if self._forward_v8_cb:
-            try:
-                _LOGGER.debug("v8 forward callback called with %d bytes", len(data))
-                await self._maybe_await(self._forward_v8_cb(data))
-            except Exception:
-                _LOGGER.exception("v8 forward callback raised an exception")
+        await self._safe_call(
+            self._frame_warning_sink,
+            serial,
+            f"v8 frame rejected: {reason}",
+            name="Frame warning sink",
+        )
 
     def replace_sinks(self, **sinks: Unpack[ServerSinks]) -> None:
         """Take the sinks of a new config entry; one not given keeps the old."""
@@ -266,13 +240,6 @@ class AsekoDeviceServer:
             self._frame_warning_sink = frame_warning_sink
         if rejected_sink := sinks.get("rejected_sink"):
             self._rejected_sink = rejected_sink
-
-    async def _maybe_call_on_data(self, device: AsekoDevice) -> None:
-        if self.on_data:
-            try:
-                await self._maybe_await(self.on_data(device))
-            except Exception:
-                _LOGGER.exception("on_data callback raised an exception")
 
     async def _handle_client(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
@@ -309,8 +276,11 @@ class AsekoDeviceServer:
                         "Frame sync error from %s → closing connection", addr
                     )
                     # Keep the bytes: they are what a new layout would look like.
-                    await self._call_rejected_sink(
-                        initial, f"frame sync failed: {type(exc).__name__}: {exc}"
+                    await self._safe_call(
+                        self._rejected_sink,
+                        initial,
+                        f"frame sync failed: {type(exc).__name__}: {exc}",
+                        name="Rejected sink",
                     )
                     break
 
@@ -381,7 +351,7 @@ class AsekoDeviceServer:
                 )
                 # Store partial frame for diagnostics so users with non-standard
                 # frame lengths can share the raw data without enabling debug logging.
-                await self._call_raw_sink(partial)
+                await self._safe_call(self._raw_sink, partial, name="Raw sink")
             return None
         _LOGGER.debug(
             "Initial bytes from %s (%d bytes):\n%s",
@@ -395,10 +365,12 @@ class AsekoDeviceServer:
         self, frame: bytes, addr: object, received_at: datetime
     ) -> bool:
         """Forward, log, decode and hand on a v8 frame; False closes the connection."""
-        await self._call_forward_v8_cb(frame)
+        if self._forward_v8_cb:
+            _LOGGER.debug("v8 forward callback called with %d bytes", len(frame))
+        await self._safe_call(self._forward_v8_cb, frame, name="v8 forward callback")
         # Log the frame before decoding it: a frame the decoder rejects is
         # exactly the one worth having in the frame log.
-        await self._call_v8_raw_sink(frame)
+        await self._safe_call(self._v8_raw_sink, frame, name="v8 raw sink")
         try:
             device = decode(frame, Protocol.V8)
         except ValueError as exc:
@@ -411,7 +383,7 @@ class AsekoDeviceServer:
         await self._report_frame_problems(device, addr)
         _LOGGER.debug("v8 decoded data from %s: %s", addr, device)
         device.received_at = received_at
-        await self._maybe_call_on_data(device)
+        await self._safe_call(self.on_data, device, name="on_data callback")
         return True
 
     async def _deliver_v7(
@@ -420,9 +392,11 @@ class AsekoDeviceServer:
         """Log, forward, decode and hand on an aligned v7 frame; False closes."""
         try:
             # Call raw_sink so diagnostics see the correctly aligned frame
-            await self._call_raw_sink(frame)
+            await self._safe_call(self._raw_sink, frame, name="Raw sink")
             # Forward CORRECTED data to cloud
-            await self._call_forward_cb(frame)
+            if self._forward_cb:
+                _LOGGER.debug("Forward callback called with %d bytes", len(frame))
+            await self._safe_call(self._forward_cb, frame, name="Forward callback")
             # Implausible values are reported, not fatal: the frame is still
             # decoded and the connection stays open.
             await self._report_implausible(frame, addr)
@@ -438,7 +412,7 @@ class AsekoDeviceServer:
         _LOGGER.debug("Decoded data from %s: %s", addr, device)
         # Send decoded data to higher layer
         device.received_at = received_at
-        await self._maybe_call_on_data(device)
+        await self._safe_call(self.on_data, device, name="on_data callback")
         return True
 
     # Set Forwarder
