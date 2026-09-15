@@ -66,7 +66,8 @@ def parse_port(value: Any) -> int:
     """The port a user picked or typed, as a number; ValueError when it is none."""
     port = int(str(value).strip())
     if not 1 <= port <= 65535:
-        raise ValueError(f"port {port} out of range")
+        msg = f"port {port} out of range"
+        raise ValueError(msg)
     return port
 
 

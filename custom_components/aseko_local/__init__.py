@@ -323,10 +323,11 @@ def _async_register_backwash_services(hass: HomeAssistant) -> None:
                 default=dt_util.now(),
             )
             if timestamp > unit_now:
-                raise ServiceValidationError(
+                msg = (
                     f"{timestamp.isoformat()} is in the future; "
                     "the last scheduled backwash must already have happened"
                 )
+                raise ServiceValidationError(msg)
 
             matched = False
             for entry in hass.config_entries.async_entries(DOMAIN):
@@ -407,12 +408,12 @@ def _async_register_mark_dump_service(hass: HomeAssistant) -> None:
                 if getattr(entry, "runtime_data", None)
             ]
             if not loaded:
-                raise ServiceValidationError("No Aseko Local entry is loaded")
+                msg = "No Aseko Local entry is loaded"
+                raise ServiceValidationError(msg)
             loaded = [e for e in loaded if e.runtime_data.coordinator.frame_log.enabled]
             if not loaded:
-                raise ServiceValidationError(
-                    "Recording is off: turn it on in the Aseko test cases card first"
-                )
+                msg = "Recording is off: turn it on in the Aseko test cases card first"
+                raise ServiceValidationError(msg)
             if serial_number is not None:
                 loaded = [
                     e
@@ -420,9 +421,10 @@ def _async_register_mark_dump_service(hass: HomeAssistant) -> None:
                     if e.runtime_data.coordinator.knows_serial(serial_number)
                 ]
                 if not loaded:
-                    raise ServiceValidationError(
+                    msg = (
                         f"No recording entry has received a frame from {serial_number}"
                     )
+                    raise ServiceValidationError(msg)
 
             tapped = dt_util.utcnow()
             label = f" ({note})" if note else ""
@@ -466,9 +468,8 @@ def _async_register_mark_dump_service(hass: HomeAssistant) -> None:
             markers = [m for m in results if m is not None]
             if not markers:
                 persistent_notification.async_dismiss(hass, MARK_DUMP_NOTIFICATION_ID)
-                raise ServiceValidationError(
-                    "Recording was stopped or deleted while waiting; no marker was written"
-                )
+                msg = "Recording was stopped or deleted while waiting; no marker was written"
+                raise ServiceValidationError(msg)
             persistent_notification.async_create(
                 hass,
                 _mark_dump_message(markers, label, wait=wait),

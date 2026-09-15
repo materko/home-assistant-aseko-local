@@ -40,7 +40,8 @@ def load_records(path: Path) -> list[dict[str, Any]]:
     diagnostics = json.loads(path.read_text(encoding="utf-8"))
     frame_log = diagnostics.get("data", diagnostics).get("frame_log")
     if not frame_log:
-        raise SystemExit(f"{path}: no frame_log section")
+        msg = f"{path}: no frame_log section"
+        raise SystemExit(msg)
     blob = zlib.decompress(base64.b64decode(frame_log["blob"]))
     return list(decode_lines(blob.splitlines(keepends=True)))
 
@@ -64,7 +65,8 @@ def main() -> None:
     if args.around is not None:
         marks = [r for r in records if r["k"] == "mark" and r["n"] == args.around]
         if not marks:
-            raise SystemExit(f"no marker {args.around}")
+            msg = f"no marker {args.around}"
+            raise SystemExit(msg)
         at = datetime.fromisoformat(marks[0]["t"]).timestamp()
         for record in records:
             offset = datetime.fromisoformat(record["t"]).timestamp() - at

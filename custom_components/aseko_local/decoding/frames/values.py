@@ -42,7 +42,8 @@ def normalize_value[T](value: int | str | None, type_: type[T]) -> T | None:
             return None
         return type_(val)
 
-    raise ValueError(f"Unsupported type {type_} or value {value}")
+    msg = f"Unsupported type {type_} or value {value}"
+    raise ValueError(msg)
 
 
 def word_or_absent(value: int | None) -> int | NotPresent:

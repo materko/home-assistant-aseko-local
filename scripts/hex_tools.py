@@ -28,7 +28,8 @@ def parse_hex(text: str) -> bytes:
     try:
         return bytes.fromhex(cleaned)
     except ValueError as exc:
-        raise SystemExit(f"not a hex string: {exc}") from exc
+        msg = f"not a hex string: {exc}"
+        raise SystemExit(msg) from exc
 
 
 def table_rows(data: bytes) -> list[tuple[int, int, int | None]]:
@@ -60,7 +61,8 @@ def write_hex_table_md(data: bytes, path: Path) -> None:
 def byte_info(data: bytes, index: int) -> str:
     """One byte in hex and decimal, and the big-endian word starting at it."""
     if not 0 <= index < len(data):
-        raise SystemExit(f"byte index {index} is outside the frame (0-{len(data) - 1})")
+        msg = f"byte index {index} is outside the frame (0-{len(data) - 1})"
+        raise SystemExit(msg)
     b = data[index]
     text = f"byte[{index}] = 0x{b:02x} = {b} = 0b{b:08b}"
     if index + 1 < len(data):

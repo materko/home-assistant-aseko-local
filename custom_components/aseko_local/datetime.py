@@ -119,8 +119,9 @@ class AsekoLastScheduledBackwashEntity(AsekoLocalEntity, DateTimeEntity):
         """Record a user-supplied timestamp and re-project the next cycle."""
         unit_now = self.coordinator.unit_clock_now(self.device.serial_number)
         if unit_now is not None and value > unit_now:
-            raise ServiceValidationError(
+            msg = (
                 f"{value.isoformat()} is in the future; "
                 "the last scheduled backwash must already have happened"
             )
+            raise ServiceValidationError(msg)
         self.coordinator.set_last_scheduled_backwash(value, self.device.serial_number)

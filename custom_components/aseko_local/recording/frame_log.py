@@ -99,6 +99,14 @@ def _valid_marker(marker: Any) -> bool:
     return True
 
 
+def _require[T](value: object, kind: type[T], what: str) -> T:
+    """``value`` when it is a ``kind``; TypeError (an unreadable store) otherwise."""
+    if not isinstance(value, kind):
+        msg = f"{what} is not a {kind.__name__}"
+        raise TypeError(msg)
+    return value
+
+
 class FrameLog:
     """Append-only stream of frames and markers with a hard compressed-size cap."""
 
@@ -109,7 +117,8 @@ class FrameLog:
         chunk_raw_bytes: int = DEFAULT_CHUNK_RAW_BYTES,
     ) -> None:
         if chunk_bytes * 2 > max_bytes:
-            raise ValueError("chunk_bytes must be at most half of max_bytes")
+            msg = "chunk_bytes must be at most half of max_bytes"
+            raise ValueError(msg)
         self.max_bytes = max_bytes
         self.chunk_bytes = chunk_bytes
         self.chunk_raw_bytes = chunk_raw_bytes
@@ -346,12 +355,8 @@ class FrameLog:
             next_marker = int(data.get("next_marker", 1))
             exported_through = int(data.get("exported_through", 0))
             # A store from before the switch was recording all along: keep it on.
-            enabled = data.get("enabled", True)
-            if not isinstance(enabled, bool):
-                raise TypeError("enabled is not a bool")
-            markers = data.get("markers", [])
-            if not isinstance(markers, list):
-                raise TypeError("markers is not a list")
+            enabled = _require(data.get("enabled", True), bool, "enabled")
+            markers = _require(data.get("markers", []), list, "markers")
             # every open record needs its absolute time before anything is
             # replayed, so a bad one cannot leave the log half restored
             replay = [

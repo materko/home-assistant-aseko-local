@@ -85,7 +85,8 @@ def parse_v7(raw: bytes) -> V7Frame:
     fragments as partial frames and never decodes them.
     """
     if len(raw) != MESSAGE_SIZE:
-        raise ValueError(f"v7 frame is {len(raw)} bytes, not {MESSAGE_SIZE}")
+        msg = f"v7 frame is {len(raw)} bytes, not {MESSAGE_SIZE}"
+        raise ValueError(msg)
     frame = V7Frame(bytes(raw))
     bad = v7_bad_checksum_segments(frame.raw)
     if bad:

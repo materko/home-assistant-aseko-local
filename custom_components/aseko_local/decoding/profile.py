@@ -83,38 +83,39 @@ class Profile:
             return override
         default = feature.default_reading(self.protocol)
         if default is None:
-            raise ValueError(
+            msg = (
                 f"{self.name}: {feature.__name__} has no {self.protocol.value} reading"
             )
+            raise ValueError(msg)
         return default
 
     def _validate(self) -> None:
         listed = set(self.features)
         if len(listed) != len(self.features):
-            raise ValueError(f"{self.name}: a feature is listed twice")
+            msg = f"{self.name}: a feature is listed twice"
+            raise ValueError(msg)
         fields = [f.field for f in self.features]
         if len(set(fields)) != len(fields):
-            raise ValueError(f"{self.name}: two features fill the same field")
+            msg = f"{self.name}: two features fill the same field"
+            raise ValueError(msg)
 
         for feature, reading in self.overrides.items():
             if feature not in listed:
-                raise ValueError(
-                    f"{self.name}: override for unlisted {feature.__name__}"
-                )
+                msg = f"{self.name}: override for unlisted {feature.__name__}"
+                raise ValueError(msg)
             if not reading.startswith(f"decode_{self.protocol.value}"):
-                raise ValueError(
+                msg = (
                     f"{self.name}: {feature.__name__}.{reading} is not a "
                     f"{self.protocol.value} reading"
                 )
+                raise ValueError(msg)
             if not feature.has_reading(reading):
-                raise ValueError(
-                    f"{self.name}: {feature.__name__} has no reading {reading!r}"
-                )
+                msg = f"{self.name}: {feature.__name__} has no reading {reading!r}"
+                raise ValueError(msg)
         for feature in self.evidence:
             if feature not in listed:
-                raise ValueError(
-                    f"{self.name}: evidence for unlisted {feature.__name__}"
-                )
+                msg = f"{self.name}: evidence for unlisted {feature.__name__}"
+                raise ValueError(msg)
         for feature in self.features:
             self.reading_for(feature)  # raises when there is nothing to call
             for dependency in feature.depends_on:
@@ -122,10 +123,11 @@ class Profile:
                     dependency not in listed
                     and dependency not in feature.optional_depends_on
                 ):
-                    raise ValueError(
+                    msg = (
                         f"{self.name}: {feature.__name__} needs "
                         f"{dependency.__name__}, which is not listed"
                     )
+                    raise ValueError(msg)
 
 
 def _ordered(features: tuple[type[Feature], ...]) -> list[type[Feature]]:
@@ -145,7 +147,8 @@ def _ordered(features: tuple[type[Feature], ...]) -> list[type[Feature]]:
         if feature in seen:
             return
         if feature in visiting:
-            raise ValueError(f"dependency cycle through {feature.__name__}")
+            msg = f"dependency cycle through {feature.__name__}"
+            raise ValueError(msg)
         visiting.add(feature)
         for dependency in feature.depends_on:
             if dependency in listed:

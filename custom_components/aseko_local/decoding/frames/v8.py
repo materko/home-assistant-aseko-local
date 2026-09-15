@@ -112,15 +112,18 @@ def parse_v8(raw: bytes) -> V8Frame:
     try:
         text = raw.decode("ascii", errors="replace").strip()
     except Exception as exc:
-        raise ValueError(f"v8 frame is not ASCII: {exc}") from exc
+        msg = f"v8 frame is not ASCII: {exc}"
+        raise ValueError(msg) from exc
 
     if not text.startswith("{") or not text.endswith("}"):
-        raise ValueError(f"v8 frame missing braces: {text[:40]!r}")
+        msg = f"v8 frame missing braces: {text[:40]!r}"
+        raise ValueError(msg)
     body = text[1:-1].strip()
 
     header_match = _HEADER_RE.match(body)
     if not header_match:
-        raise ValueError(f"v8 frame header not recognised: {body[:60]!r}")
+        msg = f"v8 frame header not recognised: {body[:60]!r}"
+        raise ValueError(msg)
     serial_number = int(header_match.group(1))
     header_type = int(header_match.group(2))
 

@@ -126,9 +126,11 @@ class AsekoConsumptionTracker:
     def get(self, pump_key: str, counter: str) -> float:
         """Return the current value (ml) for *pump_key* and *counter* ("total"|"canister")."""
         if pump_key not in self._counters:
-            raise ValueError(f"Unknown pump key: {pump_key!r}")
+            msg = f"Unknown pump key: {pump_key!r}"
+            raise ValueError(msg)
         if counter not in ("total", "canister"):
-            raise ValueError(f"counter must be 'total' or 'canister', got {counter!r}")
+            msg = f"counter must be 'total' or 'canister', got {counter!r}"
+            raise ValueError(msg)
         return getattr(self._counters[pump_key], counter)
 
     def reset(
@@ -143,9 +145,8 @@ class AsekoConsumptionTracker:
             counter:  "total", "canister", or "all" – defaults to "canister".
         """
         if counter not in ("total", "canister", "all"):
-            raise ValueError(
-                f"counter must be 'total', 'canister', or 'all', got {counter!r}"
-            )
+            msg = f"counter must be 'total', 'canister', or 'all', got {counter!r}"
+            raise ValueError(msg)
         keys = list(PUMP_KEYS) if pump_key is None or pump_key == "all" else [pump_key]
         counters = ("total", "canister") if counter == "all" else (counter,)
 
@@ -209,6 +210,7 @@ class AsekoConsumptionTracker:
             _LOGGER.warning("seed_counter: unknown pump key %r – skipping", pump_key)
             return
         if counter not in ("total", "canister"):
-            raise ValueError(f"counter must be 'total' or 'canister', got {counter!r}")
+            msg = f"counter must be 'total' or 'canister', got {counter!r}"
+            raise ValueError(msg)
         setattr(self._counters[pump_key], counter, value)
         _LOGGER.debug("Tracker seeded: %s.%s = %.1f", pump_key, counter, value)

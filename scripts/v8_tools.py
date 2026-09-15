@@ -65,11 +65,13 @@ def parse_v8_frame(
     """(header, sections) of a v8 frame; raises ValueError when it is not one."""
     text = text.strip()
     if not text.startswith("{") or not text.endswith("}"):
-        raise ValueError("a v8 frame starts with '{' and ends with '}'")
+        msg = "a v8 frame starts with '{' and ends with '}'"
+        raise ValueError(msg)
     body = text[1:-1].strip()
     match = _HEADER_RE.match(body)
     if not match:
-        raise ValueError(f"header not recognised: {body[:60]!r}")
+        msg = f"header not recognised: {body[:60]!r}"
+        raise ValueError(msg)
     header: dict[str, str | int] = {
         "serial": int(match.group(1)),
         "type": int(match.group(2)),

@@ -98,7 +98,8 @@ class AsekoDeviceServer:
             _LOGGER.debug("AsekoDeviceServer startet on %s:%d", self.host, self.port)
         except OSError as err:
             _LOGGER.error("AsekoDeviceServer start failed: %s", err)
-            raise ServerConnectionError(f"Failed to start server: {err}") from err
+            msg = f"Failed to start server: {err}"
+            raise ServerConnectionError(msg) from err
 
     async def stop(self) -> None:
         """Stop the TCP server and disconnect all clients."""
@@ -234,6 +235,23 @@ class AsekoDeviceServer:
                 await self._maybe_await(self._forward_v8_cb(data))
             except Exception:
                 _LOGGER.exception("v8 forward callback raised an exception")
+
+    def replace_sinks(
+        self,
+        raw_sink: Callable[..., Any] | None,
+        v8_raw_sink: Callable[..., Any] | None,
+        frame_warning_sink: Callable[..., Any] | None,
+        rejected_sink: Callable[..., Any] | None,
+    ) -> None:
+        """Take the sinks of a new config entry; one not given keeps the old."""
+        if raw_sink:
+            self._raw_sink = raw_sink
+        if v8_raw_sink:
+            self._v8_raw_sink = v8_raw_sink
+        if frame_warning_sink:
+            self._frame_warning_sink = frame_warning_sink
+        if rejected_sink:
+            self._rejected_sink = rejected_sink
 
     async def _maybe_call_on_data(self, device: AsekoDevice) -> None:
         if self.on_data:
@@ -534,14 +552,9 @@ class AsekoDeviceServer:
             )
             await cls._instances[key].start()
         else:
-            if raw_sink:
-                cls._instances[key]._raw_sink = raw_sink
-            if v8_raw_sink:
-                cls._instances[key]._v8_raw_sink = v8_raw_sink
-            if frame_warning_sink:
-                cls._instances[key]._frame_warning_sink = frame_warning_sink
-            if rejected_sink:
-                cls._instances[key]._rejected_sink = rejected_sink
+            cls._instances[key].replace_sinks(
+                raw_sink, v8_raw_sink, frame_warning_sink, rejected_sink
+            )
             if on_data:
                 cls._instances[key].on_data = on_data
             # A server stopped by an unload that did not remove it stays in the
