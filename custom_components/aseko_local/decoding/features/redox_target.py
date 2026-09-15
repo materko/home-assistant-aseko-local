@@ -13,9 +13,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, override
 
-from ...const import UNSPECIFIED_VALUE
 from ...models import AsekoProbeType
 from ..feature import Feature
+from ..frames import byte_or_none
 from ..presence import NOT_PRESENT
 from .configuration import Configuration
 
@@ -36,9 +36,8 @@ class RedoxTarget(Feature):
         probes = device.configuration
         if AsekoProbeType.CLF in probes or AsekoProbeType.REDOX not in probes:
             return NOT_PRESENT
-        if frame[53] == UNSPECIFIED_VALUE:
-            return None  # the probe is there, the setpoint is not filled in
-        return frame[53] * 10
+        value = byte_or_none(frame[53])  # None: the setpoint is not filled in
+        return None if value is None else value * 10
 
     @override
     def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> int | None:

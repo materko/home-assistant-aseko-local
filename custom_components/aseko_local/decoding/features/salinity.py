@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, override
 
-from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
+from ..frames import byte_or_none
 
 if TYPE_CHECKING:
     from ...models import AsekoDevice
@@ -19,6 +19,5 @@ class Salinity(Feature):
 
     @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> float | None:
-        if frame[20] == UNSPECIFIED_VALUE:
-            return None
-        return frame[20] / 10
+        value = byte_or_none(frame[20])
+        return None if value is None else value / 10

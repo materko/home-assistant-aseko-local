@@ -8,8 +8,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, override
 
-from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
+from ..frames import byte_or_none
 
 if TYPE_CHECKING:
     from ...models import AsekoDevice
@@ -23,6 +23,4 @@ class OxygenDoseTarget(Feature):
 
     @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | None:
-        if frame[53] == UNSPECIFIED_VALUE:
-            return None  # the OXY dose is not filled in
-        return frame[53]
+        return byte_or_none(frame[53])  # None: the OXY dose is not filled in

@@ -19,6 +19,7 @@ from .v8 import V8Frame, parse_v8
 from .values import (
     UNSPECIFIED_WORD,
     byte_or_absent,
+    byte_or_none,
     byte_when_flags,
     decode_time,
     decode_timestamp,
@@ -50,6 +51,7 @@ __all__ = [
     "V7Frame",
     "V8Frame",
     "byte_or_absent",
+    "byte_or_none",
     "byte_when_flags",
     "decode_time",
     "decode_timestamp",

@@ -11,9 +11,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, override
 
-from ...const import UNSPECIFIED_VALUE
 from ...models import AsekoProbeType
 from ..feature import Feature
+from ..frames import byte_or_none
 from ..presence import NOT_PRESENT
 from .configuration import Configuration
 
@@ -33,6 +33,5 @@ class FreeChlorineTarget(Feature):
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> float | NotPresent:
         if AsekoProbeType.CLF not in device.configuration:
             return NOT_PRESENT
-        if frame[53] == UNSPECIFIED_VALUE:
-            return None  # the probe is there, the setpoint is not filled in
-        return frame[53] / 10
+        value = byte_or_none(frame[53])  # None: the setpoint is not filled in
+        return None if value is None else value / 10

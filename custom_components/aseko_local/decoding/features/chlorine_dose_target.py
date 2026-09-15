@@ -11,9 +11,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, override
 
-from ...const import UNSPECIFIED_VALUE
 from ...models import AsekoProbeType
 from ..feature import Feature
+from ..frames import byte_or_none
 from ..presence import NOT_PRESENT
 from .configuration import Configuration
 
@@ -38,6 +38,4 @@ class ChlorineDoseTarget(Feature):
             or AsekoProbeType.DOSE not in probes
         ):
             return NOT_PRESENT
-        if frame[53] == UNSPECIFIED_VALUE:
-            return None  # dosing mode is set, the dose is not filled in
-        return frame[53]
+        return byte_or_none(frame[53])  # None: the dose is not filled in

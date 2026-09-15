@@ -6,11 +6,24 @@ import pytest
 
 from custom_components.aseko_local.decoding.frames import (
     V8Frame,
+    byte_or_absent,
+    byte_or_none,
     byte_when_flags,
     flag_or_none,
     flag_when_known,
 )
 from custom_components.aseko_local.decoding.presence import NOT_PRESENT
+
+
+@pytest.mark.parametrize(("value", "expected"), [(0, 0), (54, 54), (0xFE, 0xFE)])
+def test_a_filled_in_byte_reads_as_it_is(value, expected) -> None:
+    assert byte_or_none(value) == expected
+    assert byte_or_absent(value) == expected
+
+
+def test_an_unfilled_byte_is_unknown_or_absent_depending_on_the_helper() -> None:
+    assert byte_or_none(0xFF) is None  # a measurement or setpoint the unit has
+    assert byte_or_absent(0xFF) is NOT_PRESENT  # a setting never made
 
 
 @pytest.mark.parametrize(

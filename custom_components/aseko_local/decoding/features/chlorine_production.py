@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, override
 
-from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
+from ..frames import byte_or_none
 
 if TYPE_CHECKING:
     from ...models import AsekoDevice
@@ -29,4 +29,4 @@ class ChlorineProduction(Feature):
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | None:
         if not frame[29] & ELECTROLYZER_RUNNING:
             return 0
-        return None if frame[21] == UNSPECIFIED_VALUE else frame[21]
+        return byte_or_none(frame[21])

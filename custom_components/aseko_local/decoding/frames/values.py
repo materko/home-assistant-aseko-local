@@ -64,6 +64,15 @@ def byte_or_absent(value: int) -> int | NotPresent:
     return NOT_PRESENT if value == UNSPECIFIED_VALUE else value
 
 
+def byte_or_none(value: int) -> int | None:
+    """Return ``value``, or None for the 0xFF "not filled in" marker.
+
+    For a measurement or a setpoint the unit has: 0xFF says this frame does
+    not carry the value, not that the unit lacks it -- see ``byte_or_absent``.
+    """
+    return None if value == UNSPECIFIED_VALUE else value
+
+
 def flag_or_none(flags: int, mask: int) -> bool | None:
     """Return whether ``mask`` is set in ``flags``, or None when ``flags`` is 0xFF.
 
