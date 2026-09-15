@@ -37,6 +37,7 @@ from custom_components.aseko_local.server import (
     AsekoDeviceServer,
 )
 
+from .conftest import FakeListener
 from .const import MOCK_CONFIG
 from .test_decode_v7 import _make_base_bytes
 
@@ -267,6 +268,34 @@ async def test_setup_is_retried_when_the_server_does_not_listen(
         await async_setup_entry(hass, entry)
 
     await AsekoDeviceServer.remove_all()
+
+
+async def test_setup_is_retried_when_the_port_cannot_be_bound(
+    hass, monkeypatch
+) -> None:
+    """A port still held after a restart retries the set-up instead of failing it."""
+    await AsekoDeviceServer.remove_all()
+    busy = [True]
+
+    async def start_server(handler, host, port) -> object:
+        if busy[0]:
+            msg = "address already in use"
+            raise OSError(msg)
+        return FakeListener()
+
+    monkeypatch.setattr(asyncio, "start_server", start_server)
+    entry = _entry(hass, "busy_port", 12413)
+
+    with pytest.raises(ConfigEntryNotReady, match=r"127\.0\.0\.1:12413"):
+        await async_setup_entry(hass, entry)
+    assert AsekoDeviceServer.get("127.0.0.1", 12413) is None  # nothing left behind
+
+    busy[0] = False  # the old socket is released: the retry listens
+    assert await async_setup_entry(hass, entry)
+    server = entry.runtime_data.server
+    assert server.running
+    assert server.on_data == entry.runtime_data.coordinator.devices_update_callback
+    assert await async_unload_entry(hass, entry)
 
 
 async def test_platforms_are_set_up_once_for_a_whole_first_device(

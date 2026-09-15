@@ -35,7 +35,7 @@ from .coordinator import AsekoLocalDataUpdateCoordinator
 from .forwarder import AsekoCloudMirror
 from .models import AsekoDevice
 from .recording.views import async_setup_recording
-from .server import AsekoDeviceServer
+from .server import AsekoDeviceServer, ServerConnectionError
 from .trackers.consumption import PUMP_KEYS
 
 _LOGGER = logging.getLogger(__name__)
@@ -202,15 +202,25 @@ async def async_setup_entry(
     raw_sink = coordinator.store_raw_frame
 
     # start Server
-    server = await AsekoDeviceServer.create(
-        host=config_entry.data[CONF_HOST],
-        port=config_entry.data[CONF_PORT],
-        on_data=coordinator.devices_update_callback,
-        raw_sink=raw_sink,
-        v8_raw_sink=coordinator.store_v8_frame,
-        frame_warning_sink=coordinator.store_frame_warning,
-        rejected_sink=coordinator.store_rejected_frame,
-    )
+    host, port = config_entry.data[CONF_HOST], config_entry.data[CONF_PORT]
+    try:
+        server = await AsekoDeviceServer.create(
+            host=host,
+            port=port,
+            on_data=coordinator.devices_update_callback,
+            raw_sink=raw_sink,
+            v8_raw_sink=coordinator.store_v8_frame,
+            frame_warning_sink=coordinator.store_frame_warning,
+            rejected_sink=coordinator.store_rejected_frame,
+        )
+    except ServerConnectionError as err:
+        # The port may still be held (a restart before the old socket is
+        # released, another program): Home Assistant retries the set-up later
+        # instead of leaving the entry failed.  The server that did not start
+        # is forgotten, so the retry does not inherit this set-up's callbacks.
+        await AsekoDeviceServer.remove(host, port)
+        msg = f"Cannot listen on {host}:{port}: {err}"
+        raise ConfigEntryNotReady(msg) from err
 
     if not server.running:
         raise ConfigEntryNotReady
