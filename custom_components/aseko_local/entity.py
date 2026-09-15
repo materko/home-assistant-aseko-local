@@ -144,6 +144,35 @@ def enabled_unique_ids(entities: Iterable[Any]) -> list[str]:
 
 
 @callback
+def async_remove_retired_platform_entities(
+    hass: HomeAssistant,
+    config_entry: AsekoLocalConfigEntry,
+    platform: Platform,
+    retired_suffixes: frozenset[str],
+) -> None:
+    """Delete this entry's registry entries for keys the platform no longer has.
+
+    The unique_id is f"{serial_number}{key}", so a removed key leaves its
+    registry entry behind and the entity sits in the UI as unavailable
+    forever.  Matched on the suffix, because the serial prefix varies.  Runs
+    before the entities are added; a no-op once nothing is left to remove.
+    """
+    registry = er.async_get(hass)
+    for entry in er.async_entries_for_config_entry(registry, config_entry.entry_id):
+        if entry.domain != platform:
+            continue
+        if not any(entry.unique_id.endswith(suffix) for suffix in retired_suffixes):
+            continue
+        _LOGGER.info(
+            "Removing retired Aseko %s %s (unique_id %s)",
+            platform,
+            entry.entity_id,
+            entry.unique_id,
+        )
+        registry.async_remove(entry.entity_id)
+
+
+@callback
 def async_setup_platform_entities(
     hass: HomeAssistant,
     config_entry: AsekoLocalConfigEntry,

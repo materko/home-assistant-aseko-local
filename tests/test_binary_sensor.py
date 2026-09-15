@@ -36,9 +36,9 @@ def test_only_retired_binary_sensors_are_removed(monkeypatch) -> None:
     removed: list[str] = []
     registry = MagicMock()
     registry.async_remove.side_effect = removed.append
-    monkeypatch.setattr(binary_sensor_module.er, "async_get", lambda hass: registry)
+    monkeypatch.setattr(entity_module.er, "async_get", lambda hass: registry)
     monkeypatch.setattr(
-        binary_sensor_module.er,
+        entity_module.er,
         "async_entries_for_config_entry",
         lambda reg, entry_id: entries,
     )

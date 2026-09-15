@@ -11,12 +11,15 @@ from homeassistant.components.binary_sensor import (
 )
 from homeassistant.const import EntityCategory, Platform
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import AsekoLocalConfigEntry
 from .coordinator import AsekoLocalDataUpdateCoordinator
-from .entity import AsekoLocalEntity, async_setup_platform_entities
+from .entity import (
+    AsekoLocalEntity,
+    async_remove_retired_platform_entities,
+    async_setup_platform_entities,
+)
 from .models import AsekoDevice
 
 _LOGGER = logging.getLogger(__name__)
@@ -255,21 +258,9 @@ def async_remove_retired_entities(
     Nothing happens when there is no matching entry, so this is a no-op on
     fresh installs and on every setup after the first.
     """
-    registry = er.async_get(hass)
-
-    for entry in er.async_entries_for_config_entry(registry, config_entry.entry_id):
-        if entry.domain != "binary_sensor":
-            continue
-        if not any(
-            entry.unique_id.endswith(suffix) for suffix in RETIRED_UNIQUE_ID_SUFFIXES
-        ):
-            continue
-        _LOGGER.info(
-            "Removing retired Aseko binary sensor %s (unique_id %s)",
-            entry.entity_id,
-            entry.unique_id,
-        )
-        registry.async_remove(entry.entity_id)
+    async_remove_retired_platform_entities(
+        hass, config_entry, Platform.BINARY_SENSOR, RETIRED_UNIQUE_ID_SUFFIXES
+    )
 
 
 async def async_setup_entry(

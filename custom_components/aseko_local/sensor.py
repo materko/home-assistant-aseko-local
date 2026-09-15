@@ -29,7 +29,11 @@ from homeassistant.helpers.typing import StateType
 
 from . import AsekoLocalConfigEntry
 from .coordinator import AsekoLocalDataUpdateCoordinator
-from .entity import AsekoLocalEntity, async_setup_platform_entities
+from .entity import (
+    AsekoLocalEntity,
+    async_remove_retired_platform_entities,
+    async_setup_platform_entities,
+)
 from .models import (
     AsekoConnectionState,
     AsekoDevice,
@@ -861,21 +865,9 @@ def async_remove_retired_entities(
     chance to be restored as unavailable.  A no-op once there is nothing
     left to remove.
     """
-    registry = er.async_get(hass)
-
-    for entry in er.async_entries_for_config_entry(registry, config_entry.entry_id):
-        if entry.domain != "sensor":
-            continue
-        if not any(
-            entry.unique_id.endswith(suffix) for suffix in RETIRED_UNIQUE_ID_SUFFIXES
-        ):
-            continue
-        _LOGGER.info(
-            "Removing retired Aseko sensor %s (unique_id %s)",
-            entry.entity_id,
-            entry.unique_id,
-        )
-        registry.async_remove(entry.entity_id)
+    async_remove_retired_platform_entities(
+        hass, config_entry, Platform.SENSOR, RETIRED_UNIQUE_ID_SUFFIXES
+    )
 
 
 async def async_setup_entry(
