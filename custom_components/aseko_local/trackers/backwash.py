@@ -384,16 +384,21 @@ class BackwashTracker:
         date is permanent, because every other path only ever overwrites the
         value with another one.
 
-        Clearing it also re-arms ``_backfill_split``, so if a
-        ``last_backwash`` is on record and no manual cycle has been observed,
-        the next frame re-derives the split from it.
+        When the last cycle was the scheduled one and no manual cycle is on
+        record, clearing also re-arms ``_backfill_split``: the next frame
+        classifies that cycle again.  A newer manual or not attributed cycle
+        keeps its verdict -- the clear is about the scheduled date only.
         """
         if self._last_scheduled_backwash is None:
             return
         self._last_scheduled_backwash = None
         self._last_scheduled_source = None
-        # the verdict on the stored cycle goes with it, so the backfill runs
-        self._last_trigger = None
+        if (
+            self._last_trigger is AsekoBackwashTrigger.SCHEDULED
+            and self._last_manual_backwash is None
+        ):
+            # the verdict on the stored cycle goes with it, so the backfill runs
+            self._last_trigger = None
         _LOGGER.info("Last scheduled backwash cleared for serial=%s", self._serial)
         self._hass.async_create_task(self.async_save())
 

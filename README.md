@@ -394,9 +394,10 @@ cycles that were started by hand — a different thing from a manually entered
 date.
 
 To undo a mistyped date there is `aseko_local.clear_last_scheduled_backwash`,
-which returns the value to unknown (optionally for one `serial_number`). If a
-cycle is on record and no manual cycle has been seen, the next frame classifies
-that cycle again and may fill the value back in — see below.
+which returns the value to unknown (optionally for one `serial_number`). If the
+last cycle was the scheduled one and no manual cycle has been seen, the next
+frame classifies that cycle again and may fill the value back in — see below. A
+newer manual or not attributed cycle keeps its classification.
 
 ### Upgrading from a store that predates the split
 

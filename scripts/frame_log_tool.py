@@ -17,6 +17,7 @@ import argparse
 import base64
 import importlib.util
 import json
+import sys
 import zlib
 from datetime import datetime
 from pathlib import Path
@@ -29,6 +30,8 @@ _spec = importlib.util.spec_from_file_location(
     / "custom_components/aseko_local/recording/frame_log.py",
 )
 _frame_log = importlib.util.module_from_spec(_spec)
+# registered before it runs: its dataclasses look their module up by name
+sys.modules[_spec.name] = _frame_log
 _spec.loader.exec_module(_frame_log)
 decode_lines = _frame_log.decode_lines
 

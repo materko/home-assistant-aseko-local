@@ -1052,3 +1052,70 @@ def test_clearing_re_derives_the_split_after_an_observed_cycle():
     tracker.update(_scheduled_device(False), T0 + timedelta(minutes=5))
 
     assert tracker.last_scheduled_backwash == T0 + timedelta(seconds=45)
+
+
+# ── clear after a newer cycle (audit C2) ─────────────────────────────────────
+
+
+async def _store_roundtrip(tracker: BackwashTracker) -> BackwashTracker:
+    """Save ``tracker`` into a fake Store and load a fresh tracker from it."""
+    saved: dict[str, Any] = {}
+
+    async def save(data):
+        saved.update(data)
+
+    async def load():
+        return dict(saved)
+
+    tracker._store.async_save = save  # type: ignore[method-assign]
+    await tracker.async_save()
+    restored = BackwashTracker(_hass(), serial_number=110071590)
+    restored._store.async_load = load  # type: ignore[method-assign]
+    await restored.async_load()
+    return restored
+
+
+async def test_clearing_the_scheduled_date_keeps_a_newer_manual_verdict():
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    _run_cycle(tracker, T0)  # scheduled
+    _run_service_menu_cycle(tracker, T0 + timedelta(hours=21), True)  # manual
+    assert tracker.last_trigger is AsekoBackwashTrigger.MANUAL
+
+    tracker.clear_last_scheduled_backwash()
+    tracker.update(_salt_device(False, False), T0 + timedelta(hours=22))
+
+    assert tracker.last_scheduled_backwash is None
+    assert tracker.last_trigger is AsekoBackwashTrigger.MANUAL
+    restored = await _store_roundtrip(tracker)
+    assert restored.last_trigger is AsekoBackwashTrigger.MANUAL
+    assert restored.last_scheduled_backwash is None
+
+
+async def test_clearing_the_scheduled_date_keeps_a_newer_not_attributed_verdict():
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    _run_cycle(tracker, T0)  # scheduled
+    _run_service_menu_cycle(tracker, T0 + timedelta(hours=21), False)  # menu closed
+    assert tracker.last_trigger is AsekoBackwashTrigger.UNKNOWN
+
+    tracker.clear_last_scheduled_backwash()
+    tracker.update(_salt_device(False, False), T0 + timedelta(hours=22))
+
+    # the newer cycle is not re-classified into the scheduled bucket
+    assert tracker.last_scheduled_backwash is None
+    assert tracker.last_trigger is AsekoBackwashTrigger.UNKNOWN
+    restored = await _store_roundtrip(tracker)
+    assert restored.last_trigger is AsekoBackwashTrigger.UNKNOWN
+
+
+def test_clearing_keeps_the_scheduled_verdict_when_a_manual_cycle_is_on_record():
+    """An older manual cycle blocks the backfill, so the verdict must not go."""
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    _run_service_menu_cycle(tracker, T0 - timedelta(hours=3), True)  # manual
+    _run_cycle(tracker, T0)  # scheduled, the latest
+    assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
+
+    tracker.clear_last_scheduled_backwash()
+    tracker.update(_scheduled_device(False), T0 + timedelta(minutes=5))
+
+    assert tracker.last_scheduled_backwash is None
+    assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
