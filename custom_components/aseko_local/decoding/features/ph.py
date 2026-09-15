@@ -34,7 +34,4 @@ class Ph(Feature):
     def decode_v8(
         self, frame: V8Frame, device: AsekoDevice
     ) -> float | NotPresent | None:
-        if frame.unspecified("ains", 0):  # -500: no pH probe
-            return NOT_PRESENT
-        raw = frame.value("ains", 0)  # None: unreadable or not sent
-        return None if raw is None else raw / 100
+        return frame.measurement("ains", 0, divisor=100)  # -500: no pH probe

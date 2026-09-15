@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, override
 
 from ..feature import Feature
-from ..presence import NOT_PRESENT
 
 if TYPE_CHECKING:
     from ...models import AsekoDevice
@@ -27,7 +26,4 @@ class WaterTemperature(Feature):
     def decode_v8(
         self, frame: V8Frame, device: AsekoDevice
     ) -> float | NotPresent | None:
-        if frame.unspecified("ins", 0):  # -500: no temperature probe
-            return NOT_PRESENT
-        raw = frame.value("ins", 0)  # None: unreadable or not sent
-        return None if raw is None else raw / 10
+        return frame.measurement("ins", 0, divisor=10)  # -500: no probe

@@ -10,6 +10,7 @@ import re
 from dataclasses import dataclass, field
 
 from ...const import UNSPECIFIED_V8
+from ..presence import NOT_PRESENT, NotPresent
 from .protocol import Protocol
 
 # The sections the features read; a frame without one of them is reported.
@@ -73,6 +74,19 @@ class V8Frame:
         """Return ``get`` as a bool (non-zero is on), or None when it is unreadable or not sent."""
         v = self.get(section, index)
         return None if v is None else bool(v)
+
+    def measurement(
+        self, section: str, index: int, divisor: int
+    ) -> float | NotPresent | None:
+        """Return the value divided by ``divisor``.
+
+        NOT_PRESENT for -500, which marks a probe that is not fitted; None
+        when the value is unreadable or not sent.
+        """
+        if self.unspecified(section, index):
+            return NOT_PRESENT
+        v = self.value(section, index)
+        return None if v is None else v / divisor
 
 
 @dataclass(frozen=True)

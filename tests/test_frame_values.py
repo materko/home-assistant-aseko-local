@@ -47,3 +47,11 @@ def test_v8_flag() -> None:
     assert frame.flag("outs", 3) is None  # unreadable token
     assert frame.flag("outs", 9) is None  # section too short
     assert frame.flag("ins", 0) is None  # section not sent
+
+
+def test_v8_measurement() -> None:
+    frame = _v8(ains=[708, -500, None])
+    assert frame.measurement("ains", 0, divisor=100) == 7.08
+    assert frame.measurement("ains", 1, divisor=100) is NOT_PRESENT  # probe not fitted
+    assert frame.measurement("ains", 2, divisor=100) is None  # unreadable token
+    assert frame.measurement("ains", 7, divisor=100) is None  # not sent
