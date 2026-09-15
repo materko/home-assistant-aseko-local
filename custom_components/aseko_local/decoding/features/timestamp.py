@@ -10,6 +10,7 @@ import homeassistant.util
 
 from ..feature import Feature
 from ..frames import decode_timestamp
+from ..frames.values import unit_clock_v8
 
 if TYPE_CHECKING:
     from ...models import AsekoDevice
@@ -30,17 +31,9 @@ class Timestamp(Feature):
     def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> datetime:
         """Today's date from Home Assistant's clock, hour and minute from ins[16:18]."""
         now = datetime.now(tz=homeassistant.util.dt.get_default_time_zone())
-        hour = frame.get("ins", 16)
-        minute = frame.get("ins", 17)
-        if hour is None or minute is None:
+        clock = unit_clock_v8(frame.get("ins", 16), frame.get("ins", 17))
+        if clock is None:
             return now
-        try:
-            return now.replace(hour=hour, minute=minute, second=0, microsecond=0)
-        except ValueError as exc:
-            _LOGGER.debug(
-                "v8 frame contains invalid time %02d:%02d (%s) - using now()",
-                hour,
-                minute,
-                exc,
-            )
-            return now
+        return now.replace(
+            hour=clock.hour, minute=clock.minute, second=0, microsecond=0
+        )

@@ -189,16 +189,18 @@ If you want to keep sending the data to Aseko Cloud, you had to use a TCP proxy 
 
 ### Unit clock
 
-Every ASIN Aqua Home, Salt, Oxygen and Profi, and every v8 unit, sends its own clock with each frame (v7 date and time to the second, v8 hour and minute). The ASIN Aqua Net on firmware v7 sends none, so it has neither entity below.
+An ASIN Aqua Home, Salt and Oxygen sends its own clock with each frame as date and time to the second, and an ASIN Aqua Net on firmware v8 as hour and minute; the Profi and a v8 Salt are assumed to do the same (see the [support matrix](docs/support_matrix.md), `unit_clock`). The ASIN Aqua Net on firmware v7 sends none, so it has neither entity below.
 
 | Entity | What it shows |
 |---|---|
 | `sensor.…_clock_offset` | Minutes the unit's clock is **ahead** of Home Assistant's when the frame arrives; negative means it runs late. The median of the last three frames, so one late frame does not move it. |
-| `binary_sensor.…_clock_out_of_sync` | On when the last three frames are all at least the limit off (either way); off again when all three are under the limit minus a fifth of it (12 minutes for 15), at least a minute under. Unknown until three frames have arrived. |
+| `binary_sensor.…_clock_out_of_sync` | On when the last three frames are all at least the limit off (either way) — also right after a start; off again when all three are under the limit minus a fifth of it, at most 3 minutes (12 minutes for 15, 48 seconds for 1). Anything else keeps the state it had, and is off before it has ever been on. Unknown until three frames have arrived. |
 
 The limit is **15 minutes** by default; change *Alert when the unit clock is off by (minutes)* in the integration's settings (the same dialog as the forwarder). Both entities are diagnostic, so an automation on `clock_out_of_sync` is the way to get a notification.
 
-The unit may not switch between summer and winter time on its own, and its clock drifts over weeks; an offset near ±60 minutes after a change of time is the typical sign. While no frames arrive both entities keep their last value — see `connection_status` for whether they are fresh. The backwash classification and `next_scheduled_backwash` take the offset into account — see [Backwash](#backwash-asin-aqua-home-salt-oxygen-profi).
+A v8 unit sends no date and only whole minutes: its offset is read to about a minute and within ±12 hours, so a clock a day off is not seen.
+
+The unit may not switch between summer and winter time on its own, and its clock drifts over weeks; an offset near ±60 minutes after a change of time is the typical sign, though not proof. The integration never sets the unit's clock. While no frames arrive both entities keep their last value — see `connection_status` for whether they are fresh. The backwash classification and `next_scheduled_backwash` take the offset into account — see [Backwash](#backwash-asin-aqua-home-salt-oxygen-profi).
 
 ## Chemical consumption & canister management
 
@@ -332,7 +334,7 @@ History, recorded live and persisted across restarts. **These are not all equall
 | `sensor.last_backwash` | Last cycle, whatever started it. **Unknown** until one is seen | Observed | n/a — it holds every cycle |
 | `datetime.last_scheduled_backwash` | Last cycle that looked like the unit's own scheduled run — **and settable**, see below | Observed *or* entered by hand — see its `source` attribute | Estimated |
 | `sensor.last_manual_backwash` | Last cycle classified as manual (a not attributed cycle does not move it) | Observed | Estimated |
-| `sensor.next_scheduled_backwash` | Projected next automatic cycle. **Unknown** until a scheduled cycle is known | **Calculated** | Inherited |
+| `sensor.next_scheduled_backwash` | Projected next automatic cycle. **Unknown** until a scheduled cycle is known or the schedule was changed | **Calculated** | Inherited |
 
 The two columns matter separately. A cycle the integration watched has a
 timestamp from the frames (accurate to about one transmit interval) — what is
@@ -361,9 +363,9 @@ A not attributed cycle updates `sensor.last_backwash` only; `last_scheduled_back
 
 `next_scheduled_backwash` is projected from the last **scheduled** cycle: the day of the `backwash_time` slot that cycle belonged to (fixed when the cycle is recorded; the day before when it ran past midnight), plus the configured interval, stepped forward if cycles were missed while Home Assistant was down. A manual backwash deliberately does not move it — starting one by hand does not tell us (nor, on the unit, change) the schedule phase. Since it builds on the classification, it inherits any error in it.
 
-**Changing the schedule** restarts it. When a frame shows a new `backwash_time` or `backwash_every_n_days`, or the schedule switched back on (every N days from 0), the unit runs the next backwash **the day after the change** at the (new) time, and counts the interval from that cycle (checked on an ASIN Aqua Salt). `next_scheduled_backwash` shows that day until the cycle has been seen; switching the schedule off shows unknown. A change made while Home Assistant was not running is noticed on the first frame after it starts, and taken as made then.
+**Changing the schedule** restarts it. When a frame shows a new `backwash_time` or `backwash_every_n_days`, or the schedule switched back on (every N days from 0), the unit runs the next backwash **the day after the change** at the (new) time, and counts the interval from that cycle. This was checked on an ASIN Aqua Salt; the Home, Oxygen and Profi are assumed to behave the same. `next_scheduled_backwash` shows that day until the cycle has been seen; switching the schedule off shows unknown. A change made while Home Assistant was not running is noticed on the first frame after it starts, and taken as made then.
 
-The projected time keeps the **minutes set on the unit**. It moves only by whole hours of `clock_offset` — a unit that did not switch to or from summer time runs an hour away from Home Assistant, and the projection shows that hour. A drift of a few minutes is not added: `clock_offset` says how many minutes the unit is ahead (or behind) if you need the exact moment.
+The projected time keeps the **minutes set on the unit**, so it reads like the unit's menu. It moves only by the **whole hours** of `clock_offset`, minutes dropped: a unit that did not switch to or from summer time runs an hour away from Home Assistant, and the projection shows that hour. 59 minutes ahead moves nothing, 65 minutes one hour. The minutes of drift are not added either — for the exact moment on Home Assistant's clock, subtract `clock_offset` from the projected time.
 
 > **Upgrading:** `sensor.next_backwash` was renamed to `sensor.next_scheduled_backwash`. The integration rewrites the entity registry on startup, so the entity keeps its `entity_id`, its recorded history and any automation or dashboard pointing at it — only the displayed name changes.
 

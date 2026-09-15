@@ -84,23 +84,13 @@ def time_or_absent(data: bytes) -> time | NotPresent:
     return NOT_PRESENT if value is None else value
 
 
-def decode_timestamp(data: bytes) -> datetime:
-    """Decode the device clock from bytes 6-11, falling back to now()."""
-    if (
-        len(data) < 12
-        or data[6] == UNSPECIFIED_VALUE
-        or data[7] == UNSPECIFIED_VALUE
-        or data[8] == UNSPECIFIED_VALUE
-        or data[9] == UNSPECIFIED_VALUE
-        or data[10] == UNSPECIFIED_VALUE
-        or data[11] == UNSPECIFIED_VALUE
-    ):
-        _LOGGER.info(
-            "Received unspecified timestamp - falling back to now(). Frame: %s",
-            data.hex(),
-        )
-        return datetime.now(tz=homeassistant.util.dt.get_default_time_zone())
+def unit_clock_v7(data: bytes) -> datetime | None:
+    """The unit's clock from bytes 6-11 as sent, or None when unset or not a date.
 
+    Wall-clock time in Home Assistant's time zone: the unit sends no zone.
+    """
+    if len(data) < 12 or UNSPECIFIED_VALUE in data[6:12]:
+        return None
     try:
         return datetime(
             year=YEAR_OFFSET + data[6],
@@ -111,10 +101,29 @@ def decode_timestamp(data: bytes) -> datetime:
             second=data[11],
             tzinfo=homeassistant.util.dt.get_default_time_zone(),
         )
-    except ValueError as e:
+    except ValueError:
+        return None
+
+
+def unit_clock_v8(hour: int | None, minute: int | None) -> time | None:
+    """A v8 unit's clock (hour and minute, no date), or None when not valid."""
+    if hour is None or minute is None:
+        return None
+    try:
+        return time(hour, minute)
+    except (TypeError, ValueError):
+        return None
+
+
+def decode_timestamp(data: bytes) -> datetime:
+    """Decode the device clock from bytes 6-11, falling back to now()."""
+    clock = unit_clock_v7(data)
+    if clock is not None:
+        return clock
+    if len(data) >= 12 and UNSPECIFIED_VALUE not in data[6:12]:
+        # filled in, but not a date: worth a look, unlike the routine unset
+        # bytes of a unit that sends no clock (v7 NET)
         _LOGGER.warning(
-            "Received invalid timestamp (%s) - falling back to now(). Frame: %s",
-            e,
-            data.hex(),
+            "Received invalid timestamp %s - falling back to now()", data[6:12].hex()
         )
-        return datetime.now(tz=homeassistant.util.dt.get_default_time_zone())
+    return datetime.now(tz=homeassistant.util.dt.get_default_time_zone())

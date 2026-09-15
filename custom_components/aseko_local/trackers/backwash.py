@@ -32,9 +32,11 @@ rather than inference — outside the schedule window.  In the window a cycle
 is always SCHEDULED; outside it with the menu closed it is UNKNOWN: nobody was
 at the menu and the schedule does not explain it.  See ``_service_menu_open``.
 
-Nothing is guessed before the first observation, though: every value starts out
-as ``None``: until a cycle has actually been seen, the honest answer is
-"unknown" rather than a timestamp derived from the schedule.
+Nothing is guessed before the first observation, though: every recorded value
+starts out as ``None``: until a cycle has actually been seen, the honest answer
+is "unknown" rather than a timestamp derived from the schedule.  The one
+projection made without an observed cycle is the day after a schedule change
+(below), because the unit itself fixes that day.
 
 The last scheduled cycle is what drives the "next backwash" projection — a
 manual backwash does not reveal (nor, on the unit, reset) the schedule phase.
@@ -47,9 +49,9 @@ until a scheduled cycle on it, or later, has been seen.
 The schedule is set on the unit's own clock, which runs apart from Home
 Assistant's (``trackers.clock``).  Once the offset is measured, classification
 compares the cycle's start with the schedule on the unit's clock, within the
-tighter ``OFFSET_MATCH_TOLERANCE``.  The projection shifts only by whole hours
-of that offset (a unit left on summer time): the minutes stay as they are set
-on the unit, and ``clock_offset`` tells how far they are off.
+tighter ``OFFSET_MATCH_TOLERANCE``.  The projection shifts only by the whole hours
+of that offset, minutes dropped (a unit left on summer time): the minutes stay
+as they are set on the unit, and ``clock_offset`` tells how far they are off.
 
 The recorded timestamps are stored persistently via the Home Assistant
 ``Store`` API and survive:
@@ -455,10 +457,15 @@ class BackwashTracker:
 
     @property
     def _hour_shift(self) -> timedelta:
-        """The offset in whole hours: what the projection moves the slot by."""
+        """The whole hours of the offset, minutes dropped: what the projection moves by.
+
+        Only a change of time (summer / winter, a clock set an hour off) is
+        meant to move the projected slot, and that is always whole hours:
+        59 minutes ahead moves nothing, 65 moves one hour, -125 two back.
+        """
         if self._clock_offset_minutes is None:
             return timedelta(0)
-        return timedelta(hours=round(self._clock_offset_minutes / 60))
+        return timedelta(hours=int(self._clock_offset_minutes / 60))
 
     def _on_unit_clock(self, moment: datetime) -> datetime:
         """``moment`` (Home Assistant's clock) as the unit's clock shows it."""

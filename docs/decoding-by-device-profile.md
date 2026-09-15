@@ -17,7 +17,7 @@ The picture is generated from [`images/src/aseko-architecture.html`](images/src/
 | `decoding/` | Bytes → `AsekoDevice`. No entities, no coordinator; from Home Assistant it uses only the time zone helpers, for the unit's clock and a missing timestamp. |
 | `coordinator.py` | Keeps the latest `AsekoDevice` per serial, merges feature sets, notifies platforms, owns the frame log and consumption store, waits for frames for `mark_dump`. |
 | `entity.py` + platforms | Entities for every value the model can have (see [Entity lifecycle](#entity-lifecycle)). |
-| `trackers/` | State the frame does not carry: backwash history, chemical consumption (exact ml, HA Store). |
+| `trackers/` | State the frame does not carry: backwash history and schedule restarts, chemical consumption (exact ml, HA Store), the unit clock offset and its out-of-sync alert (`clock.py`, not stored). |
 | `recording/` | Frame log with markers, photos, HTTP views and the test cases card. |
 | `diagnostics.py` | Per unit: annotated raw frame, `profile`, `reading_overrides`, `frame_problems`, `possible_features`, `not_present_now`, frame warnings. For the entry: unrecognised units, rejected frames, `frame_log_enabled`, frame log. |
 
@@ -28,7 +28,7 @@ decoding/
   __init__.py      decode(raw, protocol=None) — the one entry point
   frames/          parse_frame: v7.py (120-byte view), v8.py (sections + problems), values.py, protocol.py
   feature.py       Feature base class, NOT_LOCATED readings
-  features/        one file per AsekoDevice field (71), ALL_FEATURES
+  features/        one file per AsekoDevice field, ALL_FEATURES (the support matrix lists them)
   profile.py       Profile class, v7 unit type → model
   profiles/
     __init__.py    ALL_PROFILES, FALLBACK_PROFILES, detect_profile, profile_named

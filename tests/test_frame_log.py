@@ -523,3 +523,33 @@ def test_an_open_record_without_a_time_leaves_the_log_empty() -> None:
     restored = FrameLog()
     restored.load_store(stored)  # must not raise
     assert restored.records() == []
+
+
+def test_records_and_export_come_from_one_read() -> None:
+    """Audit O1: the export download reads the snapshot once for both."""
+    log = FrameLog(max_bytes=4096, chunk_bytes=1024, chunk_raw_bytes=512)
+    for i, (received, raw) in enumerate(_v8_frames(120)):
+        log.append_frame(received, KIND_V8, raw)
+        if i % 40 == 0:
+            log.append_marker(received, note=f"case {i}")
+    snapshot = log.snapshot()
+
+    reads = 0
+    lines = type(snapshot).lines
+
+    def counting_lines(self):
+        nonlocal reads
+        reads += 1
+        return lines(self)
+
+    type(snapshot).lines = counting_lines
+    try:
+        records, exported = snapshot.records_and_export()
+    finally:
+        type(snapshot).lines = lines
+
+    assert reads == 1
+    assert records == snapshot.records()
+    assert exported == snapshot.export()
+    blob = zlib.decompress(base64.b64decode(exported["blob"]))
+    assert list(decode_lines(blob.splitlines(keepends=True))) == records

@@ -216,7 +216,7 @@ Caution: the Issue #84 SALT (v5.0) shows `byte[37]` = `0x13` while set to algici
 - Opening it produces exactly one more frame (the one with 0x04), then transmission stops until the user leaves. Three diagnostics during one session all held the same frame, with `online` going false between them. So `service_menu_open` going True is typically the last thing reported before the device goes offline, and stays True until the user leaves.
 - What the user does in the menu is not observable; the pump state in that last frame is the state on the way in. The unit will not let the user leave until filtration is back in its previous state, so the held value is right again when frames resume.
 - Not evidence that the schedule is suspended: in the 2026-08-11 capture the pump kept running, and period 1 covered that time anyway.
-- Changing the backwash time or interval, or switching the schedule off and on, restarts it: the next backwash runs the day after the change at the set time, and the interval counts from it (checked on the unit, 2026-09-13 and 2026-09-14).
+- Changing the backwash time or interval, or switching the schedule off and on, restarts it: the next backwash runs the day after the change at the set time, and the interval counts from it (checked on the unit, 2026-09-13 and 2026-09-14). The integration applies the same rule to HOME, OXY and PROFI without such a check.
 - Exception, by-hand **backwash**: the unit keeps transmitting, with 0x04 set from ~30 s before the valve opens until ~20 s after it closes. The backwash tracker uses it outside the schedule window: a cycle there with the menu open is manual, with the menu closed not attributed. In the schedule window a cycle is scheduled either way.
 
 ### Filtration schedule and period 2

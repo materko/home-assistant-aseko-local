@@ -20,6 +20,7 @@ from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.core import HomeAssistant
 
 from . import AsekoLocalConfigEntry
+from .decoding.frames.v8 import parse_v8_sections
 from .decoding.profiles import profile_named
 from .trackers.consumption import PUMP_KEYS
 
@@ -102,9 +103,9 @@ _BYTE_LABELS: dict[int, str] = {
     98: "unknown",
     99: "chlorine_flow_rate (ml/min)",
     100: "unknown",
-    101: "flocculant_flow_rate (ml/min)",
+    101: "flocculant_flow_rate (ml/min); SALT/PROFI: algaecide_flow_rate instead when byte[37] 0x80 is set",
     102: "water_level_low_alarm (cm)",
-    103: "water_level_refill_start (cm) / algaecide_flow_rate (ml/min) on HOME & OXY – conflicting",
+    103: "water_level_refill_start (cm) on SALT/HOME; algaecide_flow_rate (ml/min) on OXY",
     104: "water_level_refill_stop (cm)",
     105: "water_level_high_alarm (cm)",
     106: "dosing_delay[hi]",
@@ -164,8 +165,6 @@ _V8_REQS_LABELS: dict[int, str] = {
     7: "filtration_hours_per_day (unconfirmed)",
 }
 
-_SECTION_RE = re.compile(r"(\w+):\s*(.*?)(?=\s+\w+:|$)", re.DOTALL)
-
 
 def _annotated_frame(raw: bytes) -> list[dict[str, Any]]:
     """Return a list of dicts describing every byte in the raw frame."""
@@ -185,7 +184,7 @@ def _annotated_frame(raw: bytes) -> list[dict[str, Any]]:
 
 
 def _annotated_v8_section(
-    values: list[int], labels: dict[int, str]
+    values: list[int | None], labels: dict[int, str]
 ) -> list[dict[str, Any]]:
     """Return annotated list for a single v8 section."""
     return [
@@ -225,19 +224,19 @@ def _parse_v8_frame(raw: bytes) -> dict[str, Any] | None:
         "areqs": _V8_AREQS_LABELS,
         "reqs": _V8_REQS_LABELS,
     }
-    for match in _SECTION_RE.finditer(body):
-        name = match.group(1)
-        raw_values_str = match.group(2).strip()
-        try:
-            values = [int(v) for v in raw_values_str.split()]
-        except ValueError:
-            sections[name] = {"raw": raw_values_str}
-            continue
-        labels = section_labels.get(name, {})
-        sections[name] = {
-            "values": values,
-            "annotated": _annotated_v8_section(values, labels),
+    # read the way the decoder reads it: crc16 hexadecimal, an unreadable
+    # token None with the rest of its section kept
+    for section in parse_v8_sections(body):
+        entry: dict[str, Any] = {
+            "values": section.values,
+            "annotated": _annotated_v8_section(
+                section.values, section_labels.get(section.name, {})
+            ),
         }
+        if section.unreadable:
+            entry["raw"] = section.text
+            entry["unreadable"] = list(section.unreadable)
+        sections[section.name] = entry
 
     return {
         "raw_text": text,
@@ -398,8 +397,13 @@ def _raw_frames(coordinator: Any, serial: int) -> dict[str, Any]:
 async def async_get_config_entry_diagnostics(
     hass: HomeAssistant,
     config_entry: AsekoLocalConfigEntry,
+    *,
+    frame_log_export: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Return diagnostics for a config entry."""
+    """Return diagnostics for a config entry.
+    ``frame_log_export``: the frame log already exported from a snapshot
+    (the export download reads it once for its frames and this).
+    """
 
     coordinator = config_entry.runtime_data.coordinator
     devices = coordinator.get_devices() or []
@@ -459,7 +463,11 @@ async def async_get_config_entry_diagnostics(
         "rejected_frames": getattr(coordinator, "get_rejected_frames", dict)(),
         # the test cases card turns it on; off, the log below is what it held
         "frame_log_enabled": coordinator.frame_log.enabled,
-        "frame_log": await hass.async_add_executor_job(
-            coordinator.frame_log.snapshot().export
+        "frame_log": (
+            frame_log_export
+            if frame_log_export is not None
+            else await hass.async_add_executor_job(
+                coordinator.frame_log.snapshot().export
+            )
         ),
     }

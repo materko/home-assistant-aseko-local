@@ -10,6 +10,7 @@ is off.  This field keeps only what the unit sent, for ``trackers.clock``:
 
 None when the bytes are unset or not a valid date.  A model that never
 sends its clock (v7 NET: 0xFF on every frame) does not list the feature.
+Both readings share their byte rules with ``timestamp`` (``frames.values``).
 """
 
 from __future__ import annotations
@@ -17,16 +18,12 @@ from __future__ import annotations
 from datetime import datetime, time
 from typing import TYPE_CHECKING
 
-import homeassistant.util
-
-from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
+from ..frames.values import unit_clock_v7, unit_clock_v8
 
 if TYPE_CHECKING:
     from ...models import AsekoDevice
     from ..frames import V7Frame, V8Frame
-
-YEAR_OFFSET = 2000
 
 
 class UnitClock(Feature):
@@ -35,28 +32,7 @@ class UnitClock(Feature):
     field = "unit_clock"
 
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> datetime | None:
-        data = frame.raw
-        if len(data) < 12 or UNSPECIFIED_VALUE in data[6:12]:
-            return None
-        try:
-            return datetime(
-                YEAR_OFFSET + data[6],
-                data[7],
-                data[8],
-                data[9],
-                data[10],
-                data[11],
-                tzinfo=homeassistant.util.dt.get_default_time_zone(),
-            )
-        except ValueError:
-            return None
+        return unit_clock_v7(frame.raw)
 
     def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> time | None:
-        hour = frame.get("ins", 16)
-        minute = frame.get("ins", 17)
-        if hour is None or minute is None:
-            return None
-        try:
-            return time(hour, minute)
-        except (TypeError, ValueError):
-            return None
+        return unit_clock_v8(frame.get("ins", 16), frame.get("ins", 17))

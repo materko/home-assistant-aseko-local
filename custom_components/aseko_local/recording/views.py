@@ -288,15 +288,19 @@ class AsekoExportView(HomeAssistantView):
             markers = [m for m in log.markers() if not (only_new and m["downloaded"])]
             wanted_photos.update(m["photo"] for m in markers if m.get("photo"))
             newest[entry.entry_id] = max((m["n"] for m in log.markers()), default=0)
-            snapshot = log.snapshot()
+            # one snapshot for the frames and the diagnostics' frame log, read
+            # once: both from the same moment
+            records, frame_log = await hass.async_add_executor_job(
+                log.snapshot().records_and_export
+            )
             entries.append(
                 {
                     "title": entry.title,
                     "entry_id": entry.entry_id,
-                    "records": await hass.async_add_executor_job(snapshot.records),
+                    "records": records,
                     "cases": markers,
                     "diagnostics": await async_get_config_entry_diagnostics(
-                        hass, entry
+                        hass, entry, frame_log_export=frame_log
                     ),
                 }
             )

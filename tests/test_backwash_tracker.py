@@ -1318,3 +1318,27 @@ async def test_schedule_restart_and_offset_survive_a_restart():
     assert restored.next_scheduled_backwash(
         _clocked(False, None, every=7), T0 + timedelta(hours=4)
     ) == T0 + timedelta(days=2)
+
+
+@pytest.mark.parametrize(
+    ("offset", "hours"),
+    [
+        (29.9, 0),
+        (30.1, 0),
+        (59.9, 0),
+        (60.0, 1),
+        (119.0, 1),
+        (125.0, 2),
+        (-59.0, 0),
+        (-61.0, -1),
+    ],
+)
+def test_the_projection_moves_by_the_whole_hours_of_the_offset(offset, hours):
+    """R2: only a change of time moves it, and that is whole hours."""
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    tracker._clock_offset_minutes = offset  # type: ignore[attr-defined]
+    tracker.set_last_scheduled_backwash(T0)
+
+    assert tracker.next_scheduled_backwash(
+        _clocked(False, offset), T0 + timedelta(hours=3)
+    ) == T0 + timedelta(days=SCHEDULE_EVERY_N_DAYS, hours=-hours)

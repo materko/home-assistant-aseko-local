@@ -175,8 +175,14 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
 
         new_data: AsekoData = AsekoData() if self.data is None else self.data
 
-        existing_serials = [d.serial_number for d in (new_data.get_all() or [])]
-        _LOGGER.debug("🔎 Before update: known serials=%s", existing_serials)
+        # one moment for everything this frame updates
+        received_at = dt_util.now()
+
+        if _LOGGER.isEnabledFor(logging.DEBUG):
+            _LOGGER.debug(
+                "🔎 Before update: known serials=%s",
+                [d.serial_number for d in (new_data.get_all() or [])],
+            )
 
         is_new_device = False
         grown: frozenset[str] = frozenset()
@@ -194,20 +200,20 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
             # attributes off this object onto the stored one, and anything
             # written afterwards would never reach the entities.
             # the clock first: the backwash tracker reads its offset
-            self._update_clock(device)
-            self._update_backwash(device)
+            self._update_clock(device, received_at)
+            self._update_backwash(device, received_at)
 
             new_data.set(device.serial_number, device)
 
             # Stamp server-side receive time (independent of device clock)
             stored = new_data.get(device.serial_number)
             if stored is not None:
-                stored.last_seen = dt_util.now()
+                stored.last_seen = received_at
 
             # Update consumption tracker for this device
             if device.serial_number not in self._trackers:
                 self._trackers[device.serial_number] = AsekoConsumptionTracker()
-            self._trackers[device.serial_number].update(device, dt_util.now())
+            self._trackers[device.serial_number].update(device, received_at)
             self._request_consumption_save()
 
             _LOGGER.debug(
@@ -283,7 +289,7 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         device.features = device.features | existing.features
         return grown
 
-    def _update_backwash(self, device: AsekoDevice) -> None:
+    def _update_backwash(self, device: AsekoDevice, now: datetime) -> None:
         """Feed the frame to the device's BackwashTracker and publish its state.
 
         The device transmits only the backwash *configuration* and the live
@@ -308,11 +314,10 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
             self.hass.async_create_task(new_tracker.async_load())
 
         tracker = self._backwash_trackers[serial]
-        now = dt_util.now()
         tracker.update(device, now)
         self._publish_backwash(device, tracker, now)
 
-    def _update_clock(self, device: AsekoDevice) -> None:
+    def _update_clock(self, device: AsekoDevice, received_at: datetime) -> None:
         """Compare the unit's clock with Home Assistant's; publish the result."""
         serial = device.serial_number
         if serial is None:
@@ -325,7 +330,7 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
                 )
             )
             self._clock_trackers[serial] = tracker
-        tracker.update(device.unit_clock, dt_util.now())
+        tracker.update(device.unit_clock, received_at)
         device.clock_offset = tracker.offset_minutes
         device.clock_out_of_sync = tracker.out_of_sync
 

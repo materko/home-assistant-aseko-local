@@ -411,8 +411,19 @@ class FrameLogSnapshot:
 
     def export(self, recent: int = 20) -> dict[str, Any]:
         """The buffer for the diagnostics download."""
-        records = self.records()
-        return {
+        return self.records_and_export(recent)[1]
+
+    def records_and_export(
+        self, recent: int = 20
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        """``records()`` and ``export()`` from a single decompression.
+
+        The export download needs both; reading the chunks once gives them
+        from the same moment and does not unpack the log three times.
+        """
+        data = b"".join(self.lines())
+        records = list(decode_lines(data.splitlines(keepends=True)))
+        return records, {
             "about": (
                 "Raw frames and mark_dump markers in the order Home Assistant "
                 "received them. 'blob' is the whole buffer: base64 of zlib-compressed "
@@ -426,5 +437,5 @@ class FrameLogSnapshot:
             "dropped_chunks": self.dropped_chunks,
             "markers": [r for r in records if r.get("k") == KIND_MARK],
             "recent": records[-recent:],
-            "blob": base64.b64encode(zlib.compress(b"".join(self.lines()), 9)).decode(),
+            "blob": base64.b64encode(zlib.compress(data, 9)).decode(),
         }

@@ -15,10 +15,12 @@ late or odd frame does not move it.  ``out_of_sync`` needs every one of the
 last ``SAMPLES`` readings on the same side:
 
 * on  -- all at least ``alert_minutes`` off;
-* off -- all less than ``alert_minutes`` minus the hysteresis (a fifth of the
-  limit, at least a minute: 12 min for the default 15);
-* in between it keeps what it was; the first answer, before there is one,
-  goes by the median.  With fewer readings it is None.
+* off -- all less than ``alert_minutes`` minus the hysteresis: a fifth of the
+  limit, at most 3 minutes (12 min for the default 15, 48 s for 1 min, 177 min
+  for 180), so it can always clear;
+* in between it keeps what it was.  Before it has been on, anything that is
+  not three readings past the limit is off: turning on always takes three.
+  With fewer readings than that it is None.
 
 Nothing is compared while no frames arrive, so an offline unit keeps its last
 offset instead of drifting further away from a clock that moves on.  Nothing
@@ -62,7 +64,7 @@ class ClockTracker:
     @property
     def _clear_below_seconds(self) -> float:
         limit = self.alert_minutes * 60
-        return limit - max(60.0, limit / 5)
+        return limit - min(180.0, limit / 5)
 
     def update(self, unit_clock: datetime | time | None, received: datetime) -> None:
         """Take one frame's clock reading; None (not sent, not valid) is skipped."""
@@ -75,8 +77,9 @@ class ClockTracker:
         limit = self.alert_minutes * 60
         if all(abs(s) >= limit for s in self._samples):
             self.out_of_sync = True
-        elif all(abs(s) < self._clear_below_seconds for s in self._samples):
+        elif (
+            all(abs(s) < self._clear_below_seconds for s in self._samples)
+            or self.out_of_sync is None
+        ):
+            # the first answer is off unless three readings say otherwise
             self.out_of_sync = False
-        elif self.out_of_sync is None:
-            # the first answer, from readings that straddle the band
-            self.out_of_sync = abs(median(self._samples)) >= limit

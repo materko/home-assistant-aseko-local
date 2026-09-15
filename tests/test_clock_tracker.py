@@ -146,9 +146,35 @@ def test_it_clears_only_below_the_hysteresis():
     assert tracker.out_of_sync is False
 
 
-def test_first_answer_inside_the_band_goes_by_the_median():
+@pytest.mark.parametrize("readings", [[20, 20, 0], [0, 20, 20], [-20, 0, -20]])
+def test_turning_on_takes_three_readings_even_at_the_start(readings):
+    """Audit K2: two readings past the limit out of three are not enough."""
+    tracker = ClockTracker()
+    _feed(tracker, readings)
+    assert tracker.out_of_sync is False
+
+
+def test_a_first_window_inside_the_band_is_off():
     tracker = ClockTracker()
     _feed(tracker, [13.0, 16.0, 13.5])
+    assert tracker.out_of_sync is False
+
+
+@pytest.mark.parametrize(
+    ("limit", "clears_below"),
+    [(1, 48), (2, 96), (10, 480), (15, 720), (180, 10620)],
+)
+def test_every_limit_can_clear(limit, clears_below):
+    """Audit K1: the hysteresis is a fifth of the limit, at most 3 min."""
+    tracker = ClockTracker(alert_minutes=limit)
+    _feed(tracker, [limit * 2] * SAMPLES)
+    assert tracker.out_of_sync is True
+
+    # exactly on the line still counts as off the limit
+    _feed(tracker, [clears_below / 60] * SAMPLES, T0 + timedelta(minutes=5))
+    assert tracker.out_of_sync is True
+
+    _feed(tracker, [0.0] * SAMPLES, T0 + timedelta(minutes=10))
     assert tracker.out_of_sync is False
 
 
@@ -156,7 +182,7 @@ def test_the_limit_can_be_set_lower():
     tracker = ClockTracker(alert_minutes=5)
     _feed(tracker, [5.1, 5.3, 5.5])
     assert tracker.out_of_sync is True
-    # the hysteresis never goes under a minute
+    # a fifth of the limit: off again below 4 minutes
     _feed(tracker, [4.5] * SAMPLES, T0 + timedelta(minutes=5))
     assert tracker.out_of_sync is True
     _feed(tracker, [3.9] * SAMPLES, T0 + timedelta(minutes=10))

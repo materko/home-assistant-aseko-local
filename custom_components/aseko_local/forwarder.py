@@ -129,11 +129,12 @@ class AsekoCloudMirror:
                 # Send the frame
                 try:
                     self._writer.write(frame)
-                    _LOGGER.debug(
-                        "Frame to cloud sent (%d Bytes):\n%s",
-                        len(frame),
-                        frame.hex(" ", 1),
-                    )
+                    if _LOGGER.isEnabledFor(logging.DEBUG):
+                        _LOGGER.debug(
+                            "Frame to cloud sent (%d Bytes):\n%s",
+                            len(frame),
+                            frame.hex(" ", 1),
+                        )
                     await self._writer.drain()
                     pending = None
                     backoff = 1.0

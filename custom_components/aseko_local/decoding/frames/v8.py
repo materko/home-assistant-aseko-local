@@ -70,6 +70,43 @@ class V8Frame:
         return None if v is None or v == UNSPECIFIED_V8 else v
 
 
+@dataclass(frozen=True)
+class V8Section:
+    """One ``name: values`` part of a v8 frame as the parser read it."""
+
+    name: str
+    text: str
+    #: None where a token is not a number
+    values: list[int | None]
+    #: indexes of the tokens that are not numbers
+    unreadable: tuple[int, ...]
+
+
+def parse_v8_sections(body: str) -> list[V8Section]:
+    """Every section of a v8 frame body, header excluded.
+
+    ``crc16`` is hexadecimal, every other section decimal.  One unreadable
+    token reads None and leaves the rest of its section standing.  Shared by
+    the decoder and the diagnostics download, so both read a frame alike.
+    """
+    sections: list[V8Section] = []
+    for m in _SECTION_RE.finditer(body):
+        name = m.group(1)
+        if name == "v1":
+            continue  # header
+        base = 16 if name == "crc16" else 10
+        values: list[int | None] = []
+        unreadable: list[int] = []
+        for index, token in enumerate(m.group(2).split()):
+            try:
+                values.append(int(token, base))
+            except ValueError:
+                values.append(None)
+                unreadable.append(index)
+        sections.append(V8Section(name, m.group(2).strip(), values, tuple(unreadable)))
+    return sections
+
+
 def parse_v8(raw: bytes) -> V8Frame:
     """Parse a v8 text frame.  Raises ValueError if it cannot be parsed."""
     try:
@@ -90,27 +127,15 @@ def parse_v8(raw: bytes) -> V8Frame:
     sections: dict[str, list[int | None]] = {}
     problems: list[str] = []
     unexpected = False
-    for m in _SECTION_RE.finditer(body):
-        name = m.group(1)
-        if name == "v1":
-            continue  # header - already parsed
+    for section in parse_v8_sections(body):
+        name = section.name
         if name not in KNOWN_SECTIONS:
             unexpected = True
-        # crc16 is hex; every other section is decimal
-        base = 16 if name == "crc16" else 10
-        values: list[int | None] = []
-        for index, token in enumerate(m.group(2).split()):
-            try:
-                values.append(int(token, base))
-            except ValueError:
-                # One unreadable value must not blank the whole section: the
-                # others are still good, and this one reads as unknown.
-                values.append(None)
-                # the place only: a changing bad token must not make a new
-                # kind of problem every frame (the raw frame keeps the token)
-                if name in KNOWN_SECTIONS:
-                    problems.append(f"{name}[{index}] is not a number")
-        sections[name] = values
+        elif section.unreadable:
+            # the place only: a changing bad token must not make a new kind
+            # of problem every frame (the raw frame keeps the token)
+            problems.extend(f"{name}[{i}] is not a number" for i in section.unreadable)
+        sections[name] = section.values
     if unexpected:
         problems.append("unexpected section")
     problems.extend(
