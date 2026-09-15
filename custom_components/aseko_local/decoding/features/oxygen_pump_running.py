@@ -7,7 +7,7 @@ reading shows the port is configured (see oxygen_flow_rate).
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ..feature import Feature
 from ..presence import NOT_PRESENT
@@ -28,6 +28,7 @@ class OxygenPumpRunning(Feature):
     field = "oxygen_pump_running"
     depends_on = (OxygenFlowRate,)
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool | NotPresent:
         if device.oxygen_flow_rate is None:
             return NOT_PRESENT

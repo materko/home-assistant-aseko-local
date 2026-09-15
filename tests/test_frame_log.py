@@ -423,7 +423,7 @@ def test_recording_state_survives_a_restart_and_an_update(stored, expected) -> N
 
 
 def _legacy() -> dict:
-    """A store written before recording could be switched off."""
+    """Return a store written before recording could be switched off."""
     data = FrameLog().to_store()
     del data["enabled"]
     return data

@@ -23,7 +23,7 @@ FRAME_SIZE = 120
 
 
 def parse_hex(text: str) -> bytes:
-    """The frame bytes from a hex string; spaces and a ``0x`` prefix allowed."""
+    """Return the frame bytes from a hex string; spaces and a ``0x`` prefix allowed."""
     cleaned = text.replace(" ", "").replace("\n", "").removeprefix("0x")
     try:
         return bytes.fromhex(cleaned)
@@ -72,7 +72,7 @@ def byte_info(data: bytes, index: int) -> str:
 
 
 def generate_test(data: bytes) -> str:
-    """A pytest skeleton for this frame.
+    """Return a pytest skeleton for this frame.
 
     The expected values are left as TODOs on purpose: they must come from
     what the unit showed when the frame was sent, not from the decoder under
@@ -102,6 +102,7 @@ def generate_test(data: bytes) -> str:
 
 
 def main(argv: list[str] | None = None) -> None:
+    """Run the command line."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("hex", help="the frame as hex (spaces allowed)")
     action = parser.add_mutually_exclusive_group(required=True)

@@ -26,7 +26,7 @@ On NET byte[12] is typically 0x00 while no-flow lives in byte[13].
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ..feature import Feature
 
@@ -40,5 +40,6 @@ class AlarmRapidPhChange(Feature):
 
     field = "alarm_rapid_ph_change"
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool:
         return bool(frame[13] & 0x08)

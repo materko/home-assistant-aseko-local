@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
@@ -17,6 +17,7 @@ class Salinity(Feature):
 
     field = "salinity"
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> float | None:
         if frame[20] == UNSPECIFIED_VALUE:
             return None

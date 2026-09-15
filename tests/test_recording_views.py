@@ -97,7 +97,7 @@ def _jpeg() -> bytes:
 
 
 def _setup(tmp_path: Path, entries: int = 1) -> tuple[MagicMock, list[MagicMock]]:
-    """A hass with loaded entries, each with its own real coordinator."""
+    """Return a hass with loaded entries, each with its own real coordinator."""
 
     async def run_inline(job, *args: object) -> object:
         return job(*args)

@@ -8,7 +8,7 @@ Shared port (SALT, NET): byte[54], ours only while byte[37] bit 0x80 routes
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
@@ -29,6 +29,7 @@ class AlgaecideDoseTarget(Feature):
 
     field = "algaecide_dose_target"
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | NotPresent:
         """Independent algicide port."""
         return byte_or_absent(frame[72])

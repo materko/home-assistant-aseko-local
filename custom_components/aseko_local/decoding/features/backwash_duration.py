@@ -9,7 +9,7 @@ phantom backwash entities from a NET frame carrying non-0xFF data there
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
@@ -26,6 +26,7 @@ class BackwashDuration(Feature):
 
     field = "backwash_duration"
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | NotPresent:
         if frame[71] == UNSPECIFIED_VALUE:
             return NOT_PRESENT

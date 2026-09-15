@@ -36,7 +36,7 @@ SALT_HEADER_TYPES = range(100, 200)
 
 
 def model_from_header_type(header_type: int) -> AsekoDeviceType | None:
-    """The model a v8 header's type field names, or None.
+    """Return the model a v8 header's type field names, or None.
 
     The field reads like the firmware version of a product line: 804, 805
     and 812 are NET units (812 came with firmware 8.12, PR #119), 105 an
@@ -52,7 +52,7 @@ def model_from_header_type(header_type: int) -> AsekoDeviceType | None:
 
 
 def detect(frame: V8Frame) -> Profile:
-    """The profile for a v8 frame; the unknown one for a header type no line matches."""
+    """Return the profile for a v8 frame; the unknown one for a header type no line matches."""
     model = model_from_header_type(frame.header_type)
     if model is None:
         _LOGGER.warning(

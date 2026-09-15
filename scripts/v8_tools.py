@@ -55,7 +55,7 @@ SALT_HEADER_TYPES = range(100, 200)
 
 
 def model_from_header_type(header_type: int) -> str | None:
-    """The model the header type names (as the integration's v8 profiles do)."""
+    """Return the model the header type names (as the integration's v8 profiles do)."""
     if header_type in NET_HEADER_TYPES:
         return "NET"
     if header_type in SALT_HEADER_TYPES:
@@ -128,7 +128,7 @@ def annotate(text: str) -> str:
 
 
 def generate_test(text: str) -> str:
-    """A pytest skeleton; expected values are TODOs to fill in from the unit."""
+    """Return a pytest skeleton; expected values are TODOs to fill in from the unit."""
     header, _ = parse_v8_frame(text)
     model = model_from_header_type(int(header["type"]))
     frame = text.strip()
@@ -167,6 +167,7 @@ def generate_test(text: str) -> str:
 
 
 def main(argv: list[str] | None = None) -> None:
+    """Run the command line."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("frame", help="the whole v8 frame text, braces included")
     action = parser.add_mutually_exclusive_group(required=True)

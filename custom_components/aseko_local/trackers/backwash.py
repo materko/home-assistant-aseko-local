@@ -187,6 +187,7 @@ class BackwashTracker:
     """
 
     def __init__(self, hass: HomeAssistant, serial_number: int) -> None:
+        """Set up the tracker of one unit; ``async_load`` restores its history."""
         self._hass = hass
         self._serial = serial_number
         self._store: Store[dict] = Store(
@@ -706,7 +707,7 @@ class BackwashTracker:
         moment: datetime,
         offset_minutes: float | None = None,
     ) -> datetime | None:
-        """The schedule slot on the unit's clock that ``moment`` belongs to."""
+        """Return the schedule slot on the unit's clock that ``moment`` belongs to."""
         at = device.backwash_start_time
         if not isinstance(at, time):
             return None
@@ -851,7 +852,7 @@ class BackwashTracker:
 
 
 def _parse_date(raw: object) -> date | None:
-    """A stored ISO date, or None when absent or unreadable."""
+    """Return a stored ISO date, or None when absent or unreadable."""
     if not isinstance(raw, str):
         return None
     try:
@@ -872,7 +873,7 @@ def _slot(day: date, at: time) -> datetime:
 
 
 def _nearest_slot(moment: datetime, at: time) -> datetime:
-    """The daily ``at`` slot closest to ``moment`` (day before, same day or after).
+    """Return the daily ``at`` slot closest to ``moment`` (day before, same day or after).
 
     ``moment`` may carry any offset -- a timestamp restored from storage keeps
     the fixed offset it was saved with, a typed-in one may be UTC -- so it is

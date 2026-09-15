@@ -10,7 +10,7 @@ This is the bit the decoder once took for a HOME "firmware A / B" split:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
@@ -28,6 +28,7 @@ class WaterLevelSensorEnabled(Feature):
 
     field = "water_level_sensor_enabled"
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool | None:
         if frame[37] == UNSPECIFIED_VALUE:
             return None  # this frame does not say

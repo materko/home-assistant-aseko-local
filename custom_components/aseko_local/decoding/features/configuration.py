@@ -8,7 +8,7 @@ when its analog input reports a value other than the -500 sentinel.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ...const import (
     PROBE_CLF_MISSING,
@@ -30,6 +30,7 @@ class Configuration(Feature):
 
     field = "configuration"
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> set[AsekoProbeType]:
         """Missing-probe bits in byte[4]: 0x01 REDOX, 0x02 CLF, 0x04 DOSE (NET, SALT)."""
         probes = self._from_missing_bits(frame.unit_type)
@@ -40,7 +41,7 @@ class Configuration(Feature):
     def decode_v7_without_dose(
         self, frame: V7Frame, device: AsekoDevice
     ) -> set[AsekoProbeType]:
-        """The missing-probe bits without a DOSE bit (PROFI)."""
+        """Return the missing-probe bits without a DOSE bit (PROFI)."""
         return self._from_missing_bits(frame.unit_type)
 
     def decode_v7_by_unit_type_byte(
@@ -60,7 +61,7 @@ class Configuration(Feature):
     def decode_v7_ph_and_oxy(
         self, frame: V7Frame, device: AsekoDevice
     ) -> set[AsekoProbeType]:
-        """A fixed pH + OXY Pure pair (ASIN AQUA Oxygen).
+        """Return a fixed pH + OXY Pure pair (ASIN AQUA Oxygen).
 
         The SANOSIL probe occupies the CLF slot physically, so the CLF
         "missing" bit is 0 and the bitmask reading would wrongly add CLF.
@@ -73,6 +74,7 @@ class Configuration(Feature):
         """Every probe -- for a unit type nobody has mapped yet, read it all."""
         return set(AsekoProbeType)
 
+    @override
     def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> set[AsekoProbeType]:
         probes: set[AsekoProbeType] = set()
         if frame.value("ains", 0) is not None:

@@ -6,7 +6,7 @@ v7: byte[112], e.g. 5 -> 5 %, 10 -> 10 %.  Confirmed on serial 110175608
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ..feature import Feature
 from ..frames import byte_or_absent
@@ -22,5 +22,6 @@ class PhMinusConcentration(Feature):
 
     field = "ph_minus_concentration"
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | NotPresent:
         return byte_or_absent(frame[112])

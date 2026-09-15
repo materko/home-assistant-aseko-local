@@ -28,6 +28,7 @@ class V7Frame:
     protocol: Protocol = field(default=Protocol.V7, init=False)
 
     def __getitem__(self, index: int | slice) -> int | bytes:
+        """Return the byte at ``index``, or the bytes of a slice."""
         return self.raw[index]
 
     def word(self, index: int) -> int:

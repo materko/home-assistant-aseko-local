@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ...models import AsekoProbeType
 from ..feature import Feature
@@ -21,6 +21,7 @@ class FreeChlorineMv(Feature):
     field = "free_chlorine_mv"
     depends_on = (Configuration,)
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | NotPresent | None:
         if AsekoProbeType.CLF not in device.configuration:
             return NOT_PRESENT

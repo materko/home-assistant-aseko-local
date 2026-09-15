@@ -9,7 +9,7 @@ features reads the byte and answers only when it is the one that applies.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ...const import UNSPECIFIED_VALUE
 from ...models import AsekoProbeType
@@ -29,6 +29,7 @@ class ChlorineDoseTarget(Feature):
     field = "chlorine_dose_target"
     depends_on = (Configuration,)
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | NotPresent:
         probes = device.configuration
         if (

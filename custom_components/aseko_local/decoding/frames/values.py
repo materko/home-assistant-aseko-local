@@ -86,7 +86,7 @@ def time_or_absent(data: bytes) -> time | NotPresent:
 
 
 def unit_clock_v7(data: bytes) -> datetime | None:
-    """The unit's clock from bytes 6-11 as sent, or None when unset or not a date.
+    """Return the unit's clock from bytes 6-11 as sent, or None when unset or not a date.
 
     Wall-clock time in Home Assistant's time zone: the unit sends no zone.
     """
@@ -107,7 +107,7 @@ def unit_clock_v7(data: bytes) -> datetime | None:
 
 
 def unit_clock_v8(hour: int | None, minute: int | None) -> time | None:
-    """A v8 unit's clock (hour and minute, no date), or None when not valid."""
+    """Return a v8 unit's clock (hour and minute, no date), or None when not valid."""
     if hour is None or minute is None:
         return None
     try:

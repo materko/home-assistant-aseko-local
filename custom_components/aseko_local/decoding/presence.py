@@ -28,9 +28,11 @@ class NotPresent:
     __slots__ = ()
 
     def __repr__(self) -> str:
+        """Show the sentinel by name."""
         return "NOT_PRESENT"
 
     def __bool__(self) -> bool:
+        """Count as false, like None, in a plain truth test."""
         return False
 
 

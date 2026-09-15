@@ -16,7 +16,7 @@ Both readings share their byte rules with ``timestamp`` (``frames.values``).
 from __future__ import annotations
 
 from datetime import datetime, time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ..feature import Feature
 from ..frames.values import unit_clock_v7, unit_clock_v8
@@ -31,8 +31,10 @@ class UnitClock(Feature):
 
     field = "unit_clock"
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> datetime | None:
         return unit_clock_v7(frame.raw)
 
+    @override
     def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> time | None:
         return unit_clock_v8(frame.get("ins", 16), frame.get("ins", 17))

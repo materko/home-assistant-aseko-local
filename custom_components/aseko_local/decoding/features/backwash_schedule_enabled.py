@@ -7,7 +7,7 @@ dropping to 0 (2026-09-13 marked test case).
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
@@ -27,6 +27,7 @@ class BackwashScheduleEnabled(Feature):
 
     field = "backwash_schedule_enabled"
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool | NotPresent:
         if frame[22] == UNSPECIFIED_VALUE:
             return NOT_PRESENT

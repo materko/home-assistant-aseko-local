@@ -53,7 +53,7 @@ MAX_UPLOAD_BYTES = 15 * 1024 * 1024
 
 
 def photo_store(hass: HomeAssistant) -> PhotoStore:
-    """The one photo folder shared by every Aseko Local entry."""
+    """Return the one photo folder shared by every Aseko Local entry."""
     return hass.data[DATA_RECORDING]["photos"]
 
 
@@ -149,6 +149,7 @@ class AsekoPhotoView(HomeAssistantView):
     name = f"api:{DOMAIN}:photo"
 
     async def post(self, request: web.Request) -> web.Response:
+        """Store a photo at once and write its marker after the next frame."""
         hass = _require_admin(request)
         received = dt_util.utcnow()
         entries = _loaded_entries(hass)
@@ -221,6 +222,7 @@ class AsekoPhotoFileView(HomeAssistantView):
     name = f"api:{DOMAIN}:photo_file"
 
     async def get(self, request: web.Request, name: str) -> web.StreamResponse:
+        """Serve one stored photo."""
         hass = _require_admin(request)
         store = photo_store(hass)
         if "/" in name or "\\" in name or name.startswith("."):
@@ -238,6 +240,7 @@ class AsekoForgetView(HomeAssistantView):
     name = f"api:{DOMAIN}:forget"
 
     async def post(self, request: web.Request) -> web.Response:
+        """Clear the case list of every entry; the frames stay."""
         hass = _require_admin(request)
         for entry in _loaded_entries(hass):
             entry.runtime_data.coordinator.forget_markers()
@@ -251,6 +254,7 @@ class AsekoStatusView(HomeAssistantView):
     name = f"api:{DOMAIN}:status"
 
     async def get(self, request: web.Request) -> web.Response:
+        """Report recording, frames, cases and photos for the card."""
         hass = _require_admin(request)
         now = dt_util.utcnow()
         store = photo_store(hass)
@@ -285,6 +289,7 @@ class AsekoExportView(HomeAssistantView):
     name = f"api:{DOMAIN}:export"
 
     async def get(self, request: web.Request) -> web.Response:
+        """Build the export zip of every loaded entry."""
         # Imported here: diagnostics imports the platforms, which import this
         # package's __init__, which sets this module up.
         from ..diagnostics import async_get_config_entry_diagnostics  # noqa: PLC0415
@@ -350,6 +355,7 @@ class AsekoExportedView(HomeAssistantView):
     name = f"api:{DOMAIN}:exported"
 
     async def post(self, request: web.Request) -> web.Response:
+        """Mark the cases the card has downloaded."""
         hass = _require_admin(request)
         try:
             through = (await request.json())["through"]
@@ -369,6 +375,7 @@ class AsekoRecordingView(HomeAssistantView):
     name = f"api:{DOMAIN}:recording"
 
     async def post(self, request: web.Request) -> web.Response:
+        """Turn recording on or off in every entry."""
         hass = _require_admin(request)
         try:
             enabled = (await request.json())["enabled"]
@@ -388,6 +395,7 @@ class AsekoDeleteRecordingView(HomeAssistantView):
     name = f"api:{DOMAIN}:delete"
 
     async def post(self, request: web.Request) -> web.Response:
+        """Delete the recording of every entry and its photos."""
         hass = _require_admin(request)
         for entry in _loaded_entries(hass):
             entry.runtime_data.coordinator.clear_recording()

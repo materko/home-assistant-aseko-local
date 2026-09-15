@@ -135,6 +135,7 @@ class AsekoResetButtonEntity(AsekoLocalEntity, ButtonEntity):
         coordinator: AsekoLocalDataUpdateCoordinator,
         description: AsekoResetButtonEntityDescription,
     ) -> None:
+        """Set up the reset button of one pump counter of one unit."""
         super().__init__(
             unit,
             coordinator,

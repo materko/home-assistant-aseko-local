@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ...const import WATER_FLOW_TO_PROBES
 from ..feature import Feature
@@ -17,9 +17,11 @@ class WaterFlowToProbes(Feature):
 
     field = "water_flow_to_probes"
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool:
         return frame[28] == WATER_FLOW_TO_PROBES
 
+    @override
     def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> bool | None:
         raw = frame.get("ins", 8)
         return bool(raw) if raw is not None else None

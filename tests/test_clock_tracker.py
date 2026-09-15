@@ -29,7 +29,7 @@ T0 = datetime(2026, 9, 14, 8, 0, tzinfo=UTC)
 
 @pytest.fixture(autouse=True)
 def _home_assistant_in_utc() -> Iterator[None]:
-    """The v8 reading has no zone of its own; compare it in UTC here."""
+    """Compare the v8 reading in UTC here; it has no zone of its own."""
     original = dt_util.DEFAULT_TIME_ZONE
     dt_util.set_default_time_zone(UTC)
     yield

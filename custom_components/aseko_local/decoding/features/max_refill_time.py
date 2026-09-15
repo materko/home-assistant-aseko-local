@@ -15,7 +15,7 @@ ph_minus_flow_rate.  0xFFFF = the device does not implement the feature
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ..feature import Feature
 from ..frames import word_or_absent
@@ -31,5 +31,6 @@ class MaxRefillTime(Feature):
 
     field = "max_refill_time"
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | NotPresent:
         return word_or_absent(frame.word_or_none(76))

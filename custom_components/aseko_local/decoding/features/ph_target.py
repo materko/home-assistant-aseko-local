@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ...const import UNSPECIFIED_VALUE
 from ...models import AsekoProbeType
@@ -22,6 +22,7 @@ class PhTarget(Feature):
     field = "ph_target"
     depends_on = (Configuration,)
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> float | NotPresent:
         if AsekoProbeType.PH not in device.configuration:
             return NOT_PRESENT
@@ -29,6 +30,7 @@ class PhTarget(Feature):
             return None  # the probe is there, the setpoint is not filled in
         return frame[52] / 10
 
+    @override
     def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> float | None:
         raw = frame.value("areqs", 0)
         return raw / 10 if raw is not None else None

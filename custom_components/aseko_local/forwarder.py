@@ -1,3 +1,5 @@
+"""Forward the frames a unit sends to Aseko Cloud, as the unit itself would."""
+
 from __future__ import annotations
 
 import asyncio
@@ -10,6 +12,7 @@ _LOGGER = logging.getLogger(__name__)
 
 class AsekoCloudMirror:
     """Asynchronous TCP forwarder to Aseko Cloud.
+
     - Non-blocking: frames are queued and sent by a worker task.
     - Resilient: reconnects on errors with backoff and also on a fixed interval.
     """
@@ -20,6 +23,7 @@ class AsekoCloudMirror:
         cloud_port: int,
         reconnect_interval: int = 900,  # force reconnect 15 minutes
     ) -> None:
+        """Set up a mirror to one cloud host and port; ``start`` runs it."""
         self._host = cloud_host
         self._port = int(cloud_port)
         self._queue: asyncio.Queue[bytes] = asyncio.Queue(maxsize=1000)

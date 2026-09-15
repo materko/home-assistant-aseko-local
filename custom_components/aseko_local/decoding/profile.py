@@ -62,6 +62,7 @@ class Profile:
     feature_names: frozenset[str] = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
+        """Freeze the mappings, validate the profile and build its decode plan."""
         # read-only copies: the plan below is built from them once, so a
         # change in memory later could only make it disagree with them
         object.__setattr__(self, "overrides", MappingProxyType(dict(self.overrides)))

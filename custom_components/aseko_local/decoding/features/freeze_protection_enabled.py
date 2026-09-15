@@ -9,7 +9,7 @@ and Winter mode is byte[22] bit 0x04 (decode_v7_winter_mode).
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
@@ -28,6 +28,7 @@ class FreezeProtectionEnabled(Feature):
 
     field = "freeze_protection_enabled"
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool | None:
         b = frame[37]
         if b == UNSPECIFIED_VALUE:

@@ -15,7 +15,7 @@ timer, 0x47 / 0x57 "transitional") are the same bits with the Waterlevel
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ...const import UNSPECIFIED_VALUE
 from ...models import AsekoFiltrationSchedule
@@ -39,6 +39,7 @@ class FiltrationSchedule(Feature):
 
     field = "filtration_schedule"
 
+    @override
     def decode_v7(
         self, frame: V7Frame, device: AsekoDevice
     ) -> AsekoFiltrationSchedule | None:

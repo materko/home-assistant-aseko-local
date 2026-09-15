@@ -13,7 +13,7 @@ while the pump is switched off.  The same values on HOME (Issue #137:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ...const import UNSPECIFIED_VALUE
 from ...models import AsekoVariableSpeedPumpType
@@ -39,6 +39,7 @@ class VariableSpeedPumpType(Feature):
 
     field = "variable_speed_pump_type"
 
+    @override
     def decode_v7(
         self, frame: V7Frame, device: AsekoDevice
     ) -> AsekoVariableSpeedPumpType | NotPresent | None:

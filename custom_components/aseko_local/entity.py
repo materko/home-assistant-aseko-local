@@ -119,7 +119,7 @@ def async_enable_entities(
 
 
 def enabled_unique_ids(entities: Iterable[Any]) -> list[str]:
-    """Unique ids of the entities this unit's features enable by default."""
+    """Return the unique ids of the entities this unit's features enable by default."""
     return [
         e.unique_id
         for e in entities

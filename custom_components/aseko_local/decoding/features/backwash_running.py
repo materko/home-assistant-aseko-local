@@ -15,7 +15,7 @@ entity is created for it.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ..feature import Feature
 
@@ -32,5 +32,6 @@ class BackwashRunning(Feature):
 
     field = "backwash_running"
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool:
         return bool(frame[29] & BACKWASH)

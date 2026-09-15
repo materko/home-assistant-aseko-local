@@ -63,6 +63,7 @@ class PhotoStore:
         max_bytes: int = DEFAULT_MAX_BYTES,
         max_count: int = DEFAULT_MAX_COUNT,
     ) -> None:
+        """Set up a photo folder with its size and count limits."""
         self.directory = directory
         self.max_bytes = max_bytes
         self.max_count = max_count
@@ -100,7 +101,7 @@ class PhotoStore:
                 counter += 1
 
     def files(self) -> list[Path]:
-        """Stored photos, oldest first."""
+        """Return the stored photos, oldest first."""
         if not self.directory.is_dir():
             return []
         return sorted(
@@ -131,6 +132,7 @@ class PhotoStore:
             return len(self.files())
 
     def size(self) -> int:
+        """Return the bytes the stored photos take."""
         return sum(p.stat().st_size for p in self.files())
 
     def _enforce_cap(self) -> None:

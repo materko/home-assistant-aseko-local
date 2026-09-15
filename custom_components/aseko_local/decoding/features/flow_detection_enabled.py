@@ -7,7 +7,7 @@ cases).  On HOME the same bit was once read as a "transitional edit state".
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
@@ -25,6 +25,7 @@ class FlowDetectionEnabled(Feature):
 
     field = "flow_detection_enabled"
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool | None:
         if frame[37] == UNSPECIFIED_VALUE:
             return None  # this frame does not say

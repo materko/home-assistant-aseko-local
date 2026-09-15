@@ -179,7 +179,7 @@ def test_on_with_zero_flowrate_does_not_accumulate() -> None:
 
 
 def test_independent_pump_counters() -> None:
-    """cl and ph_minus accumulators are independent (gap capped at 30 s)."""
+    """Cl and ph_minus accumulators are independent (gap capped at 30 s)."""
     tracker = AsekoConsumptionTracker()
     tracker.update(
         _device(cl_on=True, cl_rate=60, ph_minus_on=True, ph_minus_rate=30), T0
@@ -250,13 +250,13 @@ def test_reset_none_pump_key_resets_all() -> None:
 
 
 def test_reset_unknown_pump_key_does_not_raise(caplog) -> None:
-    """reset with an unknown pump key logs a warning and continues without crashing."""
+    """Reset with an unknown pump key logs a warning and continues without crashing."""
     tracker = AsekoConsumptionTracker()
     tracker.reset(pump_key="unknown_pump", counter="canister")  # must not raise
 
 
 def test_reset_invalid_counter_raises() -> None:
-    """reset with an invalid counter string raises ValueError."""
+    """Reset with an invalid counter string raises ValueError."""
     tracker = AsekoConsumptionTracker()
     with pytest.raises(ValueError, match="counter must be"):
         tracker.reset(pump_key="cl", counter="bad_counter")

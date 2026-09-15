@@ -71,7 +71,7 @@ MAX_PORT = 65535
 
 
 def parse_port(value: object) -> int:
-    """The port a user picked or typed, as a number; ValueError when it is none."""
+    """Return the port a user picked or typed, as a number; ValueError when it is none."""
     port = int(str(value).strip())
     if not 1 <= port <= MAX_PORT:
         msg = f"port {port} out of range"
@@ -219,16 +219,19 @@ class AsekoLocalOptionsFlowHandler(OptionsFlow):
     """Handle Aseko Local options."""
 
     def __init__(self, config_entry: ConfigEntry) -> None:
+        """Remember which config entry the options belong to."""
         self._entry_id = config_entry.entry_id
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        """Start the options flow."""
         return await self.async_step_options_init(user_input)
 
     async def async_step_options_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        """Show the forwarder and clock options, and save and reload on submit."""
         errors = {}
         config_entry = self.hass.config_entries.async_get_entry(self._entry_id)
 

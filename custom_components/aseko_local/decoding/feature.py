@@ -60,11 +60,11 @@ class Feature:
         raise NotImplementedError
 
     def decode_v7_not_located(self, frame: V7Frame, device: AsekoDevice) -> None:
-        """The model has this value, but where v7 carries it is not known yet."""
+        """Read nothing: the model has this value, but where v7 carries it is not known yet."""
         return
 
     def decode_v8_not_located(self, frame: V8Frame, device: AsekoDevice) -> None:
-        """The model has this value, but where v8 carries it is not known yet."""
+        """Read nothing: the model has this value, but where v8 carries it is not known yet."""
         return
 
     # -- introspection used by profiles ------------------------------------

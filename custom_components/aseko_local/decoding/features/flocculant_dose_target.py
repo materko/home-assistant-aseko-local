@@ -8,7 +8,7 @@ Shared port (SALT, NET): byte[54] as well, but ours only while byte[37] bit
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
@@ -29,6 +29,7 @@ class FlocculantDoseTarget(Feature):
 
     field = "flocculant_dose_target"
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | NotPresent:
         """Independent flocculant port."""
         return byte_or_absent(frame[54])

@@ -8,7 +8,7 @@ same bit on every model with the byte[37] bit field.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
@@ -26,6 +26,7 @@ class HeatingControlEnabled(Feature):
 
     field = "heating_control_enabled"
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool | None:
         b = frame[37]
         if b == UNSPECIFIED_VALUE:

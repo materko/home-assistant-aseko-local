@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 import homeassistant.util
 
@@ -25,9 +25,11 @@ class Timestamp(Feature):
 
     field = "timestamp"
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> datetime:
         return decode_timestamp(frame.raw)
 
+    @override
     def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> datetime:
         """Today's date from Home Assistant's clock, hour and minute from ins[16:18]."""
         now = datetime.now(tz=homeassistant.util.dt.get_default_time_zone())

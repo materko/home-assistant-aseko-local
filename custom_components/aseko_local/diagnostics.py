@@ -280,7 +280,7 @@ def _reading_overrides(profile_name: str | None) -> dict[str, str]:
 
 
 def _device_state(device: AsekoDevice) -> dict[str, Any]:
-    """The decoded state of one unit, as the dump reports it."""
+    """Return the decoded state of one unit, as the dump reports it."""
     serial = device.serial_number
     return {
         "serial_number": serial,
@@ -352,7 +352,7 @@ def _device_state(device: AsekoDevice) -> dict[str, Any]:
 def _raw_frames(
     coordinator: AsekoLocalDataUpdateCoordinator, serial: int
 ) -> dict[str, Any]:
-    """The last frames seen from one serial number, annotated for a GitHub issue."""
+    """Return the last frames seen from one serial number, annotated for a GitHub issue."""
     # --- Raw frame (v7 binary) ---
     raw_info: dict[str, Any] = {"available": False}
     raw = coordinator.get_raw_frame(serial)
@@ -414,6 +414,7 @@ async def async_get_config_entry_diagnostics(
     frame_log_export: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Return diagnostics for a config entry.
+
     ``frame_log_export``: the frame log already exported from a snapshot
     (the export download reads it once for its frames and this).
     """

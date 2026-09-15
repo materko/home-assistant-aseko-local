@@ -7,7 +7,7 @@ OXY and SALT in every captured frame; assumed on HOME and PROFI).  v8: outs[2].
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ..feature import Feature
 from .service_menu_open import ServiceMenuOpen
@@ -30,11 +30,12 @@ class FiltrationRunning(Feature):
     # only ``decode_v7_menu_override`` (HOME) reads it
     optional_depends_on = (ServiceMenuOpen,)
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool:
         return bool(frame[29] & FILTRATION)
 
     def decode_v7_menu_override(self, frame: V7Frame, device: AsekoDevice) -> bool:
-        """The relay bit, unless the settings menu says the pump was switched off.
+        """Return the relay bit, unless the settings menu says the pump was switched off.
 
         On HOME (Issue #133) byte[29] bit 0x08 stays set while the
         user has manually switched the pump off at the unit -- the override
@@ -51,6 +52,7 @@ class FiltrationRunning(Feature):
             return False
         return running
 
+    @override
     def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> bool | None:
         raw = frame.get("outs", 2)
         return bool(raw) if raw is not None else None

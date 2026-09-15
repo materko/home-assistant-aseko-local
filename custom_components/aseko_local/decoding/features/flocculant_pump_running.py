@@ -8,7 +8,7 @@ configured for flocculant (see flocculant_flow_rate).
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ..feature import Feature
 from ..presence import NOT_PRESENT
@@ -29,6 +29,7 @@ class FlocculantPumpRunning(Feature):
     field = "flocculant_pump_running"
     depends_on = (FlocculantFlowRate,)
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool | NotPresent:
         if device.flocculant_flow_rate is None:
             return NOT_PRESENT

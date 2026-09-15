@@ -37,6 +37,7 @@ decode_lines = _frame_log.decode_lines
 
 
 def load_records(path: Path) -> list[dict[str, Any]]:
+    """Return every frame log record of a diagnostics download."""
     diagnostics = json.loads(path.read_text(encoding="utf-8"))
     frame_log = diagnostics.get("data", diagnostics).get("frame_log")
     if not frame_log:
@@ -47,6 +48,7 @@ def load_records(path: Path) -> list[dict[str, Any]]:
 
 
 def main() -> None:
+    """Run the command line."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("diagnostics", type=Path)
     parser.add_argument("--around", type=int, help="marker number")

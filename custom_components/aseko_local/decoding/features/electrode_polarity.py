@@ -9,7 +9,7 @@ earlier reading had it the other way round, from a single frame.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ...models import AsekoElectrodePolarity
 from ..feature import Feature
@@ -28,6 +28,7 @@ class ElectrodePolarity(Feature):
 
     field = "electrode_polarity"
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> AsekoElectrodePolarity:
         if not frame[29] & RUNNING:
             return AsekoElectrodePolarity.WAITING

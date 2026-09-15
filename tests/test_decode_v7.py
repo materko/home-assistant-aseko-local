@@ -226,7 +226,8 @@ def test_decode_filtration_period2_enabled() -> None:
 
 
 def test_decode_filtration_period2_bytes_unspecified() -> None:
-    """When bytes 60-63 themselves are 0xFF (no schedule ever configured),
+    """Leave period 2 None when bytes 60-63 are 0xFF (no schedule ever configured).
+
     filtration_period_2_start / filtration_period_2_end stay None — the lazy-creation guard in sensor.py then
     skips registering the entity.  This is the key branch that keeps
     devices without a filtration output (NET) from ever surfacing
@@ -243,7 +244,9 @@ def test_decode_filtration_period2_bytes_unspecified() -> None:
 
 
 def test_decode_filtration_period2_none_for_net() -> None:
-    """NET has no filtration output — filtration_period_1_start/2 / filtration_period_1_end/2 are all None
+    """Read no filtration periods on NET, which has no filtration output.
+
+    filtration_period_1_start/2 / filtration_period_1_end/2 are all None
     even if the frame happens to carry non-0xFF values in bytes 56-63.
     Issue #133 contract: lazy creation in sensor.py never registers the
     entities for NET.
@@ -263,9 +266,10 @@ def test_decode_filtration_period2_none_for_net() -> None:
 
 
 def test_decode_filtration_period2_real_dtpugh_frames() -> None:
-    """Issue #133 end-to-end: decode all four real diagnostic frames from
-    @dtpugh (serial 110169464, ASIN AQUA Home firmware B) and verify
-    Period 2 times are stable across all four modes (P1 only / P1&P2 /
+    """Decode the four real diagnostic frames of Issue #133 end to end.
+
+    Frames from @dtpugh (serial 110169464, ASIN AQUA Home firmware B); Period 2
+    times must stay stable across all four modes (P1 only / P1&P2 /
     24h / MANUAL).  This is the user-visible regression: pre-fix the
     entity would go "unknown" when the user toggled the controller back
     from P1&P2 to P1 only.
@@ -514,8 +518,9 @@ def test_decode_unknown_unit_type() -> None:
 
 
 def test_decode_net_no_backwash_with_garbage_bytes() -> None:
-    """Issue #129: A NET frame carrying non-0xFF data in the backwash/water-level
-    byte slots must not surface phantom backwash or water-level entities.
+    """Show no phantom backwash or water-level entities on NET (Issue #129).
+
+    A NET frame carrying non-0xFF data in the backwash/water-level byte slots must not surface phantom backwash or water-level entities.
 
     Pre-fix behaviour: the decoder blindly read bytes 68-71, 27, 102-105 and
     94-95 on every device type. When a NET device happened to send non-0xFF
@@ -1253,7 +1258,7 @@ def test_decode_home_floc_pump_running_independent() -> None:
 
 
 def _make_home_bytes() -> bytearray:
-    """Base HOME device frame (CLF variant, byte[4]=0x02) for water-level tests."""
+    """Return the base HOME device frame (CLF variant, byte[4]=0x02) for water-level tests."""
     data = _make_base_bytes()
     data[4] = 0x02  # HOME CLF
     return data
@@ -1340,7 +1345,7 @@ def test_home_water_filling_active() -> None:
 
 
 def test_home_water_level_thresholds() -> None:
-    """bytes [102..105] decode to the four water level thresholds for HOME devices.
+    """Bytes [102..105] decode to the four water level thresholds for HOME devices.
 
     Values taken from the issue #110 frame:
       byte[102] = 0x09 = 9 cm  (low alarm)
@@ -1652,8 +1657,7 @@ def test_filtration_pump_running_on_when_not_override() -> None:
 
 
 def test_filtration_pump_running_not_overridden_on_salt() -> None:
-    """SALT decodes MANUAL from byte[37]=0x35, but the pump override stays
-    HOME-gated.
+    """Decode MANUAL on SALT from byte[37]=0x35 with the pump override HOME-gated.
 
     The filtration_running short-circuit in _fill_consumable_data only
     applies to HOME, so on SALT byte[29] bit 3 still drives the entity even
@@ -1782,8 +1786,9 @@ def test_home_alarm_byte12_dosing_warnings() -> None:
 
 
 def test_decode_alarm_real_dtpugh_frames() -> None:
-    """Issue #151 end-to-end: decode the three real diagnostic frames from
-    @dtpugh (HOME serial 110175608) and verify the correct alarm sensors fire.
+    """Decode the three real diagnostic frames of Issue #151 end to end.
+
+    Frames from @dtpugh (HOME serial 110175608); the right alarm sensors must fire.
 
       config48 (chlorine/disinfection overdose): byte[13]=0x01 → disinfection ON,
         pH OFF.  config49 (pH fault only): byte[12]=0x40 → pH ON, disinfection OFF.

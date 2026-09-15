@@ -39,7 +39,7 @@ _BY_NAME: dict[str, Profile] = {profile.name: profile for profile in ALL_PROFILE
 
 
 def profile_named(name: str | None) -> Profile | None:
-    """The profile called ``name`` (``AsekoDevice.profile``), or None."""
+    """Return the profile called ``name`` (``AsekoDevice.profile``), or None."""
     return _BY_NAME.get(name) if name else None
 
 

@@ -10,7 +10,7 @@ not in the frame.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ...const import UNSPECIFIED_VALUE
 from ...models import AsekoHeatingCondition
@@ -33,6 +33,7 @@ class HeatingCondition(Feature):
 
     field = "heating_condition"
 
+    @override
     def decode_v7(
         self, frame: V7Frame, device: AsekoDevice
     ) -> AsekoHeatingCondition | NotPresent | None:

@@ -11,7 +11,7 @@ v8: areqs[1] * 10, unconditionally.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ...const import UNSPECIFIED_VALUE
 from ...models import AsekoProbeType
@@ -31,6 +31,7 @@ class RedoxTarget(Feature):
     field = "redox_target"
     depends_on = (Configuration,)
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | NotPresent:
         probes = device.configuration
         if AsekoProbeType.CLF in probes or AsekoProbeType.REDOX not in probes:
@@ -39,6 +40,7 @@ class RedoxTarget(Feature):
             return None  # the probe is there, the setpoint is not filled in
         return frame[53] * 10
 
+    @override
     def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> int | None:
         raw = frame.value("areqs", 1)
         return raw * 10 if raw is not None else None

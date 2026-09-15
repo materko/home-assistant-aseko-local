@@ -66,6 +66,7 @@ class ClockTracker:
     """Offset of one unit's clock and whether it is past the alert limit."""
 
     def __init__(self, alert_minutes: float = DEFAULT_ALERT_MINUTES) -> None:
+        """Set up the tracker of one unit with the alert limit in minutes."""
         self.alert_minutes = float(alert_minutes)
         self._samples: deque[float] = deque(maxlen=SAMPLES)
         self.offset_minutes: float | None = None

@@ -10,7 +10,7 @@ phantom backwash entities from a NET frame carrying non-0xFF data there
 from __future__ import annotations
 
 from datetime import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ..feature import Feature
 from ..frames import time_or_absent
@@ -26,5 +26,6 @@ class BackwashStartTime(Feature):
 
     field = "backwash_start_time"
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> time | NotPresent:
         return time_or_absent(frame[69:71])

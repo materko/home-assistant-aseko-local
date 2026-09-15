@@ -19,7 +19,7 @@ Shared port (SALT; PROFI assumed): one physical pump at byte[101], configured
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
@@ -40,6 +40,7 @@ class AlgaecideFlowRate(Feature):
 
     field = "algaecide_flow_rate"
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | NotPresent:
         """Independent algicide port."""
         return byte_or_absent(frame[103])

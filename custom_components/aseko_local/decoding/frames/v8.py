@@ -61,7 +61,7 @@ class V8Frame:
         return values[index] if index < len(values) else None
 
     def unspecified(self, section: str, index: int) -> bool:
-        """True when the unit sent the -500 "not fitted / not measured" marker."""
+        """Return True when the unit sent the -500 "not fitted / not measured" marker."""
         return self.get(section, index) == UNSPECIFIED_V8
 
     def value(self, section: str, index: int) -> int | None:

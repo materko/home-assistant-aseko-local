@@ -31,7 +31,7 @@ SERIAL = 1234
 
 
 def _diagnostics_hass() -> MagicMock:
-    """A hass whose executor runs the job inline, as diagnostics hands work to it."""
+    """Return a hass whose executor runs the job inline, as diagnostics hands work to it."""
 
     async def run_inline(job, *args: object) -> object:
         return job(*args)

@@ -15,6 +15,7 @@ select = [
     "BLE",  # blind except
     "C4",   # flake8-comprehensions
     "C90",  # mccabe complexity, max-complexity below
+    "D",    # docstrings
     "DTZ",  # datetimes with a time zone
     "E",    # pycodestyle errors
     "EM",   # exception messages
@@ -65,7 +66,7 @@ ignore = [
     "ARG001", # "unused-argument"
     "D202", # no-blank-line-after-function
     "D203", # no-blank-line-before-class (incompatible with formatter)
-    "D212", # multi-line-summary-first-line (incompatible with formatter)
+    "D213", # the summary sits on the first line (D212), as in Home Assistant core
     "E501",   # line too long
     "COM812", # incompatible with formatter
     "ISC001", # incompatible with formatter
@@ -121,6 +122,7 @@ max-complexity = 25
     "S311", # Standard pseudo-random generators are not suitable for cryptographic purposes
     "SLF001", # tests look at the private state they check
     "DTZ001", # tests build the unit's zone-less wall-clock readings on purpose
+    "D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107", # test names say what they check
     "S104", # tests bind servers to 0.0.0.0 as the integration does
     "S108", # /tmp paths in mocks are never written
     "S603", # tests run the repository's own scripts

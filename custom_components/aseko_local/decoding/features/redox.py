@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ...const import UNSPECIFIED_VALUE
 from ...models import AsekoProbeType
@@ -22,6 +22,7 @@ class Redox(Feature):
     field = "redox"
     depends_on = (Configuration,)
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | NotPresent | None:
         if AsekoProbeType.REDOX not in device.configuration:
             return NOT_PRESENT
@@ -29,6 +30,7 @@ class Redox(Feature):
             return frame.word_or_none(16)  # 0xFFFF: installed but unreadable
         return frame.word_or_none(18)
 
+    @override
     def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> int | NotPresent | None:
         if frame.unspecified("ains", 6):  # -500: no redox probe
             return NOT_PRESENT

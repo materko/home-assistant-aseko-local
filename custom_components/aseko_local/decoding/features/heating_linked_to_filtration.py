@@ -8,7 +8,7 @@ control off the value is not present.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
@@ -30,6 +30,7 @@ class HeatingLinkedToFiltration(Feature):
     field = "heating_linked_to_filtration"
     depends_on = (HeatingControlEnabled,)
 
+    @override
     def decode_v7(
         self, frame: V7Frame, device: AsekoDevice
     ) -> bool | NotPresent | None:

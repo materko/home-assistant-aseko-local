@@ -9,7 +9,7 @@ the unit having no air probe (-40.0 C).
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
@@ -29,6 +29,7 @@ class HeatingAllowed(Feature):
 
     field = "heating_allowed"
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool | NotPresent:
         if frame[78] == UNSPECIFIED_VALUE:
             return NOT_PRESENT

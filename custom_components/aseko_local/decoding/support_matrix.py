@@ -50,7 +50,7 @@ def _status(profile: Profile, feature: type[Feature]) -> str:
 
 
 def _model_word(profile: Profile) -> str:
-    """The model as evidence names it: "salt", "home", "oxy", "net", "profi"."""
+    """Return the model as evidence names it: "salt", "home", "oxy", "net", "profi"."""
     return profile.name.split(" ", 1)[-1].lower()
 
 
@@ -97,7 +97,7 @@ def render() -> str:
 
 
 def _intro(w: Callable[[str], None]) -> None:
-    """The title, the legend and the fallback profiles."""
+    """Write the title, the legend and the fallback profiles."""
 
     w("# Support matrix")
     w("")
@@ -162,7 +162,7 @@ def _tables(w: Callable[[str], None]) -> None:
 
 
 def _help_wanted(w: Callable[[str], None]) -> None:
-    """The lists of values that want a capture, a check or a location."""
+    """Write the lists of values that want a capture, a check or a location."""
     w("## Help wanted")
     w("")
     w(

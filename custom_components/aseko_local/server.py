@@ -60,7 +60,7 @@ async def _read_initial(reader: asyncio.StreamReader, buffered: bytes) -> bytes:
 
 
 def _holds_whole_v8_frame(data: bytes) -> bool:
-    """True when ``data`` already starts with a complete v8 frame."""
+    """Return True when ``data`` already starts with a complete v8 frame."""
     return data.lstrip(b"\r\n\t\x00").startswith(V8_SIGNATURE) and b"\n" in data
 
 
@@ -89,6 +89,7 @@ class AsekoDeviceServer:
         on_data: Callable[[AsekoDevice], Any] | None = None,
         **sinks: Unpack[ServerSinks],
     ) -> None:
+        """Set up a server for ``host``:``port``; ``start`` opens it."""
         self.host = host
         self.port = port
         self.on_data = on_data
@@ -341,7 +342,7 @@ class AsekoDeviceServer:
     async def _read_message(
         self, reader: asyncio.StreamReader, buffered: bytes, addr: object
     ) -> tuple[bytes | None, bytes] | None:
-        """The first bytes of the next message and what is carried after them.
+        """Return the first bytes of the next message and what is carried after them.
 
         None: the connection is done (quiet too long, or the unit hung up).
         ``(None, carry)``: the unit hung up right after a whole short v8
@@ -442,6 +443,7 @@ class AsekoDeviceServer:
 
     # Set Forwarder
     def set_forward_callback(self, callback: Callable[[bytes], Any] | None) -> None:
+        """Set or clear where v7 frames are forwarded."""
         self._forward_cb = callback
         if callback:
             _LOGGER.debug("Forward callback registered")
@@ -449,6 +451,7 @@ class AsekoDeviceServer:
             _LOGGER.debug("Forward callback removed")
 
     def set_forward_v8_callback(self, callback: Callable[[bytes], Any] | None) -> None:
+        """Set or clear where v8 frames are forwarded."""
         self._forward_v8_cb = callback
         if callback:
             _LOGGER.debug("v8 forward callback registered")
@@ -461,7 +464,7 @@ class AsekoDeviceServer:
         initial: bytes,
         rest: list[bytes] | None = None,
     ) -> tuple[bytes, int, FrameType]:
-        """Detect frame type, assemble the complete frame, and rewind if necessary.
+        r"""Detect frame type, assemble the complete frame, and rewind if necessary.
 
         Scans the initial MESSAGE_SIZE bytes for the v8 signature b"{v1 ".
         If found, any bytes before it are discarded (logged as a warning when
@@ -478,6 +481,7 @@ class AsekoDeviceServer:
 
         Returns:
             tuple[bytes, int, FrameType]: (clean_frame, rewind_offset, frame_type)
+
         """
         brace_pos = initial.find(b"{v1 ")
         if brace_pos >= 0:
@@ -517,6 +521,7 @@ class AsekoDeviceServer:
 
         Returns:
             tuple[bytes, int]: (rewound_frame, offset)
+
         """
 
         offset = 0
@@ -554,6 +559,7 @@ class AsekoDeviceServer:
         on_data: Callable[[AsekoDevice], Any] | None = None,
         **sinks: Unpack[ServerSinks],
     ) -> "AsekoDeviceServer":
+        """Return the running server for ``host``:``port``, started when new."""
         key = f"{host}:{port}"
         if key not in cls._instances:
             cls._instances[key] = AsekoDeviceServer(host, port, on_data, **sinks)
@@ -571,6 +577,7 @@ class AsekoDeviceServer:
 
     @classmethod
     async def remove(cls, host: str, port: int) -> None:
+        """Stop the server for ``host``:``port`` and forget it."""
         key = f"{host}:{port}"
         if key in cls._instances:
             await cls._instances[key].stop()

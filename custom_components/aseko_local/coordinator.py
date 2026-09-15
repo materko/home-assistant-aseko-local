@@ -1,4 +1,4 @@
-# custom_components/aseko_local/coordinator.py
+"""The data coordinator: devices, trackers, frame log and recording of one entry."""
 
 import asyncio
 import logging
@@ -148,7 +148,7 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         self._frame_waiters = still_waiting
 
     def knows_serial(self, serial_number: int) -> bool:
-        """True once a frame from this unit reached this entry."""
+        """Return True once a frame from this unit reached this entry."""
         return serial_number in self._last_frame_at
 
     def devices_update_callback(self, device: AsekoDevice) -> None:
@@ -768,10 +768,12 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
             await self._consumption_store.async_save(self._consumption_data())
 
     def get_device(self, serial_number: int) -> AsekoDevice | None:
+        """Return the stored device of one serial number, or None."""
         _LOGGER.debug("get_device(%s) called", serial_number)
         return self.data.get(serial_number) if self.data is not None else None
 
     def get_devices(self) -> list[AsekoDevice]:
+        """Return every stored device of this entry."""
         devices = self.data.get_all() if self.data is not None else []
         _LOGGER.debug(
             "get_devices() → %s devices: %s",

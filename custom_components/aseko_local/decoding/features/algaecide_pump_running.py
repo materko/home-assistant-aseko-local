@@ -14,7 +14,7 @@ reported once that is known.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ..feature import Feature
 from ..presence import NOT_PRESENT
@@ -36,12 +36,14 @@ class AlgaecidePumpRunning(Feature):
     field = "algaecide_pump_running"
     depends_on = (AlgaecideFlowRate,)
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool | NotPresent:
         if device.algaecide_flow_rate is None:
             return NOT_PRESENT
         return bool(frame[29] & ALGICIDE_PUMP)
 
     def decode_v7_oxy(self, frame: V7Frame, device: AsekoDevice) -> bool | NotPresent:
+        """Read the OXY algicide pump bit; absent while no algicide flow rate is set."""
         if device.algaecide_flow_rate is None:
             return NOT_PRESENT
         return bool(frame[29] & ALGICIDE_PUMP_OXY)

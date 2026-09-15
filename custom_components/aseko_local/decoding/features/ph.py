@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ...models import AsekoProbeType
 from ..feature import Feature
@@ -21,6 +21,7 @@ class Ph(Feature):
     field = "ph"
     depends_on = (Configuration,)
 
+    @override
     def decode_v7(
         self, frame: V7Frame, device: AsekoDevice
     ) -> float | NotPresent | None:
@@ -29,6 +30,7 @@ class Ph(Feature):
         raw = frame.word_or_none(14)  # 0xFFFF: installed but unreadable
         return None if raw is None else raw / 100
 
+    @override
     def decode_v8(
         self, frame: V8Frame, device: AsekoDevice
     ) -> float | NotPresent | None:

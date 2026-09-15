@@ -43,7 +43,7 @@ SCHEDULE_EVERY_N_DAYS = 3
 
 @pytest.fixture(autouse=True)
 def _home_assistant_in_utc() -> Iterator[None]:
-    """These tests state the schedule in UTC; Home Assistant's test zone is not.
+    """Pin Home Assistant's time zone to UTC: these tests state the schedule in UTC.
 
     The tracker projects and classifies in Home Assistant's time zone, so pin it
     to UTC here.  Tests about local time set their own zone on top.  The zone
@@ -337,7 +337,7 @@ def test_cycle_outside_tolerance_is_manual() -> None:
 
 
 def test_cycle_is_manual_when_schedule_disabled() -> None:
-    """interval 0 = automatic backwash off → the unit cannot have started it."""
+    """Interval 0 = automatic backwash off → the unit cannot have started it."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
 
     def _disabled(active) -> MagicMock:
@@ -412,7 +412,7 @@ def test_next_scheduled_backwash_unknown_after_manual_only() -> None:
 
 
 def test_next_scheduled_backwash_projected_from_last_scheduled() -> None:
-    """next = last scheduled cycle + interval, snapped to the configured time."""
+    """Next = last scheduled cycle + interval, snapped to the configured time."""
     tracker = BackwashTracker(_hass(), serial_number=110071590)
     device = _scheduled_device(False)
 
@@ -782,7 +782,7 @@ def _salt_device(
     menu: bool,
     device_type: AsekoDeviceType = AsekoDeviceType.SALT,
 ) -> MagicMock:
-    """A scheduled device that also reports the settings-menu bit.
+    """Return a scheduled device that also reports the settings-menu bit.
 
     The tracker never looks at the device type; what it reads is the profile
     flag saying the bit marks presence only, which the SALT profile carries
@@ -1146,7 +1146,7 @@ def _clocked(
     at: time = SCHEDULE_AT,
     every: int = SCHEDULE_EVERY_N_DAYS,
 ) -> MagicMock:
-    """A scheduled device whose clock is ``offset`` minutes ahead of HA."""
+    """Return a scheduled device whose clock is ``offset`` minutes ahead of HA."""
     dev = _device(running, backwash_start_time=at, backwash_interval=every)
     dev.clock_offset = offset
     return dev
@@ -1338,7 +1338,7 @@ async def test_schedule_restart_and_offset_survive_a_restart() -> None:
 
 
 def _unit_bytes(unit: datetime) -> bytes:
-    """A v7 SALT frame whose clock bytes (6-11) read ``unit``."""
+    """Return a v7 SALT frame whose clock bytes (6-11) read ``unit``."""
     data = _make_base_bytes()
     data[6:12] = bytes(
         (unit.year - 2000, unit.month, unit.day, unit.hour, unit.minute, unit.second)

@@ -171,7 +171,7 @@ class _PlatformCoordinator:
 
 @pytest.fixture
 def grown_device() -> AsekoDevice:
-    """A SALT that has just started showing its algicide port."""
+    """Return a SALT that has just started showing its algicide port."""
     device = decode(_salt_frame(0xC3, flowrate_third_pump=40))
     assert device.features >= ALGICIDE_FIELDS
     return device

@@ -86,7 +86,7 @@ def decode_lines(lines: Iterable[bytes]) -> Iterator[dict[str, Any]]:
 
 
 def _valid_marker(marker: object) -> bool:
-    """A stored case the list can show: an integer number and a readable time."""
+    """Return whether a stored case can be listed: an integer number and a readable time."""
     if not isinstance(marker, dict):
         return False
     number = marker.get("n")
@@ -116,6 +116,7 @@ class FrameLog:
         chunk_bytes: int = DEFAULT_CHUNK_BYTES,
         chunk_raw_bytes: int = DEFAULT_CHUNK_RAW_BYTES,
     ) -> None:
+        """Set up an empty, switched-off log with the given size limits."""
         if chunk_bytes * 2 > max_bytes:
             msg = "chunk_bytes must be at most half of max_bytes"
             raise ValueError(msg)
@@ -298,7 +299,7 @@ class FrameLog:
     # -- reading -----------------------------------------------------------
 
     def snapshot(self) -> FrameLogSnapshot:
-        """An immutable copy of the buffer, cheap to take on the event loop.
+        """Return an immutable copy of the buffer, cheap to take on the event loop.
 
         Decompressing and re-encoding it is the expensive part: run
         ``snapshot.records()`` / ``snapshot.export()`` in an executor, while the
@@ -317,13 +318,13 @@ class FrameLog:
         return self.snapshot().records()
 
     def export(self, recent: int = 20) -> dict[str, Any]:
-        """The buffer for the diagnostics download."""
+        """Return the buffer for the diagnostics download."""
         return self.snapshot().export(recent)
 
     # -- persistence -------------------------------------------------------
 
     def to_store(self) -> dict[str, Any]:
-        """Serialisable state: sealed chunks as they are, the open chunk recompressed."""
+        """Return the serialisable state: sealed chunks as they are, the open chunk recompressed."""
         return {
             "chunks": [base64.b64encode(chunk).decode() for chunk in self._chunks],
             "open": base64.b64encode(
@@ -401,7 +402,7 @@ class FrameLogSnapshot:
     dropped_chunks: int
 
     def lines(self) -> Iterator[bytes]:
-        """The stored JSON lines, oldest first."""
+        """Return the stored JSON lines, oldest first."""
         for chunk in self.chunks:
             yield from zlib.decompress(chunk).splitlines(keepends=True)
         yield from self.open_lines.splitlines(keepends=True)
@@ -411,13 +412,13 @@ class FrameLogSnapshot:
         return list(decode_lines(self.lines()))
 
     def export(self, recent: int = 20) -> dict[str, Any]:
-        """The buffer for the diagnostics download."""
+        """Return the buffer for the diagnostics download."""
         return self.records_and_export(recent)[1]
 
     def records_and_export(
         self, recent: int = 20
     ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-        """``records()`` and ``export()`` from a single decompression.
+        """Return ``records()`` and ``export()`` from a single decompression.
 
         The export download needs both; reading the chunks once gives them
         from the same moment and does not unpack the log three times.

@@ -1027,6 +1027,7 @@ class AsekoConsumptionSensorEntity(AsekoLocalEntity, RestoreSensor):
         coordinator: AsekoLocalDataUpdateCoordinator,
         description: AsekoConsumptionSensorEntityDescription,
     ) -> None:
+        """Set up one consumption counter of one pump of one unit."""
         AsekoLocalEntity.__init__(
             self,
             unit,

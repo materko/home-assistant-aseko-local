@@ -18,7 +18,7 @@ signed value it would read a plausible -0.1 C.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
@@ -43,6 +43,7 @@ class AirTemperature(Feature):
 
     field = "air_temperature"
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> float | NotPresent:
         raw = frame[23:25]
         if all(byte == UNSPECIFIED_VALUE for byte in raw):

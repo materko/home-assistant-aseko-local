@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ..feature import Feature
 
@@ -16,8 +16,10 @@ class SerialNumber(Feature):
 
     field = "serial_number"
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int:
         return frame.serial_number
 
+    @override
     def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> int:
         return frame.serial_number

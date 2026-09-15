@@ -19,7 +19,7 @@ algicide flow rate is not known.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ..feature import Feature
 from ..frames import byte_or_absent
@@ -39,6 +39,7 @@ class WaterLevel(Feature):
 
     field = "water_level"
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | NotPresent:
         if frame[27] == LEVEL_SENSOR_DISCONNECTED:
             # No sensor is wired (every captured OXY frame reads 0xFE) or it

@@ -1,3 +1,4 @@
-"""State the unit never transmits, built up from the frames over time:
-backwash history and chemical consumption.
+"""State the unit never transmits, built up from the frames over time.
+
+Backwash history, chemical consumption and the unit's clock offset.
 """

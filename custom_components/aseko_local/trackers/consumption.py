@@ -143,6 +143,7 @@ class AsekoConsumptionTracker:
         Args:
             pump_key: which pump to reset, or None / "all" to reset all pumps.
             counter:  "total", "canister", or "all" – defaults to "canister".
+
         """
         if counter not in ("total", "canister", "all"):
             msg = f"counter must be 'total', 'canister', or 'all', got {counter!r}"
@@ -159,7 +160,7 @@ class AsekoConsumptionTracker:
                 _LOGGER.debug("Tracker reset: %s.%s → 0", k, c)
 
     def to_store(self) -> dict[str, dict[str, float]]:
-        """The exact counters in millilitres, for the coordinator's store."""
+        """Return the exact counters in millilitres, for the coordinator's store."""
         return {
             key: {"total": c.total, "canister": c.canister}
             for key, c in self._counters.items()

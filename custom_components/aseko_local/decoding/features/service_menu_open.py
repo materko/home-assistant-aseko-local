@@ -17,7 +17,7 @@ are this bit; 0x02 is the Flow detection setting.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
@@ -35,6 +35,7 @@ class ServiceMenuOpen(Feature):
 
     field = "service_menu_open"
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool | None:
         b = frame[37]
         if b == UNSPECIFIED_VALUE:

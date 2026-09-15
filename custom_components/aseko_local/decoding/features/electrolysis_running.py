@@ -7,7 +7,7 @@ byte[29] bit 0x10 = electrolyser running (confirmed: 25 SALT frames read
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ..feature import Feature
 
@@ -24,5 +24,6 @@ class ElectrolysisRunning(Feature):
 
     field = "electrolysis_running"
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool:
         return bool(frame[29] & ELECTROLYZER_RUNNING)

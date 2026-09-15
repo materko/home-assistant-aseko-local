@@ -6,7 +6,7 @@ placeholder 0x001E, which is why no OXY profile lists those setpoints.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
@@ -21,6 +21,7 @@ class OxygenDoseTarget(Feature):
 
     field = "oxygen_dose_target"
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> int | None:
         if frame[53] == UNSPECIFIED_VALUE:
             return None  # the OXY dose is not filled in

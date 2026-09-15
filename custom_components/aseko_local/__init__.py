@@ -95,6 +95,8 @@ type AsekoLocalConfigEntry = ConfigEntry["AsekoLocalRuntimeData"]
 
 @dataclass
 class AsekoLocalRuntimeData:
+    """What one config entry keeps while it runs: coordinator, server, mirrors."""
+
     coordinator: AsekoLocalDataUpdateCoordinator
     device_discovered: bool = False
     mirror: AsekoCloudMirror | None = None

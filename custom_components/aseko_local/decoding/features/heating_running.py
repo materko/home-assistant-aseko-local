@@ -6,7 +6,7 @@ bit 2).  Available on every model with a heating output; NET has none.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ..feature import Feature
 
@@ -23,5 +23,6 @@ class HeatingRunning(Feature):
 
     field = "heating_running"
 
+    @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool:
         return bool(frame[29] & HEATING)
