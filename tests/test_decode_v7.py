@@ -930,37 +930,6 @@ def test_available_probes_combinations() -> None:
     assert AsekoProbeType.DOSE not in probes
 
 
-# def test_decode_pump_types() -> None:
-#    """Test decoding of different pump types."""
-#
-#    data = _make_base_bytes()
-#
-#    # Test: Chlor pump running
-#    data[29] = 0x48
-#    device = decode(bytes(data))
-#    assert device.active_pump == AsekoPumpType.CHLOR
-#
-#    # Test: PH+ pump running --> data Byte is unknwon
-#    # data[29] = -1
-#    # device = decode(bytes(data))
-#    # assert device.active_pump == AsekoPumpType.PH_PLUS
-#
-#    # Test: PH- pump running
-#    data[29] = 0x88
-#    device = decode(bytes(data))
-#    assert device.active_pump == AsekoPumpType.PH_MINUS
-#
-#    # Test: Floc pump running
-#    data[29] = 0x28
-#    device = decode(bytes(data))
-#    assert device.active_pump == AsekoPumpType.FLOC
-#
-#    # Test: No pump running
-#    data[29] = 0x00
-#    device = decode(bytes(data))
-#    assert device.active_pump == 0
-
-
 # ── ASIN AQUA Oxygen ────────────────────────────────────────────────────────
 
 # Test frames for OXY device (anonymized serial: 0x0690DEAD)

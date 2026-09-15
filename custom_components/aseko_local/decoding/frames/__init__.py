@@ -39,13 +39,13 @@ def parse_frame(raw: bytes, protocol: Protocol | None = None) -> V7Frame | V8Fra
 
 
 __all__ = [
-    "Protocol",
     "UNSPECIFIED_WORD",
-    "V7Frame",
     "V7_CHECKSUM_SEED",
     "V7_SEGMENT_LENGTH",
-    "V8Frame",
     "V8_SIGNATURE",
+    "Protocol",
+    "V7Frame",
+    "V8Frame",
     "byte_or_absent",
     "decode_time",
     "decode_timestamp",

@@ -14,6 +14,7 @@ select = [
     "C90",  # mccabe complexity, max-complexity below
     "DTZ",  # datetimes with a time zone
     "E",    # pycodestyle errors
+    "ERA",  # commented-out code
     "F",    # pyflakes
     "FBT",  # boolean positional arguments
     "G",    # logging format
@@ -25,6 +26,7 @@ select = [
     "PT",   # pytest style
     "PTH",  # pathlib
     "RET",  # return
+    "RUF",  # ruff
     "S",    # bandit
     "SIM",  # flake8-simplify
     "UP",   # pyupgrade
@@ -32,6 +34,11 @@ select = [
 ]
 
 ignore = [
+    # Arrows, dashes and multiplication signs in text are written on purpose
+    "RUF001", "RUF002", "RUF003",
+    # noqa for rule groups not switched on yet (PLC0415, SLF001); drop this
+    # once they are
+    "RUF100",
     "ARG001", # "unused-argument"
     "D202", # no-blank-line-after-function
     "D203", # no-blank-line-before-class (incompatible with formatter)

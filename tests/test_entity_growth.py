@@ -294,7 +294,7 @@ def test_quantities_the_unit_has_not_shown_get_disabled_entities() -> None:
     device = decode(_salt_frame(0xFF))
     entities = _entities_by_key(device)
 
-    # shown: enabled
+    # the quantities the unit shows are enabled
     assert entities["ph"].entity_registry_enabled_default is True
     assert entities["rx"].entity_registry_enabled_default is True
     assert entities["connection_status"].entity_registry_enabled_default is True

@@ -130,12 +130,6 @@ def _make_net_clf_bytes() -> bytearray:
     """Create a base bytearray for test data with default values for Aseko NET with CLF and PH."""
     """with CL free and cl free mV and PH no redox"""
 
-    # data = bytearray.fromhex(
-    #     "069187240901ffffffffffff000402d10024ffff0026ff00050147ff000001e90000000000ff0017"
-    #     "069187240903ffffffffffff470a08ffffffffffffffffff028a0147ffffffffffffffffffffff1f"
-    #     "069187240902ffffffffffff0001003cffff003cffff010383ff00781e02581e28ffffffff0049a9"
-    # )
-
     data = bytearray([0xFF] * 120)
     data[0:4] = (110200612).to_bytes(4, "big")  # serial_number / HEX: 0x06918724
     data[4] = 9  # probe info / HEX: 0x09
@@ -292,7 +286,7 @@ async def test_async_setup_salt_redox(hass) -> None:
         for e in added_entities
     )
     # 11 sensors + 7 new (filtration schedule, pool volume, delays) + 4 binary
-    # (water_flow, electrolysis_running, filtration, ph_minus)
+    # water_flow, electrolysis_running, filtration and ph_minus
     # + 2 consumption (ph_minus canister + total) + 1 connection_status
     # + 3 new backwash config sensors (every_n_days, time, duration)
     # + 3 backwash history sensors (last_backwash, last_manual_backwash,
@@ -441,7 +435,7 @@ async def test_async_setup_salt_clf(hass) -> None:
         for e in added_entities
     )
     # 12 sensors + 7 new (filtration schedule, pool volume, delays) + 4 binary
-    # (water_flow, electrolysis_running, filtration, ph_minus)
+    # water_flow, electrolysis_running, filtration and ph_minus
     # + 2 consumption (ph_minus canister + total) + 1 connection_status
     # + 3 new backwash config sensors (every_n_days, time, duration)
     # + 4 backwash history sensors (last_backwash, last_scheduled_backwash,

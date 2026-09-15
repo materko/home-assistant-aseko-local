@@ -54,7 +54,7 @@ SERVICE_MARK_DUMP = "mark_dump"
 
 RESET_CONSUMPTION_SCHEMA = vol.Schema(
     {
-        vol.Optional("pump", default="all"): vol.In(list(PUMP_KEYS) + ["all"]),
+        vol.Optional("pump", default="all"): vol.In([*PUMP_KEYS, "all"]),
         vol.Optional("counter", default="canister"): vol.In(
             ["canister", "total", "all"]
         ),
