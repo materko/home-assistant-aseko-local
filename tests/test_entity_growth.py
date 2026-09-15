@@ -66,6 +66,20 @@ def _coordinator() -> AsekoLocalDataUpdateCoordinator:
     return AsekoLocalDataUpdateCoordinator(hass, entry)
 
 
+def _loaded(
+    coordinator: AsekoLocalDataUpdateCoordinator,
+) -> AsekoLocalDataUpdateCoordinator:
+    """Mark the backwash trackers loaded: this mock hass never runs their load.
+
+    ``load_soon`` sets the flag at once and hands the load to
+    ``hass.async_create_task``, which here only closes the coroutine, so
+    without this every tracker would look like one still reading its store.
+    """
+    for tracker in coordinator._backwash_trackers.values():
+        tracker._loading = False
+    return coordinator
+
+
 def _salt_frame(byte37: int, flowrate_third_pump: int = 0xFF) -> bytes:
     data = _make_base_bytes()  # SALT, REDOX probe
     data[37] = byte37

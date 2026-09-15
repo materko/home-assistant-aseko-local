@@ -18,13 +18,14 @@ from custom_components.aseko_local.const import UNIT_TYPE_HOME_CLF, UNIT_TYPE_NE
 from custom_components.aseko_local.coordinator import (
     CONSUMPTION_SAVE_INTERVAL,
     FRAME_LOG_SAVE_INTERVAL,
+    BackwashHistoryLoadingError,
 )
 from custom_components.aseko_local.decoding import decode
 from custom_components.aseko_local.models import AsekoDevice, AsekoDeviceType
 from custom_components.aseko_local.trackers.consumption import AsekoConsumptionTracker
 
 from .test_decode_v7 import _make_base_bytes
-from .test_entity_growth import SERIAL, _coordinator, _salt_frame
+from .test_entity_growth import SERIAL, _coordinator, _loaded, _salt_frame
 
 T0 = datetime(2026, 9, 1, 12, 0, tzinfo=UTC)
 
@@ -63,7 +64,7 @@ def _coordinator_with_salt() -> coordinator_module.AsekoLocalDataUpdateCoordinat
     coordinator = _coordinator()
     coordinator.config_entry.options = {}
     coordinator.devices_update_callback(decode(_salt_frame(0xD3)))
-    return coordinator
+    return _loaded(coordinator)
 
 
 # -- odd devices and listeners ------------------------------------------------
@@ -202,6 +203,34 @@ async def test_backwash_trackers_are_warmed_up_for_known_devices(monkeypatch) ->
     assert coordinator._backwash_trackers[SERIAL] is known
 
 
+def test_a_history_still_being_read_refuses_the_service_and_keeps_its_state() -> None:
+    """Audit F2: the finishing load would replace a typed-in date; refuse instead."""
+    coordinator = _coordinator()
+    coordinator.config_entry.options = {}
+    coordinator.devices_update_callback(decode(_salt_frame(0xD3)))
+    tracker = coordinator._backwash_trackers[SERIAL]
+    assert tracker.loading is True  # the mock hass never runs the load
+
+    with pytest.raises(BackwashHistoryLoadingError, match=str(SERIAL)):
+        coordinator.set_last_scheduled_backwash(T0)
+    with pytest.raises(BackwashHistoryLoadingError):
+        coordinator.clear_last_scheduled_backwash(serial_number=SERIAL)
+
+    assert tracker.last_scheduled_backwash is None
+    assert _loaded(coordinator).set_last_scheduled_backwash(T0) is True
+
+
+def test_one_unit_still_reading_its_history_stops_the_whole_service() -> None:
+    coordinator = _coordinator_with_salt()  # its tracker is loaded
+    coordinator.devices_update_callback(_frame(UNIT_TYPE_HOME_CLF, 4321))
+    assert coordinator._backwash_trackers[4321].loading is True
+
+    with pytest.raises(BackwashHistoryLoadingError, match="4321"):
+        coordinator.set_last_scheduled_backwash(T0)
+
+    assert coordinator._backwash_trackers[SERIAL].last_scheduled_backwash is None
+
+
 # -- units without a backwash valve (audit A2) ------------------------------------
 
 NET_SERIAL = 5678
@@ -236,6 +265,7 @@ def test_with_a_home_and_a_net_only_the_home_clock_counts(monkeypatch) -> None:
     coordinator.config_entry.options = {}
     coordinator.devices_update_callback(_frame(UNIT_TYPE_HOME_CLF, SERIAL))
     coordinator.devices_update_callback(_frame(NET_CLF, NET_SERIAL))
+    _loaded(coordinator)
     coordinator.get_device(SERIAL).clock_offset = 60.0
     coordinator.get_device(NET_SERIAL).clock_offset = 0.0
 

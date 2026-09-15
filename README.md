@@ -368,7 +368,7 @@ A not attributed cycle updates `sensor.last_backwash` only; `last_scheduled_back
 
 **Units without that flag** (today Home, Oxygen, Profi: on HOME the bit is a standing pump override, on Oxygen and Profi its meaning is not confirmed) only the time decides: within **±5 minutes** of `backwash_time` on the unit's clock (drift and summer / winter time taken out) on a unit whose schedule is enabled → **scheduled**; anything else, including any cycle with `backwash_every_n_days = 0` → **manual**.
 
-`backwash_time` is set on the **unit's clock**, which runs apart from Home Assistant's ([Unit clock](#unit-clock)). The window is **±5 minutes** of `backwash_time` on the unit's clock: the valve start, taken on Home Assistant's clock, is moved by the offset **in the frame in which the valve opened** — drift and a missed change of summer / winter time together, read from that frame's own clock rather than from the smoothed `clock_offset`, so a cycle right after the clock jumped is still recognised; a later change of the clock during the cycle does not move it. Where no offset is known (a frame that carries no clock) the window is ±15 minutes of `backwash_time` on Home Assistant's clock. What is left for the window to absorb is up to one transmit interval (~30 s) of lag before the frame reports the valve as open.
+`backwash_time` is set on the **unit's clock**, which runs apart from Home Assistant's ([Unit clock](#unit-clock)). The window is **±5 minutes** of `backwash_time` on the unit's clock: the valve start, taken on Home Assistant's clock, is moved by the offset **in the frame in which the valve opened** — drift and a missed change of summer / winter time together, read from that frame's own clock rather than from the smoothed `clock_offset`, so a cycle right after the clock jumped is still recognised; a later change of the clock during the cycle does not move it. A frame that carries no clock (the unit's clock is not read on every model) uses the last offset measured before it; while none has been measured at all — a fresh install, the first frames — the window is ±15 minutes of `backwash_time` on Home Assistant's clock, and an offset measured later does not change how that cycle was recorded. What is left for the window to absorb is up to one transmit interval (~30 s) of lag before the frame reports the valve as open.
 
 For example, with `backwash_time` 08:30 on a unit that did not switch to summer time (an hour behind) and runs 5.5 minutes fast, `clock_offset` is −54.5 minutes. The valve opens at 09:24:30 on Home Assistant's clock; moved by −54.5 minutes that is 08:30 on the unit's clock, within ±5 minutes → **scheduled**. A cycle at 09:40 on Home Assistant's clock is 08:45:30 on the unit's clock, outside → not scheduled.
 
@@ -396,7 +396,9 @@ data:
 ```
 
 Enter it on the unit's clock, as the unit's menu shows the time (e.g. 08:30);
-it must not be later than now on that clock. `datetime.last_scheduled_backwash` carries a
+it must not be later than now on that clock. In the first moments after a restart the entry is
+refused while the stored history is still being read — the load would replace it — so try again
+a moment later. `datetime.last_scheduled_backwash` carries a
 `source` attribute saying where its value came from:
 
 | `source` | Meaning |

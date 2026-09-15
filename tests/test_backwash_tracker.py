@@ -1625,3 +1625,93 @@ def test_a_cycle_out_of_the_window_on_the_unit_clock_of_its_frame_is_manual() ->
 
     assert published[4] == 0.0
     assert tracker.last_trigger is AsekoBackwashTrigger.MANUAL
+
+
+# ── an offset that was not known when the valve opened (audit F1) ────────────
+
+
+def _blind_then(offset: float | None) -> BackwashTracker:
+    """Open the valve on a frame with no clock, then report ``offset`` minutes."""
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    opening = _clocked(True, None)
+    opening.unit_clock = None
+    tracker.update(opening, T0)
+    for seconds in (10, 20, 30):
+        frame = _clocked(True, offset)
+        frame.unit_clock = None if offset is None else T0 + timedelta(minutes=offset)
+        tracker.update(frame, T0 + timedelta(seconds=seconds))
+    closing = _clocked(False, offset)
+    closing.unit_clock = None if offset is None else T0 + timedelta(minutes=offset)
+    tracker.update(closing, T0 + timedelta(seconds=90))
+    return tracker
+
+
+@pytest.mark.parametrize("later", [None, 60.0, -60.0, 0.0])
+def test_a_clock_first_seen_after_the_valve_opened_does_not_reclassify_it(
+    later,
+) -> None:
+    """The start stays on Home Assistant's clock, ±15 min, whatever comes later."""
+    tracker = _blind_then(later)
+
+    assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
+    assert tracker.last_scheduled_backwash == T0
+
+
+def test_without_a_clock_at_the_start_the_wide_window_still_applies() -> None:
+    """Half an hour past the plan on Home Assistant's clock is nobody's schedule."""
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    start = T0 + timedelta(minutes=30)
+    opening = _clocked(True, None)
+    opening.unit_clock = None
+    tracker.update(opening, start)
+    closing = _clocked(False, 30.0)
+    closing.unit_clock = start + timedelta(minutes=30)
+    tracker.update(closing, start + timedelta(seconds=90))
+
+    assert tracker.last_trigger is AsekoBackwashTrigger.MANUAL
+
+
+# ── a typed-in date while the store is still being read (audit F2) ───────────
+
+
+async def test_the_history_is_not_written_while_it_is_still_being_read() -> None:
+    """A set that a finishing load would replace is refused, not lost."""
+    stored = {
+        "last_backwash": "2026-09-09T06:30:00+00:00",
+        "last_scheduled_backwash": "2026-09-09T06:30:00+00:00",
+        "last_scheduled_source": "observed",
+    }
+    release = asyncio.Event()
+    saves: list[dict] = []
+
+    async def load() -> dict[str, Any]:
+        await release.wait()
+        return dict(stored)
+
+    async def save(data) -> None:
+        saves.append(dict(data))
+
+    hass = _hass()
+    tasks: list[asyncio.Task] = []
+    hass.async_create_task.side_effect = lambda coro, *a, **k: tasks.append(
+        asyncio.ensure_future(coro)
+    )
+    tracker = BackwashTracker(hass, serial_number=110071590)
+    tracker._store.async_load = load  # type: ignore[method-assign]
+    tracker._store.async_save = save  # type: ignore[method-assign]
+
+    hass.async_create_task(tracker.load_soon())
+    await asyncio.sleep(0)
+    assert tracker.loading is True
+
+    release.set()
+    await asyncio.gather(*tasks)
+    assert tracker.loading is False
+    assert tracker.last_scheduled_backwash == datetime.fromisoformat(
+        stored["last_scheduled_backwash"]
+    )
+
+    tracker.set_last_scheduled_backwash(T0)
+    await asyncio.gather(*tasks)
+    assert tracker.last_scheduled_backwash == T0
+    assert saves[-1]["last_scheduled_backwash"] == T0.isoformat()

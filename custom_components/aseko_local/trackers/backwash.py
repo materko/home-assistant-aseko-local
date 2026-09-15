@@ -180,6 +180,23 @@ STORAGE_VERSION = 1
 STORAGE_KEY_PREFIX = "aseko_local_backwash_"
 
 
+class _CurrentOffset:
+    """Default of the ``offset_minutes`` arguments: the offset as it is now."""
+
+    def __repr__(self) -> str:
+        """Name the sentinel in a traceback."""
+        return "CURRENT_OFFSET"
+
+
+#: Told apart from an explicit ``None``, which says the offset was *not known*
+#: when the valve opened -- the cycle is then compared on Home Assistant's
+#: clock with the wider tolerance, and a value measured later does not
+#: reinterpret the start.
+CURRENT_OFFSET = _CurrentOffset()
+
+_OffsetArg = float | None | _CurrentOffset
+
+
 class BackwashTracker:
     """Detects, classifies and persistently records filter backwash events.
 
@@ -264,6 +281,16 @@ class BackwashTracker:
     def last_scheduled_backwash(self) -> datetime | None:
         """Return the most recent backwash that ran on the unit's schedule."""
         return self._last_scheduled_backwash
+
+    @property
+    def loading(self) -> bool:
+        """Whether the stored history is still on its way in from the Store.
+
+        A typed-in date written now would be replaced by the stored one when
+        the load finishes, and it could not be saved either (``async_save``),
+        so the services refuse while this is True instead of losing it.
+        """
+        return self._loading
 
     @property
     def last_scheduled_source(self) -> AsekoBackwashSource | None:
@@ -530,17 +557,23 @@ class BackwashTracker:
         return self._clock_offset_minutes
 
     def _on_unit_clock(
-        self, moment: datetime, offset_minutes: float | None = None
+        self, moment: datetime, offset_minutes: _OffsetArg = CURRENT_OFFSET
     ) -> datetime:
         """``moment`` as the unit's clock shows it: local wall clock plus the offset.
 
-        ``offset_minutes`` defaults to the current offset; the wall clock is
-        Home Assistant's local time, which is what the unit's clock is
-        compared with.
+        ``offset_minutes`` left out means the offset as it is now; ``None``
+        means it was not known, and the moment stands as Home Assistant's own
+        clock.  The wall clock is Home Assistant's local time, which is what
+        the unit's clock is compared with.
         """
-        if offset_minutes is None:
-            offset_minutes = self._clock_offset_minutes
-        return dt_util.as_local(moment) + timedelta(minutes=offset_minutes or 0.0)
+        offset = self._offset_or_current(offset_minutes)
+        return dt_util.as_local(moment) + timedelta(minutes=offset or 0.0)
+
+    def _offset_or_current(self, offset_minutes: _OffsetArg) -> float | None:
+        """Resolve the sentinel; an explicit ``None`` stays not known."""
+        if isinstance(offset_minutes, _CurrentOffset):
+            return self._clock_offset_minutes
+        return offset_minutes
 
     def _note_schedule(self, device: AsekoDevice, now: datetime) -> None:
         """Restart the schedule phase when the unit shows a changed schedule.
@@ -724,7 +757,7 @@ class BackwashTracker:
         self,
         device: AsekoDevice,
         moment: datetime,
-        offset_minutes: float | None = None,
+        offset_minutes: _OffsetArg = CURRENT_OFFSET,
     ) -> datetime | None:
         """Return the schedule slot on the unit's clock that ``moment`` belongs to."""
         at = device.backwash_start_time
@@ -738,12 +771,14 @@ class BackwashTracker:
         started_at: datetime,
         *,
         service_menu_observed: bool = False,
-        offset_minutes: float | None = None,
+        offset_minutes: _OffsetArg = CURRENT_OFFSET,
     ) -> AsekoBackwashTrigger:
         """Return whether a cycle starting at ``started_at`` was scheduled.
 
         ``offset_minutes``: the clock offset the start is read with -- the
-        one when the window opened; the current one when None.
+        one when the window opened, ``None`` when it was not known then (the
+        wider window on Home Assistant's clock), the current one when the
+        argument is left out.
 
         A cycle counts as scheduled when the unit could have started it
         itself: the schedule is configured and enabled, and the relay opened
@@ -804,11 +839,13 @@ class BackwashTracker:
         return AsekoBackwashTrigger.MANUAL
 
     def _matches_schedule(
-        self, started_at: datetime, at: time, offset_minutes: float | None = None
+        self,
+        started_at: datetime,
+        at: time,
+        offset_minutes: _OffsetArg = CURRENT_OFFSET,
     ) -> bool:
         """Whether a cycle starting at ``started_at`` fits the daily ``at`` slot."""
-        if offset_minutes is None:
-            offset_minutes = self._clock_offset_minutes
+        offset_minutes = self._offset_or_current(offset_minutes)
         if offset_minutes is None:
             return _within_tolerance(started_at, at, SCHEDULED_MATCH_TOLERANCE)
         return _within_tolerance(

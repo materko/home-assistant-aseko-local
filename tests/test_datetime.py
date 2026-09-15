@@ -19,14 +19,14 @@ from custom_components.aseko_local.datetime import (
 from custom_components.aseko_local.decoding import decode
 from custom_components.aseko_local.models import AsekoDevice
 
-from .test_entity_growth import SERIAL, _coordinator, _salt_frame
+from .test_entity_growth import SERIAL, _coordinator, _loaded, _salt_frame
 
 
 def _coordinator_with_salt() -> AsekoLocalDataUpdateCoordinator:
     coordinator = _coordinator()
     coordinator.config_entry.options = {}
     coordinator.devices_update_callback(decode(_salt_frame(0xD3)))
-    return coordinator
+    return _loaded(coordinator)
 
 
 def _entity(coordinator) -> AsekoLastScheduledBackwashEntity:

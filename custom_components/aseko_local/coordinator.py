@@ -11,6 +11,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import DOMAIN as HOMEASSISTANT_DOMAIN
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
@@ -53,6 +54,14 @@ FRAME_LOG_SAVE_INTERVAL = timedelta(minutes=10)
 
 class RecordingOffError(Exception):
     """A marker was asked for while the frame log is off."""
+
+
+class BackwashHistoryLoadingError(ServiceValidationError):
+    """The backwash history of a unit is still being read from its store.
+
+    A ``ServiceValidationError`` so both the services and the datetime entity
+    show the user what happened and that trying again works.
+    """
 
 
 class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
@@ -428,6 +437,21 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
 
         if not trackers:
             return False
+
+        # Every target is checked before the first one is written: a tracker
+        # whose stored history is still on its way in would have the entry
+        # replaced by the stored state, and could not save it either.  Refused
+        # as a whole rather than applied to some of the units.
+        loading = sorted(
+            serial for serial, tracker in trackers.items() if tracker.loading
+        )
+        if loading:
+            msg = (
+                "The stored backwash history of "
+                + ", ".join(str(serial) for serial in loading)
+                + " is still being read; try again in a moment"
+            )
+            raise BackwashHistoryLoadingError(msg)
 
         for serial, tracker in trackers.items():
             action(tracker)
