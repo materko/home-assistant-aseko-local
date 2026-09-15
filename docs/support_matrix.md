@@ -255,7 +255,7 @@ Values these models have but nobody has found in the frame.  If you own one of t
 
 ### v7 HOME
 
-- `algaecide_flow_rate` — not located: byte[103] was read as the algicide flow rate (Issues #110, #115), but bytes 102-105 are the water level thresholds -- confirmed on SALT against the unit (2026-09-11) and 13 / 33 / 55 / 100 cm in order on serial 110128063; OXY sends the flow rate there only because it has no level sensor
+- `algaecide_flow_rate` — not located: byte[103] was read as the algicide flow rate (Issues #110, #115), but bytes 102-105 are the water level thresholds -- confirmed on SALT against the unit (2026-09-11) and 13 / 33 / 55 / 100 cm in order on serial 110128063; the captured OXY sends its algicide flow rate there, and has no level sensor connected
 
 ### v7 OXY
 

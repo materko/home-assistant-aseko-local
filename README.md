@@ -16,7 +16,7 @@ The Aseko unit and your Home Assistant need to run on the same network or traffi
 
 ### Supported devices
 
-✅ checked on this model · 👁 seen in real frames, not compared with the unit · ❓ assumed, not checked on this model · 🔍 not located in the frame. Per value: [support matrix](docs/support_matrix.md).
+✅ checked on this model, or derived from the protocol · 👁 seen in real frames, not compared with the unit · ❓ assumed, not checked on this model · 🔍 not located in the frame · — not read. Per value: [support matrix](docs/support_matrix.md).
 
 | Device | Firmware | Sensors | Pump state | Chemical consumption |
 |---|---|---|---|---|
@@ -189,7 +189,7 @@ If you want to keep sending the data to Aseko Cloud, you had to use a TCP proxy 
 
 ## Chemical consumption & canister management
 
-The unit does **not** send how much chemical it dosed. The integration **estimates** it: for every frame in which a pump runs, it adds the time since the previous frame multiplied by that pump's flow rate (ml/min, as set on the unit). The estimate is as good as the pump-running bit and the flow rate for your model — check both in the [support matrix](docs/support_matrix.md); a pump with ❓ or 🔍 there gives a rough or no figure. Each interval counts at most 30 seconds, so a gap in the frames is not counted as dosing; the stretch up to the frame in which the pump stops is counted. The millilitres are stored without rounding to litres; if Home Assistant stops abruptly, the last minute before the save can be lost.
+The unit does **not** send how much chemical it dosed. The integration **estimates** it: from the first frame in which a pump is seen running, every following frame adds the time since the previous one multiplied by that pump's flow rate (ml/min, as set on the unit). The estimate is as good as the pump-running bit and the flow rate for your model — check both in the [support matrix](docs/support_matrix.md); a pump with ❓ or 🔍 there gives a rough or no figure. Each interval counts at most 30 seconds, so a gap in the frames is not counted as dosing; the stretch up to the frame in which the pump stops is counted. The millilitres are stored without rounding to litres; if Home Assistant stops abruptly, the last minute before the save can be lost.
 
 Two consumption sensors per pump (the names below are the entity names; pick the entity IDs from your own Home Assistant):
 
@@ -318,7 +318,7 @@ History, recorded live and persisted across restarts. **These are not all equall
 |---|---|---|---|
 | `sensor.last_backwash` | Last cycle, whatever started it. **Unknown** until one is seen | Observed | n/a — it holds every cycle |
 | `datetime.last_scheduled_backwash` | Last cycle that looked like the unit's own scheduled run — **and settable**, see below | Observed *or* entered by hand — see its `source` attribute | Estimated |
-| `sensor.last_manual_backwash` | Last cycle that did not | Observed | Estimated |
+| `sensor.last_manual_backwash` | Last cycle classified as manual (a not attributed cycle does not move it) | Observed | Estimated |
 | `sensor.next_scheduled_backwash` | Projected next automatic cycle. **Unknown** until a scheduled cycle is known | **Calculated** | Inherited |
 
 The two columns matter separately. A cycle the integration watched has a
@@ -346,7 +346,7 @@ A not attributed cycle updates `sensor.last_backwash` only; `last_scheduled_back
 
 The tolerance absorbs drift between the unit's clock and Home Assistant's, plus up to one transmit interval (~30 s) of lag before the frame reports the valve as open.
 
-`next_scheduled_backwash` is projected from the last **scheduled** cycle: that timestamp plus the configured interval, snapped to `backwash_time`, and stepped forward if cycles were missed while Home Assistant was down. A manual backwash deliberately does not move it — starting one by hand does not tell us (nor, on the unit, change) the schedule phase. Since it builds on the classification, it inherits any error in it.
+`next_scheduled_backwash` is projected from the last **scheduled** cycle: the `backwash_time` slot that cycle belongs to (the day before when the cycle ran past midnight), plus the configured interval, in Home Assistant's time zone, and stepped forward if cycles were missed while Home Assistant was down. A manual backwash deliberately does not move it — starting one by hand does not tell us (nor, on the unit, change) the schedule phase. Since it builds on the classification, it inherits any error in it.
 
 > **Upgrading:** `sensor.next_backwash` was renamed to `sensor.next_scheduled_backwash`. The integration rewrites the entity registry on startup, so the entity keeps its `entity_id`, its recorded history and any automation or dashboard pointing at it — only the displayed name changes.
 
@@ -394,9 +394,9 @@ cycles that were started by hand — a different thing from a manually entered
 date.
 
 To undo a mistyped date there is `aseko_local.clear_last_scheduled_backwash`,
-which returns the value to unknown (optionally for one `serial_number`). If an
-older cycle is on record, clearing also re-derives the split from it — see
-below.
+which returns the value to unknown (optionally for one `serial_number`). If a
+cycle is on record and no manual cycle has been seen, the next frame classifies
+that cycle again and may fill the value back in — see below.
 
 ### Upgrading from a store that predates the split
 
@@ -405,8 +405,8 @@ below.
 which kind it was. Rather than leave both empty until the next cycle — up to a
 whole interval away — the integration classifies that stored timestamp against
 the schedule on the first frame after the upgrade, and fills in whichever of
-the two it belongs to. It only ever does this while both are empty, so a real
-cycle is never second-guessed.
+the two it belongs to (neither, if it comes out not attributed). It does this
+once, and only while both are empty, so a real cycle is never second-guessed.
 
 ### Known ways the estimate gets it wrong
 

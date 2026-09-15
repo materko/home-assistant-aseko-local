@@ -85,7 +85,7 @@ class FiltrationRunning(Feature):
 
 A **profile** is one (protocol, model) combination in its own module:
 
-- `features` — what the model has (groups from `common.py`); a missing feature is one the model does not have;
+- `features` — what the profile reads (groups from `common.py`); a missing feature is one the model does not have, or one nobody has decoded yet;
 - `overrides` — the reading to use where this model differs from the protocol default;
 - `evidence` — why each entry is believed, spelled out per profile ([rules](evidence-rules.md));
 - `flags` — model facts consumers need, instead of `device_type` checks: `MENU_BIT_IS_PRESENCE_ONLY` (read by the backwash tracker), `DELAYS_IN_MINUTES` (v8 delays, read by `sensor.py`).

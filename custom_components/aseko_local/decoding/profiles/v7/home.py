@@ -158,7 +158,7 @@ HOME = Profile(
         FiltrationRunning: "confirmed: byte[29] 0x08 stays set under the override, so 0x04 wins (Issue #133)",
         FiltrationSchedule: "confirmed: byte[37] 0x10 / 0x20, 0x01 / 0x11 / 0x31 on serial 110169464 (Issue #133); the values once read as firmware A (0x43 nonstop, 0x53 timer) are the same bits with Waterlevel (0x40) and Flow detection (0x02) set",
         FlocculantPumpRunning: "assumed: byte[29] 0x20 as on OXY (confirmed there)",
-        AlgaecideFlowRate: "not located: byte[103] was read as the algicide flow rate (Issues #110, #115), but bytes 102-105 are the water level thresholds -- confirmed on SALT against the unit (2026-09-11) and 13 / 33 / 55 / 100 cm in order on serial 110128063; OXY sends the flow rate there only because it has no level sensor",
+        AlgaecideFlowRate: "not located: byte[103] was read as the algicide flow rate (Issues #110, #115), but bytes 102-105 are the water level thresholds -- confirmed on SALT against the unit (2026-09-11) and 13 / 33 / 55 / 100 cm in order on serial 110128063; the captured OXY sends its algicide flow rate there, and has no level sensor connected",
         ChlorineFlowRate: "confirmed: byte[99], serials 110071590 / 110128063 (Issues #110, #115)",
         FlocculantFlowRate: "confirmed: byte[101], Issues #110, #115",
         PhMinusFlowRate: "observed: byte[95] = 60 on serial 110128063; Aseko Live lists the pH- pump but the rate was not compared; the position is confirmed on SALT",

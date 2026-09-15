@@ -37,7 +37,7 @@ No representative frame exists. The test fixture (CLF + REDOX, synthetic) sets `
 
 | Byte | Field | Decoding | Evidence | Notes |
 |---|---|---|---|---|
-| 0–3 | `serial_number` | big-endian | confirmed | Repeated in every segment header |
+| 0–3 | `serial_number` | big-endian | derived | Repeated in every segment header — the v7 layout every unit shares; no PROFI frame captured |
 | 4 | unit type / `configuration` | `0x10`; missing-probe bits, no DOSE bit | assumed | See §4 |
 | 5 | segment type | `0x01` | assumed | |
 | 6–11 | `timestamp` | year offset 2000 | assumed | |

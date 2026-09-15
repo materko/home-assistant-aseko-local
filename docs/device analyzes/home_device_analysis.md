@@ -241,7 +241,7 @@ Supported on some HOME REDOX units (110175608). The brand is picked on the unit 
 
 ### Algicide flow rate and byte[103]
 
-`byte[103]` was read both as `algaecide_flow_rate` (33 ml/min) and as `water_level_refill_start` (33 cm) on 110128063. It is the threshold: bytes 102–105 are the level thresholds on SALT (confirmed against the unit, 2026-09-11), and 13 / 33 / 55 / 100 cm are in order here. OXY sends its algicide flow rate on `byte[103]` only because it has no level sensor. HOME's algicide flow rate is not located, so neither the algicide pump state nor its consumption is computed.
+`byte[103]` was read both as `algaecide_flow_rate` (33 ml/min) and as `water_level_refill_start` (33 cm) on 110128063. It is the threshold: bytes 102–105 are the level thresholds on SALT (confirmed against the unit, 2026-09-11), and 13 / 33 / 55 / 100 cm are in order here. The captured OXY sends its algicide flow rate on `byte[103]`, and it has no level sensor connected. HOME's algicide flow rate is not located, so neither the algicide pump state nor its consumption is computed.
 
 ### Chlorine / OXY Pure port
 
@@ -276,8 +276,8 @@ Serial 110128063, frame 2026-04-28 08:27:07, against the Aseko Live app; pH and 
 | 2026-04-28 | `startup_delay` | 480 s | 8 min | match |
 | 2026-04-28 | `dosing_delay` | 240 s | 4 min | match |
 | 2026-04-28 | `ph_minus_flow_rate` | 60 | pH− pump listed, rate not shown | not compared |
-| 2026-04-28 | `chlorine_flow_rate` | 60 | Chlor Pure listed | match |
-| 2026-04-28 | `flocculant_flow_rate` | 10 | Floc+c listed | match |
+| 2026-04-28 | `chlorine_flow_rate` | 60 | Chlor Pure listed, rate not shown | not compared |
+| 2026-04-28 | `flocculant_flow_rate` | 10 | Floc+c listed, rate not shown | not compared |
 | 2026-04-28 | `ph_minus_concentration` | 15 % (raw `0x0f`) | 5 % | **mismatch**, unresolved — see §8 |
 | Issue #135 | `heating_control_enabled` | True / False | app setting | match (110175608) |
 | Issue #135 | `water_temperature_target` | heating setpoint | app setting | match (110175608) |

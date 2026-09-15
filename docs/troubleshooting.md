@@ -37,7 +37,7 @@ happens next.
 | **disabled** (by the integration) | the model can have the value, but this unit has never sent it; it switches itself on when it does and stays enabled after a restart | `devices[].device.possible_features` has it, `features` does not |
 | **unavailable** | the last frame did not carry it: the accessory is not fitted (any more), the shared pump port is routed to the other chemical, or the setting is off | `devices[].device.not_present_now` |
 | **unknown** | the unit has it, but the last frame could not say (e.g. `0xFF` "not filled in" at start-up, an unreadable v8 value) | `devices[].device.frame_problems` for v8 |
-| no entity at all | the model does not have the value | the [support matrix](support_matrix.md) shows — |
+| no entity at all | the profile does not read the value: the model does not have it, or it is not decoded yet | the [support matrix](support_matrix.md) shows — |
 
 A setting such as water level, heating or the variable-speed pump can be
 switched on at the unit without the accessory; the entity then appears but
@@ -47,9 +47,10 @@ An entity you disabled yourself stays disabled.
 
 ## A value looks wrong
 
-1. Find the value in the [support matrix](support_matrix.md): ✅ was checked
-   against the unit on this model, 👁 seen but never compared, ❓ assumed,
-   🔍 not located. See [Evidence rules](evidence-rules.md).
+1. Find the value in the [support matrix](support_matrix.md): ✅ checked
+   against the unit on this model or derived from the protocol, 👁 seen but
+   never compared, ❓ assumed, 🔍 not located, — not read. See
+   [Evidence rules](evidence-rules.md).
 2. `devices[].device.profile` and `reading_overrides` say which profile read
    the frame and where it reads differently from the default.
 3. Compare with the unit display. For a ❓ or a wrong ✅, record a test case
