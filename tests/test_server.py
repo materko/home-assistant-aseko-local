@@ -1,7 +1,9 @@
 import asyncio
+import logging
 
 import pytest
 
+from custom_components.aseko_local import server as server_module
 from custom_components.aseko_local.coordinator import (
     MAX_WARNING_REASONS,
     OTHER_WARNING_REASONS,
@@ -10,6 +12,7 @@ from custom_components.aseko_local.models import AsekoDevice
 from custom_components.aseko_local.server import (
     AsekoDeviceServer,
     FrameType,
+    ServerConnectionError,
 )
 
 from .test_entity_growth import _coordinator
@@ -588,3 +591,348 @@ def test_the_warning_register_stays_bounded() -> None:
     reasons = coordinator.get_frame_warnings(1)
     assert len(reasons) == MAX_WARNING_REASONS
     assert reasons[OTHER_WARNING_REASONS]["count"] == 1000 - (MAX_WARNING_REASONS - 1)
+
+
+# ---------------------------------------------------------------------------
+# start / stop, the server registry and callbacks
+# ---------------------------------------------------------------------------
+
+
+async def _serve(server: AsekoDeviceServer, data: bytes, *, eof: bool = True) -> None:
+    """Run one client connection that sends ``data``."""
+    reader = asyncio.StreamReader()
+    reader.feed_data(data)
+    if eof:
+        reader.feed_eof()
+    await server._handle_client(reader, DummyWriter("127.0.0.1", server.port))
+
+
+def _raises(*_args: object) -> None:
+    msg = "sink failed"
+    raise RuntimeError(msg)
+
+
+@pytest.mark.asyncio
+async def test_a_port_that_cannot_be_bound_raises_a_connection_error(
+    monkeypatch,
+) -> None:
+    async def refuse(handler, host, port) -> DummyServer:
+        msg = "address in use"
+        raise OSError(msg)
+
+    monkeypatch.setattr(asyncio, "start_server", refuse)
+    server = AsekoDeviceServer(host="127.0.0.1", port=12370)
+    with pytest.raises(ServerConnectionError, match="address in use"):
+        await server.start()
+    assert not server.running
+
+
+@pytest.mark.asyncio
+async def test_stop_closes_every_client_even_one_that_is_gone() -> None:
+    class GoneWriter(DummyWriter):
+        def close(self) -> None:
+            msg = "already closed"
+            raise OSError(msg)
+
+    server = AsekoDeviceServer(host="127.0.0.1", port=12371)
+    server._server = DummyServer()
+    alive = DummyWriter("127.0.0.1", 1)
+    server._clients = {GoneWriter("127.0.0.1", 2), alive}
+
+    await server.stop()
+
+    assert alive.closed
+    assert server._clients == set()
+    assert not server.running
+
+
+@pytest.mark.asyncio
+async def test_remove_all_stops_and_forgets_every_server(monkeypatch) -> None:
+    async def quiet_start(handler, host, port) -> DummyServer:
+        return DummyServer()
+
+    monkeypatch.setattr(asyncio, "start_server", quiet_start)
+    one = await AsekoDeviceServer.create(host="127.0.0.1", port=12372)
+    two = await AsekoDeviceServer.create(host="127.0.0.1", port=12373)
+
+    await AsekoDeviceServer.remove_all()
+
+    assert not one.running
+    assert not two.running
+    assert AsekoDeviceServer.get("127.0.0.1", 12372) is None
+    assert AsekoDeviceServer.get("127.0.0.1", 12373) is None
+
+
+def test_replacing_sinks_keeps_the_ones_not_given() -> None:
+    old_raw, new_raw = [], []
+    server = AsekoDeviceServer(host="127.0.0.1", port=12374, raw_sink=old_raw.append)
+
+    server.replace_sinks(
+        v8_raw_sink=new_raw.append,
+        frame_warning_sink=print,
+        rejected_sink=print,
+    )
+    assert server._raw_sink == old_raw.append
+    assert server._v8_raw_sink == new_raw.append
+
+    server.replace_sinks(raw_sink=new_raw.append)
+    assert server._raw_sink == new_raw.append
+    assert server._frame_warning_sink is print
+    assert server._rejected_sink is print
+
+
+@pytest.mark.asyncio
+async def test_forward_callbacks_get_the_frames_until_cleared() -> None:
+    v7_frames: list[bytes] = []
+    v8_frames: list[bytes] = []
+    server = AsekoDeviceServer(host="127.0.0.1", port=12375)
+    server.set_forward_callback(v7_frames.append)
+    server.set_forward_v8_callback(v8_frames.append)
+
+    await _serve(server, VALID_FRAME)
+    await _serve(server, _V8_REAL_FRAME)
+    assert v7_frames == [VALID_FRAME]
+    assert v8_frames == [_V8_REAL_FRAME]
+
+    server.set_forward_callback(None)
+    server.set_forward_v8_callback(None)
+    await _serve(server, VALID_FRAME)
+    await _serve(server, _V8_REAL_FRAME)
+    assert v7_frames == [VALID_FRAME]
+    assert v8_frames == [_V8_REAL_FRAME]
+
+
+# ---------------------------------------------------------------------------
+# a callback that raises costs nothing but its own call
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_failing_v7_callbacks_do_not_stop_the_next_frame() -> None:
+    delivered: list[int | None] = []
+
+    def on_data(device: AsekoDevice) -> None:
+        delivered.append(device.serial_number)
+        _raises()
+
+    server = AsekoDeviceServer(
+        host="127.0.0.1",
+        port=12376,
+        on_data=on_data,
+        raw_sink=_raises,
+        frame_warning_sink=_raises,
+    )
+    server.set_forward_callback(_raises)
+
+    await _serve(server, bytes(CORRUPT_FRAME) + VALID_FRAME2)
+
+    assert delivered == [110200612, 110200613]
+
+
+@pytest.mark.asyncio
+async def test_failing_v8_callbacks_do_not_stop_the_next_frame() -> None:
+    delivered: list[int | None] = []
+
+    def on_data(device: AsekoDevice) -> None:
+        delivered.append(device.serial_number)
+        _raises()
+
+    server = AsekoDeviceServer(
+        host="127.0.0.1",
+        port=12377,
+        on_data=on_data,
+        v8_raw_sink=_raises,
+        frame_warning_sink=_raises,
+    )
+    server.set_forward_v8_callback(_raises)
+    unreadable = _V8_REAL_FRAME.replace(b"ains: 708 ", b"ains: 7x8 ")
+
+    await _serve(server, unreadable + _V8_REAL_FRAME)
+
+    assert delivered == [123456789, 123456789]
+
+
+@pytest.mark.asyncio
+async def test_failing_sinks_for_rejected_bytes_are_contained() -> None:
+    server = AsekoDeviceServer(
+        host="127.0.0.1",
+        port=12378,
+        frame_warning_sink=_raises,
+        rejected_sink=_raises,
+    )
+    await _serve(server, V8_FULL_FRAME)  # rejected v8 header
+    await _serve(server, bytes(range(120)))  # never aligns
+
+
+# ---------------------------------------------------------------------------
+# what a frame can look like
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_an_implausible_ph_target_is_reported_once_as_a_warning(caplog) -> None:
+    warnings: list[tuple[int, str]] = []
+    frame = bytearray(VALID_FRAME)
+    frame[52] = 200  # required pH 20.0
+    frame[14:16] = b"\xff\xff"  # pH probe absent: not checked
+    server = AsekoDeviceServer(
+        host="127.0.0.1",
+        port=12379,
+        frame_warning_sink=lambda serial, reason: warnings.append((serial, reason)),
+    )
+
+    with caplog.at_level(logging.DEBUG, logger=server_module.__name__):
+        await _serve(server, bytes(frame) * 2)
+
+    reason = "required pH 20.0 outside 6-10"
+    assert warnings == [(110200612, reason)] * 2
+    logged = [r for r in caplog.records if reason in r.getMessage()]
+    assert [r.levelno for r in logged] == [logging.WARNING, logging.DEBUG]
+
+
+@pytest.mark.asyncio
+async def test_frame_problems_without_a_serial_number_are_not_reported() -> None:
+    warnings: list[tuple[int, str]] = []
+    server = AsekoDeviceServer(
+        host="127.0.0.1",
+        port=12380,
+        frame_warning_sink=lambda serial, reason: warnings.append((serial, reason)),
+    )
+    await server._report_frame_problems(
+        AsekoDevice(frame_problems=("ains[0] is not a number",)), "addr"
+    )
+    assert warnings == []
+
+
+@pytest.mark.asyncio
+async def test_a_rejected_v8_frame_is_counted_only_under_a_readable_serial() -> None:
+    warnings: list[tuple[int, str]] = []
+    silent = AsekoDeviceServer(host="127.0.0.1", port=12381)
+    await silent._report_rejected_v8(V8_FULL_FRAME, "no sink")  # nowhere to count
+
+    server = AsekoDeviceServer(
+        host="127.0.0.1",
+        port=12381,
+        frame_warning_sink=lambda serial, reason: warnings.append((serial, reason)),
+    )
+    await server._report_rejected_v8(b"{v1 notanumber}\n", "bad header")
+    await server._report_rejected_v8(b"{v1}\n", "bad header")
+    assert warnings == []
+
+
+@pytest.mark.asyncio
+async def test_a_v8_decoder_crash_closes_the_connection(monkeypatch) -> None:
+    delivered: list[AsekoDevice] = []
+    logged: list[bytes] = []
+
+    def crash(raw: bytes, protocol: object = None) -> AsekoDevice:
+        msg = "decoder bug"
+        raise RuntimeError(msg)
+
+    monkeypatch.setattr(server_module, "decode", crash)
+    server = AsekoDeviceServer(
+        host="127.0.0.1",
+        port=12382,
+        on_data=delivered.append,
+        v8_raw_sink=logged.append,
+    )
+    await _serve(server, _V8_REAL_FRAME + _V8_REAL_FRAME)
+
+    assert delivered == []
+    assert logged == [_V8_REAL_FRAME]  # the second frame is never read
+
+
+@pytest.mark.parametrize("error", [ValueError, RuntimeError])
+@pytest.mark.asyncio
+async def test_a_v7_frame_the_decoder_refuses_closes_the_connection(
+    monkeypatch, error
+) -> None:
+    delivered: list[AsekoDevice] = []
+    logged: list[bytes] = []
+
+    def refuse(raw: bytes, protocol: object = None) -> AsekoDevice:
+        msg = "refused"
+        raise error(msg)
+
+    monkeypatch.setattr(server_module, "decode", refuse)
+    server = AsekoDeviceServer(
+        host="127.0.0.1", port=12383, on_data=delivered.append, raw_sink=logged.append
+    )
+    await _serve(server, VALID_FRAME + VALID_FRAME2)
+
+    assert delivered == []
+    assert logged == [VALID_FRAME]
+
+
+@pytest.mark.asyncio
+async def test_two_short_v8_frames_in_one_read_are_both_delivered() -> None:
+    """The second frame is whole in the carried bytes and is read from there."""
+    received: list[AsekoDevice] = []
+    server = AsekoDeviceServer(host="127.0.0.1", port=12384, on_data=received.append)
+    short = b"{v1 111 804 0 27 ins: 200 ains: 700 outs: 0 areqs: 70}\n"
+    assert len(short) * 2 < 120
+
+    await _serve(server, short * 2)
+
+    assert [d.serial_number for d in received] == [111, 111]
+
+
+@pytest.mark.asyncio
+async def test_a_v8_frame_cut_off_before_its_newline_is_still_logged() -> None:
+    logged: list[bytes] = []
+    server = AsekoDeviceServer(host="127.0.0.1", port=12385, v8_raw_sink=logged.append)
+    cut = V8_INITIAL + b" ins: 0000 outs: 0000"  # the unit hangs up mid-frame
+
+    await _serve(server, cut)
+
+    assert logged == [cut]
+
+
+@pytest.mark.asyncio
+async def test_a_v8_frame_after_foreign_bytes_is_found_with_a_warning(caplog) -> None:
+    received: list[AsekoDevice] = []
+    server = AsekoDeviceServer(host="127.0.0.1", port=12386, on_data=received.append)
+
+    with caplog.at_level(logging.WARNING, logger=server_module.__name__):
+        await _serve(server, b"xyz" + _V8_REAL_FRAME)
+
+    assert [d.serial_number for d in received] == [123456789]
+    assert "v8 frame shifted by 3 bytes" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_a_fragment_before_hanging_up_goes_to_the_raw_sink() -> None:
+    logged: list[bytes] = []
+    server = AsekoDeviceServer(host="127.0.0.1", port=12387, raw_sink=logged.append)
+
+    await _serve(server, VALID_FRAME[:50])
+
+    assert logged == [VALID_FRAME[:50]]
+
+
+@pytest.mark.asyncio
+async def test_a_quiet_unit_is_disconnected_after_the_read_timeout(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(server_module, "READ_TIMEOUT", 0.01)
+    server = AsekoDeviceServer(host="127.0.0.1", port=12388)
+    reader = asyncio.StreamReader()  # sends nothing, never hangs up
+    writer = DummyWriter("127.0.0.1", 12388)
+
+    await asyncio.wait_for(server._handle_client(reader, writer), 5)
+
+    assert writer.closed
+    assert server._clients == set()
+
+
+@pytest.mark.asyncio
+async def test_a_connection_reset_by_the_unit_is_closed_cleanly() -> None:
+    server = AsekoDeviceServer(host="127.0.0.1", port=12389)
+    reader = asyncio.StreamReader()
+    reader.set_exception(ConnectionResetError())
+    writer = DummyWriter("127.0.0.1", 12389)
+
+    await server._handle_client(reader, writer)
+
+    assert writer.closed
+    assert server._clients == set()
