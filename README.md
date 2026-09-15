@@ -196,7 +196,7 @@ An ASIN Aqua Home, Salt and Oxygen sends its own clock with each frame as date a
 | `sensor.…_clock_offset` | The whole difference in minutes between the unit's clock and Home Assistant's local time when the frame arrives — drift and a change of summer / winter time the unit did not follow together: positive, the unit is **ahead**; negative, behind. The median of the last three frames, so one late frame does not move it. |
 | `binary_sensor.…_clock_out_of_sync` | On when the last three frames are all at least the limit off (either way) — also right after a start; off again when all three are under the limit minus a fifth of it, at most 3 minutes (12 minutes for 15, 48 seconds for 1). Anything else keeps the state it had, and is off before it has ever been on. Unknown until three frames have arrived. |
 
-The limit is **15 minutes** by default; change *Alert when the unit clock is off by (minutes)* in the integration's settings (the same dialog as the forwarder). A unit that did not follow a change of summer / winter time is an hour off and turns the alert on. Both entities are diagnostic, so an automation on `clock_out_of_sync` is the way to get a notification.
+The limit is **15 minutes** by default; change *Alert when the unit clock is off by (minutes)* in the integration's settings (the same dialog as the forwarder). A unit that did not follow a change of summer / winter time is an hour off, which turns the alert on with any limit under 60 minutes (the default 15 included). Both entities are diagnostic, so an automation on `clock_out_of_sync` is the way to get a notification.
 
 A v8 unit sends no date and only whole minutes: its offset is read to about a minute and within ±12 hours, so a clock a day off is not seen.
 
@@ -329,14 +329,23 @@ Configuration read straight from the frame:
 
 History, recorded live and persisted across restarts. **These are not all equally reliable** — see below:
 
-| Entity | Description | Timestamp | Which bucket it lands in |
-|---|---|---|---|
-| `sensor.last_backwash` | Last cycle, whatever started it. **Unknown** until one is seen | Observed | n/a — it holds every cycle |
-| `datetime.last_scheduled_backwash` | Last cycle that looked like the unit's own scheduled run — **and settable**, see below | Observed *or* entered by hand — see its `source` attribute | Estimated |
-| `sensor.last_manual_backwash` | Last cycle classified as manual (a not attributed cycle does not move it) | Observed | Estimated |
-| `sensor.next_scheduled_backwash` | Projected next automatic cycle. **Unknown** until a scheduled cycle is known or the schedule was changed | **Calculated** | Inherited |
+| Entity | Description | Clock | Timestamp | Which bucket it lands in |
+|---|---|---|---|---|
+| `sensor.last_backwash` | Last cycle, whatever started it. **Unknown** until one is seen | **Home Assistant** — when the cycle was seen | Observed | n/a — it holds every cycle |
+| `datetime.last_scheduled_backwash` | Last cycle that looked like the unit's own scheduled run — **and settable**, see below | **Aseko** — the `backwash_time` slot it ran in, e.g. 08:30 | Observed *or* entered by hand — see its `source` attribute | Estimated |
+| `sensor.last_manual_backwash` | Last cycle classified as manual (a not attributed cycle does not move it) | **Home Assistant** — when the cycle was seen | Observed | Estimated |
+| `sensor.next_scheduled_backwash` | Projected next automatic cycle. **Unknown** until a scheduled cycle is known or the schedule was changed | **Aseko** — `backwash_time` as set on the unit | **Calculated** | Inherited |
 
-The two columns matter separately. A cycle the integration watched has a
+The Home Assistant times are the midpoint of the relay window, taken from when
+Home Assistant received the frames: each frame is stamped the moment it is
+complete, before it is decoded. The delay between the unit sending a frame and
+Home Assistant receiving it is not corrected for. The Aseko times read like the
+unit's menu; `clock_offset` says how far they are from Home Assistant's clock.
+All of them are stored with their time zone, and durations and gaps between
+frames are measured with the times normalised to UTC, so a change of summer /
+winter time does not stretch or shorten a cycle.
+
+The last two columns matter separately. A cycle the integration watched has a
 timestamp from the frames (accurate to about one transmit interval) — what is
 estimated is only *which* of the two buckets it belongs in.
 Only `next_scheduled_backwash` holds a timestamp that was computed rather than
@@ -386,7 +395,8 @@ data:
   # serial_number: 110071590   # optional; omit to set every backwash-capable device
 ```
 
-The timestamp must be in the past. `datetime.last_scheduled_backwash` carries a
+Enter it on the unit's clock, as the unit's menu shows the time (e.g. 08:30);
+it must not be later than now on that clock. `datetime.last_scheduled_backwash` carries a
 `source` attribute saying where its value came from:
 
 | `source` | Meaning |
@@ -394,8 +404,9 @@ The timestamp must be in the past. `datetime.last_scheduled_backwash` carries a
 | `observed` | The integration watched this cycle run |
 | `manual` | You entered it |
 
-`next_scheduled_backwash` has no `source` of its own — it is always projected
-from `last_scheduled_backwash`, so that sensor's `source` covers both.
+`next_scheduled_backwash` has no `source` of its own — it is projected from
+`last_scheduled_backwash` (or, after a schedule change, from the day after the
+change), so that entity's `source` covers both.
 
 **The last write wins, and the stored timestamps are never compared.**
 

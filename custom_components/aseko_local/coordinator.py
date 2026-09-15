@@ -175,8 +175,9 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
 
         new_data: AsekoData = AsekoData() if self.data is None else self.data
 
-        # one moment for everything this frame updates
-        received_at = dt_util.now()
+        # one moment for everything this frame updates: when the server had
+        # the whole frame (UTC), or now for a device handed in directly
+        received_at = getattr(device, "received_at", None) or dt_util.utcnow()
 
         if _LOGGER.isEnabledFor(logging.DEBUG):
             _LOGGER.debug(
@@ -345,6 +346,21 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         device.last_manual_backwash = tracker.last_manual_backwash
         device.last_backwash_trigger = tracker.last_trigger
         device.next_scheduled_backwash = tracker.next_scheduled_backwash(device, now)
+
+    def unit_clock_now(self, serial_number: int | None = None) -> datetime:
+        """Now as the unit's clock shows it, at the latest of the matching units.
+
+        A typed-in last scheduled backwash is on the unit's clock; one running
+        ahead of Home Assistant has already done a cycle that is still in the
+        future on Home Assistant's clock.
+        """
+        ahead = [
+            device.clock_offset
+            for device in self.get_devices()
+            if device.clock_offset is not None
+            and (serial_number is None or device.serial_number == serial_number)
+        ]
+        return dt_util.now() + timedelta(minutes=max([0.0, *ahead]))
 
     def set_last_scheduled_backwash(
         self, moment: datetime, serial_number: int | None = None

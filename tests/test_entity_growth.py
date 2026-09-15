@@ -421,3 +421,24 @@ def test_a_unit_is_offline_after_five_minutes_but_keeps_its_values():
     assert device.online() is False
     assert device.water_temperature == 24.5
     assert "water_temperature" in device.present_features
+
+
+def test_online_counts_real_minutes_across_a_change_of_time(monkeypatch):
+    """A frame 10 real seconds old is fresh even when the local clock jumped."""
+    from datetime import UTC, datetime, timedelta
+    from zoneinfo import ZoneInfo
+
+    from homeassistant.util import dt as dt_util
+
+    from custom_components.aseko_local.models import AsekoDevice
+
+    zone = ZoneInfo("Europe/Bratislava")
+    for now in (
+        datetime(2026, 3, 29, 1, 0, 5, tzinfo=UTC),
+        datetime(2026, 10, 25, 1, 0, 5, tzinfo=UTC),
+    ):
+        monkeypatch.setattr(dt_util, "utcnow", lambda now=now: now)
+        fresh = AsekoDevice(last_seen=(now - timedelta(seconds=10)).astimezone(zone))
+        stale = AsekoDevice(last_seen=(now - timedelta(minutes=7)).astimezone(zone))
+        assert fresh.online() is True
+        assert stale.online() is False

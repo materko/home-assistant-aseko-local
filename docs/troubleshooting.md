@@ -64,8 +64,11 @@ is ahead, negative behind; drift and summer / winter time together) with the
 shift you see. `next_scheduled_backwash` shows the time set on the
 unit, not moved by the offset, so a unit that is off runs its backwash that
 much earlier or later on Home Assistant's clock. Recognising a scheduled cycle
-takes the drift and a missed change of summer / winter time out and allows
-±5 minutes around the set time, so it is not affected. An offset near ±60 minutes after a
+takes the offset measured when the valve opened (drift and a missed change of
+summer / winter time) out and allows ±5 minutes around the set time; before
+the unit's clock has been measured at all it allows ±15 minutes on Home
+Assistant's clock instead. `last_scheduled_backwash` shows the unit's set time
+of the cycle, `last_backwash` when Home Assistant saw it. An offset near ±60 minutes after a
 change between summer and winter time usually means the unit did not switch;
 set its clock on the unit. After a change of the
 backwash time or interval, the next cycle is the day after the change

@@ -19,6 +19,7 @@ The picture is generated from [`images/src/aseko-architecture.html`](images/src/
 | `entity.py` + platforms | Entities for every value the model can have (see [Entity lifecycle](#entity-lifecycle)). |
 | `trackers/` | State the frame does not carry: backwash history and schedule restarts, chemical consumption (exact ml, HA Store), the unit clock offset and its out-of-sync alert (`clock.py`, not stored). |
 | `recording/` | Frame log with markers, photos, HTTP views and the test cases card. |
+| Times | The server stamps each frame when it is complete (`received_at`, UTC); `last_seen`, `last_backwash` and `last_manual_backwash` are that Home Assistant time, the transmission delay not corrected. `unit_clock` is what the unit sent; `clock_offset` is it minus Home Assistant's local time. `last_scheduled_backwash` and `next_scheduled_backwash` are on the unit's clock. Every stored time carries its zone; durations, gaps and freshness are computed normalised to UTC. |
 | `diagnostics.py` | Per unit: annotated raw frame, `profile`, `reading_overrides`, `frame_problems`, `possible_features`, `not_present_now`, frame warnings. For the entry: unrecognised units, rejected frames, `frame_log_enabled`, frame log. |
 
 ## The decoding package

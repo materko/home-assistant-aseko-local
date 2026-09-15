@@ -746,8 +746,8 @@ SENSORS: list[AsekoSensorEntityDescription] = [
         device_class=SensorDeviceClass.TIMESTAMP,
         icon="mdi:clock-alert-outline",
         value_fn=lambda device: device.next_scheduled_backwash,
-        # No source attribute: this is always projected from
-        # last_scheduled_backwash, so that sensor's source is this one's too.
+        # No source attribute: projected from last_scheduled_backwash, or
+        # after a schedule change from the day after it; on the unit's clock.
     ),
     AsekoSensorEntityDescription(
         # Minutes the unit's clock is ahead of Home Assistant's; see

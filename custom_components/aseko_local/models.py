@@ -377,6 +377,11 @@ class AsekoDevice:
     # Independent of the device clock (which can be wrong or missing on some models).
     last_seen: datetime | None = None
 
+    # When Home Assistant received the frame this device was decoded from:
+    # stamped by the server as soon as the frame is complete, in UTC.  The
+    # transmission delay from the unit is not corrected for.
+    received_at: datetime | None = None
+
     # From trackers/clock.py: minutes the unit's clock is ahead of Home
     # Assistant's (negative: behind), and whether that is past the alert
     # limit set in the integration's options.  None until measured.
@@ -390,11 +395,12 @@ class AsekoDevice:
         nothing for minutes.  The other entities keep their last values while
         a unit is offline; this is the flag that says they are not fresh.
         """
+        # compared normalised to UTC: a change of summer / winter time in
+        # Home Assistant must not age or rejuvenate the last frame
         return (
             self.last_seen is not None
-            and self.last_seen
-            > datetime.now(tz=homeassistant.util.dt.get_default_time_zone())
-            - OFFLINE_AFTER
+            and homeassistant.util.dt.as_utc(self.last_seen)
+            > homeassistant.util.dt.utcnow() - OFFLINE_AFTER
         )
 
 

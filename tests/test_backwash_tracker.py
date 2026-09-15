@@ -302,8 +302,9 @@ def test_cycle_at_scheduled_time_is_scheduled():
     _run_cycle(tracker, T0)
 
     assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
-    assert tracker.last_scheduled_backwash == T0 + timedelta(seconds=45)
-    assert tracker.last_backwash == tracker.last_scheduled_backwash
+    # on the unit's clock: the 21:00 slot, not the midpoint Home Assistant saw
+    assert tracker.last_scheduled_backwash == T0
+    assert tracker.last_backwash == T0 + timedelta(seconds=45)
     assert tracker.last_manual_backwash is None
 
 
@@ -494,7 +495,7 @@ async def test_async_save_persists_classification():
 
     saved = tracker._store.async_save.call_args.args[0]  # type: ignore[attr-defined]
     assert saved["last_backwash"] == (T0 + timedelta(seconds=45)).isoformat()
-    assert saved["last_scheduled_backwash"] == (T0 + timedelta(seconds=45)).isoformat()
+    assert saved["last_scheduled_backwash"] == T0.isoformat()
     assert saved["last_manual_backwash"] is None
     assert saved["last_trigger"] == "scheduled"
 
@@ -538,7 +539,8 @@ def test_cycle_detected_after_a_seed_supersedes_it():
 
     _run_cycle(tracker, T0)
 
-    assert tracker.last_scheduled_backwash == T0 + timedelta(seconds=45)
+    # on the unit's clock: the 21:00 slot, not the midpoint Home Assistant saw
+    assert tracker.last_scheduled_backwash == T0
     assert tracker.last_scheduled_source is AsekoBackwashSource.OBSERVED
 
 
@@ -553,7 +555,8 @@ def test_cycle_detected_after_a_later_dated_seed_still_supersedes_it():
     tracker.set_last_scheduled_backwash(T0 + timedelta(days=5))
     _run_cycle(tracker, T0)
 
-    assert tracker.last_scheduled_backwash == T0 + timedelta(seconds=45)
+    # on the unit's clock: the 21:00 slot, not the midpoint Home Assistant saw
+    assert tracker.last_scheduled_backwash == T0
     assert tracker.last_scheduled_source is AsekoBackwashSource.OBSERVED
 
 
@@ -936,7 +939,8 @@ def test_unknown_cycle_keeps_earlier_manual_and_scheduled_records():
 
     _run_service_menu_cycle(tracker, T0 + timedelta(hours=3), False)  # unknown
 
-    assert tracker.last_scheduled_backwash == T0 + timedelta(seconds=45)
+    # on the unit's clock: the 21:00 slot, not the midpoint Home Assistant saw
+    assert tracker.last_scheduled_backwash == T0
     assert tracker.last_manual_backwash == manual
     assert tracker.last_trigger is AsekoBackwashTrigger.UNKNOWN
 
@@ -1054,7 +1058,8 @@ def test_clearing_re_derives_the_split_after_an_observed_cycle():
     tracker.clear_last_scheduled_backwash()
     tracker.update(_scheduled_device(False), T0 + timedelta(minutes=5))
 
-    assert tracker.last_scheduled_backwash == T0 + timedelta(seconds=45)
+    # on the unit's clock: the 21:00 slot, not the midpoint Home Assistant saw
+    assert tracker.last_scheduled_backwash == T0
 
 
 # ── clear after a newer cycle (audit C2) ─────────────────────────────────────
@@ -1432,3 +1437,73 @@ async def test_a_frame_before_the_load_finishes_does_not_wipe_the_history():
         stored["last_manual_backwash"]
     )
     assert saves and saves[-1]["last_backwash"] == stored["last_backwash"]
+
+
+# ── times: UTC durations, the window offset, the unit-clock slot (T1-T3) ─────
+
+
+def _utc_frames(zone, start_utc: datetime, seconds: int, step: int = 10):
+    """Receive times every ``step`` seconds of real time, as local times."""
+    return [
+        (start_utc + timedelta(seconds=s)).astimezone(zone)
+        for s in range(0, seconds + 1, step)
+    ]
+
+
+@pytest.mark.parametrize(
+    "start_utc",
+    [
+        datetime(2026, 3, 29, 0, 59, 30, tzinfo=timezone.utc),  # 01:59:30 +01
+        datetime(2026, 10, 25, 0, 59, 30, tzinfo=timezone.utc),  # 02:59:30 +02
+    ],
+)
+def test_a_cycle_across_a_change_of_time_is_measured_in_real_seconds(start_utc):
+    """T1: 75 real seconds stay 75 when the local clock jumps an hour."""
+    zone = _in_bratislava()
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    frames = _utc_frames(zone, start_utc, 80)
+    for moment in frames[:-1]:
+        tracker.update(_device(True), moment)
+    tracker.update(_device(False), frames[-1])
+
+    assert tracker.last_backwash == start_utc + timedelta(seconds=40)
+
+
+def test_a_frame_gap_is_real_time_too():
+    """T1: a gap of 10 real seconds across the spring change is not an hour."""
+    zone = _in_bratislava()
+    start = datetime(2026, 3, 29, 0, 59, 55, tzinfo=timezone.utc)
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    tracker.update(_device(True), start.astimezone(zone))
+    tracker.update(_device(True), (start + timedelta(seconds=10)).astimezone(zone))
+    assert tracker._relay_on_since == start  # type: ignore[attr-defined]
+
+
+def test_the_offset_when_the_valve_opened_decides():
+    """T2: an offset that jumps mid-cycle does not reclassify its start."""
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    start = T0 + timedelta(minutes=54, seconds=30)
+    tracker.update(_clocked(True, -54.5), start)
+    tracker.update(_clocked(True, 5.5), start + timedelta(seconds=45))
+    tracker.update(_clocked(False, 5.5), start + timedelta(seconds=90))
+
+    assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
+
+
+def test_last_scheduled_is_the_slot_on_the_unit_clock():
+    """T3: the unit ran its 21:00; HA saw it at 21:54:30 with the unit 54.5 min behind."""
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    start = T0 + timedelta(minutes=54, seconds=30)
+    _clocked_cycle(tracker, start, -54.5)
+
+    assert tracker.last_scheduled_backwash == T0
+    assert tracker.last_backwash == start + timedelta(seconds=45)
+
+
+def test_last_manual_stays_on_home_assistant_time():
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    start = T0 + timedelta(hours=3)
+    _clocked_cycle(tracker, start, -54.5)
+
+    assert tracker.last_trigger is AsekoBackwashTrigger.MANUAL
+    assert tracker.last_manual_backwash == start + timedelta(seconds=45)

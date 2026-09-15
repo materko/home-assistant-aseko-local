@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+from datetime import UTC, datetime
 from collections.abc import Callable
 from enum import Enum, auto
 from typing import Any, ClassVar, Optional
@@ -317,6 +318,9 @@ class AsekoDeviceServer:
                     frame, offset, frame_type = await self._sync_frame(
                         reader, initial, rest
                     )
+                    # the moment the frame is complete: the unit's clock is
+                    # compared with it, so it is taken before any decoding
+                    received_at = datetime.now(UTC)
                     carry = b"".join(rest)
                 except Exception as exc:
                     _LOGGER.error(
@@ -355,6 +359,7 @@ class AsekoDeviceServer:
                         break
                     await self._report_frame_problems(device, addr)
                     _LOGGER.debug("v8 decoded data from %s: %s", addr, device)
+                    device.received_at = received_at
                     await self._maybe_call_on_data(device)
                     continue
 
@@ -387,6 +392,7 @@ class AsekoDeviceServer:
                 _LOGGER.debug("Decoded data from %s: %s", addr, device)
 
                 # Send decoded data to higher layer
+                device.received_at = received_at
                 await self._maybe_call_on_data(device)
 
                 # If frame had to be rewound, close connection AFTER processing

@@ -1,6 +1,6 @@
 """Tests for AsekoConsumptionTracker."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -390,3 +390,23 @@ def test_a_refill_reset_touches_only_its_unit():
     coordinator.reset_consumption("ph_minus", "canister")  # the service without a unit
     assert coordinator.get_tracker(5678).get("ph_minus", "canister") == 0.0
     assert coordinator.get_tracker(5678).get("ph_minus", "total") == 200.0
+
+
+@pytest.mark.parametrize(
+    "start_utc",
+    [
+        datetime(2026, 3, 29, 0, 59, 55, tzinfo=UTC),
+        datetime(2026, 10, 25, 0, 59, 55, tzinfo=UTC),
+    ],
+)
+def test_dosing_across_a_change_of_time_counts_real_seconds(start_utc):
+    """Ten real seconds at 60 ml/min are 10 ml, whatever the local clock does."""
+    from zoneinfo import ZoneInfo
+
+    zone = ZoneInfo("Europe/Bratislava")
+    tracker = AsekoConsumptionTracker()
+    device = _device(cl_on=True, cl_rate=60)
+    tracker.update(device, start_utc.astimezone(zone))
+    tracker.update(device, (start_utc + timedelta(seconds=10)).astimezone(zone))
+
+    assert tracker.get("cl", "total") == pytest.approx(10.0)

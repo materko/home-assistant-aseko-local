@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from ..const import READ_TIMEOUT
 from ..models import AsekoDevice
@@ -80,6 +80,9 @@ class AsekoConsumptionTracker:
             "oxy": (device.oxygen_pump_running, device.oxygen_flow_rate),
         }
 
+        # stored with their zone, subtracted normalised: a change of summer /
+        # winter time must not add or take away an hour of dosing
+        now = now.astimezone(UTC)
         for key, (is_on, flowrate_per_min) in pump_states.items():
             if is_on is None:
                 # Pump not present on this device type – skip silently

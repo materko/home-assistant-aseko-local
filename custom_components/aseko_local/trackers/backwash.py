@@ -50,6 +50,18 @@ day after the change at the new time and the interval counts from there
 (confirmed on an ASIN Aqua Salt).  The tracker keeps that day as an anchor
 until a scheduled cycle on it, or later, has been seen.
 
+Times, three kinds:
+
+* ``last_backwash`` and ``last_manual_backwash`` are when Home Assistant saw
+  the cycle (the midpoint of the relay window, from the frames' receive
+  times);
+* ``last_scheduled_backwash`` and ``next_scheduled_backwash`` are on the
+  unit's clock: the ``backwash_start_time`` slot the recognised cycle ran
+  in, e.g. 08:30, and the next such slot;
+* durations and gaps are measured between receive times normalised to UTC,
+  so a change of summer / winter time in Home Assistant does not stretch or
+  shrink them.
+
 The schedule is set on the unit's own clock, which runs apart from Home
 Assistant's (``trackers.clock``).  Once the offset is measured, classification
 compares the cycle's start with the schedule on the unit's clock, within the
@@ -191,6 +203,12 @@ class BackwashTracker:
         # drops the flag a frame or two after the valve closes, so by the
         # time the window is recorded it has usually gone again.
         self._service_menu_in_window = False
+
+        # The clock offset when the current window opened: the cycle is
+        # recognised against it, so a later change of the offset (Home
+        # Assistant switching to summer / winter time mid-cycle) does not
+        # change what the start was on the unit's clock.
+        self._window_offset_minutes: float | None = None
 
         # Last frame timestamp we processed — used to detect dropped connections.
         self._last_frame_at: datetime | None = None
@@ -442,6 +460,8 @@ class BackwashTracker:
             # is not worth overwriting it for
             return
 
+        # stored with their zone, compared normalised: elapsed time is UTC
+        now = dt_util.as_utc(now)
         offset = getattr(device, "clock_offset", None)
         if isinstance(offset, int | float):
             self._clock_offset_minutes = float(offset)
@@ -472,6 +492,7 @@ class BackwashTracker:
         if device.backwash_running:
             if self._relay_on_since is None:
                 self._relay_on_since = now
+                self._window_offset_minutes = self._clock_offset_minutes
                 self._service_menu_in_window = False
             self._service_menu_in_window |= _service_menu_open(device)
             return
@@ -491,9 +512,18 @@ class BackwashTracker:
             return None
         return timedelta(minutes=self._clock_offset_minutes)
 
-    def _on_unit_clock(self, moment: datetime) -> datetime:
-        """``moment`` (Home Assistant's clock) as the unit's clock shows it."""
-        return moment + (self._offset or timedelta(0))
+    def _on_unit_clock(
+        self, moment: datetime, offset_minutes: float | None = None
+    ) -> datetime:
+        """``moment`` as the unit's clock shows it: local wall clock plus the offset.
+
+        ``offset_minutes`` defaults to the current offset; the wall clock is
+        Home Assistant's local time, which is what the unit's clock is
+        compared with.
+        """
+        if offset_minutes is None:
+            offset_minutes = self._clock_offset_minutes
+        return dt_util.as_local(moment) + timedelta(minutes=offset_minutes or 0.0)
 
     def _note_schedule(self, device: "AsekoDevice", now: datetime) -> None:
         """Restart the schedule phase when the unit shows a changed schedule.
@@ -584,9 +614,10 @@ class BackwashTracker:
         # midpoint stands in for the start without changing any verdict.
         trigger = self._classify(device, self._last_backwash)
         if trigger is AsekoBackwashTrigger.SCHEDULED:
-            self._last_scheduled_backwash = self._last_backwash
+            slot = self._unit_slot(device, self._last_backwash)
+            self._last_scheduled_backwash = slot
             self._last_scheduled_source = AsekoBackwashSource.OBSERVED
-            self._last_scheduled_day = self._slot_day(device, self._last_backwash)
+            self._last_scheduled_day = slot.date() if slot is not None else None
         elif trigger is AsekoBackwashTrigger.MANUAL:
             self._last_manual_backwash = self._last_backwash
         self._last_trigger = trigger
@@ -629,7 +660,8 @@ class BackwashTracker:
         # opened the valve, and therefore the moment to compare against the
         # configured schedule.  The midpoint is shifted by half the cycle
         # duration and would bias every comparison.
-        trigger = self._classify(device, started_at, service_menu_observed)
+        offset = self._window_offset_minutes
+        trigger = self._classify(device, started_at, service_menu_observed, offset)
 
         self._last_backwash = recorded_at
         self._last_trigger = trigger
@@ -638,9 +670,11 @@ class BackwashTracker:
             # stored, so it is the more current answer — including when it
             # replaces a manual seed with an earlier timestamp.  The seed
             # covered the gap until a real cycle showed up; it has.
-            self._last_scheduled_backwash = recorded_at
+            # On the unit's clock: the slot the cycle ran in, e.g. 08:30.
+            slot = self._unit_slot(device, started_at, offset)
+            self._last_scheduled_backwash = slot
             self._last_scheduled_source = AsekoBackwashSource.OBSERVED
-            self._last_scheduled_day = self._slot_day(device, started_at)
+            self._last_scheduled_day = slot.date() if slot is not None else None
             if (
                 self._restart_day is not None
                 and self._last_scheduled_day is not None
@@ -663,20 +697,29 @@ class BackwashTracker:
         # next async_save explicitly when convenient.
         self._hass.async_create_task(self.async_save())
 
-    def _slot_day(self, device: "AsekoDevice", moment: datetime) -> date | None:
-        """The unit-clock day of the schedule slot ``moment`` belongs to."""
+    def _unit_slot(
+        self,
+        device: "AsekoDevice",
+        moment: datetime,
+        offset_minutes: float | None = None,
+    ) -> datetime | None:
+        """The schedule slot on the unit's clock that ``moment`` belongs to."""
         at = device.backwash_start_time
         if not isinstance(at, time):
             return None
-        return _nearest_slot(self._on_unit_clock(moment), at).date()
+        return _nearest_slot(self._on_unit_clock(moment, offset_minutes), at)
 
     def _classify(
         self,
         device: "AsekoDevice",
         started_at: datetime,
         service_menu_observed: bool = False,
+        offset_minutes: float | None = None,
     ) -> AsekoBackwashTrigger:
         """Return whether a cycle starting at ``started_at`` was scheduled.
+
+        ``offset_minutes``: the clock offset the start is read with -- the
+        one when the window opened; the current one when None.
 
         A cycle counts as scheduled when the unit could have started it
         itself: the schedule is configured and enabled, and the relay opened
@@ -717,7 +760,7 @@ class BackwashTracker:
             scheduled_time is not None
             and interval is not None
             and interval > 0
-            and self._matches_schedule(started_at, scheduled_time)
+            and self._matches_schedule(started_at, scheduled_time, offset_minutes)
         ):
             # In the schedule window the unit's own timer explains the cycle,
             # whether or not somebody had the menu open at the time.
@@ -735,12 +778,17 @@ class BackwashTracker:
             return AsekoBackwashTrigger.UNKNOWN
         return AsekoBackwashTrigger.MANUAL
 
-    def _matches_schedule(self, started_at: datetime, at: time) -> bool:
+    def _matches_schedule(
+        self, started_at: datetime, at: time, offset_minutes: float | None = None
+    ) -> bool:
         """Whether a cycle starting at ``started_at`` fits the daily ``at`` slot."""
-        offset = self._offset
-        if offset is None:
+        if offset_minutes is None:
+            offset_minutes = self._clock_offset_minutes
+        if offset_minutes is None:
             return _within_tolerance(started_at, at, SCHEDULED_MATCH_TOLERANCE)
-        return _within_tolerance(started_at + offset, at, OFFSET_MATCH_TOLERANCE)
+        return _within_tolerance(
+            self._on_unit_clock(started_at, offset_minutes), at, OFFSET_MATCH_TOLERANCE
+        )
 
     def next_scheduled_backwash(
         self, device: "AsekoDevice", now: datetime
@@ -784,11 +832,10 @@ class BackwashTracker:
             # the recorded midpoint fell past midnight.  Built in Home
             # Assistant's time zone, so adding days keeps the wall-clock time
             # across a daylight-saving change.
+            # the stored value is on the unit's clock already
             day = (
                 self._last_scheduled_day
-                or _nearest_slot(
-                    self._on_unit_clock(self._last_scheduled_backwash), scheduled_time
-                ).date()
+                or _nearest_slot(self._last_scheduled_backwash, scheduled_time).date()
             )
             next_at = _slot(day, scheduled_time) + step
         else:

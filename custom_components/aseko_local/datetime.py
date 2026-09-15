@@ -20,7 +20,6 @@ from homeassistant.components.datetime import DateTimeEntity, DateTimeEntityDesc
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
-from homeassistant.util import dt as dt_util
 
 from . import AsekoLocalConfigEntry
 from .coordinator import AsekoLocalDataUpdateCoordinator
@@ -118,7 +117,7 @@ class AsekoLastScheduledBackwashEntity(AsekoLocalEntity, DateTimeEntity):
 
     async def async_set_value(self, value: datetime) -> None:
         """Record a user-supplied timestamp and re-project the next cycle."""
-        if value > dt_util.now():
+        if value > self.coordinator.unit_clock_now(self.device.serial_number):
             raise ServiceValidationError(
                 f"{value.isoformat()} is in the future; "
                 "the last scheduled backwash must already have happened"

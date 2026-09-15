@@ -90,6 +90,7 @@ def test_every_frame_derived_field_has_a_feature() -> None:
         "present_features",  # the frame's features, kept apart from the sticky ones
         "flags",
         "last_seen",  # stamped by the coordinator
+        "received_at",  # stamped by the server
         "last_backwash",  # BackwashTracker
         "last_scheduled_backwash",
         "last_scheduled_backwash_source",

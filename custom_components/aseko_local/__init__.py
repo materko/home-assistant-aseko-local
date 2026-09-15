@@ -292,7 +292,15 @@ async def async_setup_entry(
             if timestamp.tzinfo is None:
                 timestamp = timestamp.replace(tzinfo=dt_util.DEFAULT_TIME_ZONE)
 
-            if timestamp > dt_util.now():
+            latest = max(
+                (
+                    entry.runtime_data.coordinator.unit_clock_now(serial)
+                    for entry in hass.config_entries.async_entries(DOMAIN)
+                    if getattr(entry, "runtime_data", None)
+                ),
+                default=dt_util.now(),
+            )
+            if timestamp > latest:
                 raise ServiceValidationError(
                     f"{timestamp.isoformat()} is in the future; "
                     "the last scheduled backwash must already have happened"
