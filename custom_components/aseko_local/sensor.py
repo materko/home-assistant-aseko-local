@@ -922,14 +922,6 @@ def _build_sensor_entities(
 
         for description in filter(lambda d: d.enabled, SENSORS):
             key = description.key
-            val = description.value_fn(device)
-
-            _LOGGER.debug(
-                "Processing sensor: %s (value=%s)",
-                key,
-                val,
-            )
-
             # The decoder, not the current value, says whether this unit has
             # the quantity: a field missing from device.features is one the
             # unit does not have, a field in it that reads None is unknown.
@@ -940,11 +932,13 @@ def _build_sensor_entities(
                 continue
             entity = AsekoLocalSensorEntity(device, coordinator, description)
             entities.append(entity)
-            _LOGGER.debug(
-                "   - Regular sensor: %s (unique_id=%s)",
-                key,
-                entity.unique_id,
-            )
+            if _LOGGER.isEnabledFor(logging.DEBUG):
+                _LOGGER.debug(
+                    "   - Regular sensor: %s (unique_id=%s, value=%s)",
+                    key,
+                    entity.unique_id,
+                    description.value_fn(device),
+                )
 
         for description in CONSUMPTION_SENSORS:
             if not model_has_pump(device, description.pump_key):

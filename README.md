@@ -167,7 +167,7 @@ You need to re-configure your Aseko unit to send data to your Home Assistant ins
 
    When adding the **Aseko Local** integration in Home Assistant, pick the same port as in your device: **47524** (firmware v7 and older) or **51050** (firmware 8.x) from the list, or type any other port you set on the unit. The integration recognises v7 and v8 frames by their content, whatever the port.
 
-   > **Mixed setup (two devices, different firmware):** Both devices must send to the **same** port on Home Assistant — the integration uses a single server. Choose one port, set both devices to use it, and set the same port when configuring the integration.
+   > **Mixed setup (two devices, different firmware):** The simplest is one integration entry on one port: set both devices to send to it — v7 and v8 frames are told apart by their content. Two entries work too, each on its own port with its device sending there; do not give two entries the same port: the one set up last takes all its frames.
 
 5. Confirm the **Restart** of the module
 
@@ -200,7 +200,7 @@ The limit is **15 minutes** by default; change *Alert when the unit clock is off
 
 A v8 unit sends no date and only whole minutes: its offset is read to about a minute and within ±12 hours, so a clock a day off is not seen.
 
-The unit may not switch between summer and winter time on its own, and its clock drifts over weeks. The integration never sets the unit's clock. While no frames arrive the entities keep their last value — see `connection_status` for whether they are fresh. Recognising a scheduled backwash takes the drift and a missed change of summer / winter time into account and allows **±5 minutes** around `backwash_time`, recalculated from every frame; `next_scheduled_backwash` shows the time set on the unit — see [Backwash](#backwash-asin-aqua-home-salt-oxygen-profi).
+The unit may not switch between summer and winter time on its own, and its clock drifts over weeks. The integration never sets the unit's clock. While no frames arrive the entities keep their last value — see `connection_status` for whether they are fresh. Recognising a scheduled backwash takes the drift and a missed change of summer / winter time into account and allows **±5 minutes** around `backwash_time`, with the offset read from the frame in which the valve opened; `next_scheduled_backwash` shows the time set on the unit — see [Backwash](#backwash-asin-aqua-home-salt-oxygen-profi).
 
 ## Chemical consumption & canister management
 
@@ -368,7 +368,7 @@ A not attributed cycle updates `sensor.last_backwash` only; `last_scheduled_back
 
 **Units without that flag** (today Home, Oxygen, Profi: on HOME the bit is a standing pump override, on Oxygen and Profi its meaning is not confirmed) only the time decides: within **±5 minutes** of `backwash_time` on the unit's clock (drift and summer / winter time taken out) on a unit whose schedule is enabled → **scheduled**; anything else, including any cycle with `backwash_every_n_days = 0` → **manual**.
 
-`backwash_time` is set on the **unit's clock**, which runs apart from Home Assistant's ([Unit clock](#unit-clock)). The window is **±5 minutes** of `backwash_time` on the unit's clock: the valve start, taken on Home Assistant's clock, is moved by `clock_offset` as it was **when the valve opened** — drift and a missed change of summer / winter time together, measured from every frame — before it is compared. Until the offset is known (a fresh install, the first frames) the window is ±15 minutes of `backwash_time` on Home Assistant's clock. What is left for the window to absorb is up to one transmit interval (~30 s) of lag before the frame reports the valve as open.
+`backwash_time` is set on the **unit's clock**, which runs apart from Home Assistant's ([Unit clock](#unit-clock)). The window is **±5 minutes** of `backwash_time` on the unit's clock: the valve start, taken on Home Assistant's clock, is moved by the offset **in the frame in which the valve opened** — drift and a missed change of summer / winter time together, read from that frame's own clock rather than from the smoothed `clock_offset`, so a cycle right after the clock jumped is still recognised; a later change of the clock during the cycle does not move it. Where no offset is known (a frame that carries no clock) the window is ±15 minutes of `backwash_time` on Home Assistant's clock. What is left for the window to absorb is up to one transmit interval (~30 s) of lag before the frame reports the valve as open.
 
 For example, with `backwash_time` 08:30 on a unit that did not switch to summer time (an hour behind) and runs 5.5 minutes fast, `clock_offset` is −54.5 minutes. The valve opens at 09:24:30 on Home Assistant's clock; moved by −54.5 minutes that is 08:30 on the unit's clock, within ±5 minutes → **scheduled**. A cycle at 09:40 on Home Assistant's clock is 08:45:30 on the unit's clock, outside → not scheduled.
 

@@ -55,11 +55,6 @@ class AsekoConsumptionTracker:
     # valid entry for is still seeded from its sensor.
     restored_keys: set[str] = field(default_factory=set)
 
-    @property
-    def restored(self) -> bool:
-        """True once any counter came from the coordinator's store."""
-        return bool(self.restored_keys)
-
     def _credit(self, key: str, now: datetime, flowrate_per_min: int | None) -> None:
         """Add the pumped volume since the pump's last ON frame, if there was one."""
         last = self._last_on[key]

@@ -22,7 +22,6 @@ from custom_components.aseko_local.decoding.frames import (
     Protocol,
     decode_time,
     decode_timestamp,
-    normalize_value,
     parse_v7,
 )
 from custom_components.aseko_local.decoding.profiles import profile_for
@@ -857,20 +856,6 @@ def test_decode_salt_flocculant_pump_running() -> None:
 
 
 # test combinations of different methodes like date, time, normalize, probe types etc.
-
-
-def test_normalize_value_edge_cases() -> None:
-    """Test normalization of edge cases."""
-
-    assert normalize_value(None, int) is None
-    assert normalize_value(255, int) is None
-    assert normalize_value("", str) is None
-    assert normalize_value("255", str) is None
-    assert normalize_value(42, int) == 42
-    assert normalize_value("42", str) == "42"
-
-    with pytest.raises(ValueError, match="Unsupported type"):
-        normalize_value(0xFF, float)
 
 
 def test_timestamp_unspecified() -> None:

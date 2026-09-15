@@ -47,7 +47,7 @@ def _status_for(evidence: Evidence | None, model: AsekoDeviceType) -> str:
         features=(SerialNumber,),
         evidence={SerialNumber: evidence} if evidence else {},
     )
-    return support_matrix._status(profile, SerialNumber)  # noqa: SLF001
+    return support_matrix._status(profile, SerialNumber)
 
 
 SALT, HOME, NET = AsekoDeviceType.SALT, AsekoDeviceType.HOME, AsekoDeviceType.NET

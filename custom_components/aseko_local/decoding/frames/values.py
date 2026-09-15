@@ -23,32 +23,6 @@ UNSPECIFIED_WORD = 0xFFFF
 CLOCK_BYTES = slice(6, 12)
 
 
-def normalize_value[T](value: int | str | None, type_: type[T]) -> T | None:
-    """Normalize a raw value to None if it is unspecified or invalid.
-
-    Rules:
-    - None stays None
-    - Integer 255 (0xFF) -> None
-    - Empty string "" -> None
-    - String "255" -> None
-    - Otherwise: return value unchanged
-    """
-    if value is None:
-        return None
-
-    if type_ is int and isinstance(value, int):
-        return None if value == UNSPECIFIED_VALUE else type_(value)
-
-    if type_ is str and isinstance(value, str):
-        val = value.strip()
-        if not val or val == str(UNSPECIFIED_VALUE):
-            return None
-        return type_(val)
-
-    msg = f"Unsupported type {type_} or value {value}"
-    raise ValueError(msg)
-
-
 def word_or_absent(value: int | None) -> int | NotPresent:
     """NOT_PRESENT for a 16-bit setting read as None by ``word_or_none``."""
     return NOT_PRESENT if value is None else value

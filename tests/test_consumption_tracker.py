@@ -337,9 +337,9 @@ def test_counters_round_trip_through_the_store_exactly() -> None:
     stored = tracker.to_store()
 
     restored = AsekoConsumptionTracker()
-    assert restored.restored is False
+    assert restored.restored_keys == set()
     restored.load_store(stored)
-    assert restored.restored is True
+    assert "cl" in restored.restored_keys
     assert restored.get("cl", "total") == tracker.get("cl", "total")
     assert restored.get("cl", "canister") == tracker.get("cl", "canister")
 
@@ -382,7 +382,7 @@ def test_a_refill_reset_touches_only_its_unit() -> None:
     for serial, ml in ((1234, 100.0), (5678, 200.0)):
         tracker = AsekoConsumptionTracker()
         tracker.seed("ph_minus", total_ml=ml, canister_ml=ml)
-        coordinator._trackers[serial] = tracker  # noqa: SLF001
+        coordinator._trackers[serial] = tracker
 
     coordinator.reset_consumption("ph_minus", "canister", serial_number=1234)
     assert coordinator.get_tracker(1234).get("ph_minus", "canister") == 0.0

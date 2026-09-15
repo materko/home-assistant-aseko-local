@@ -714,3 +714,20 @@ def test_not_located_evidence_goes_with_a_not_located_reading_only() -> None:
 def test_an_evidence_entry_is_checked_when_it_is_made(make, message) -> None:
     with pytest.raises(ValueError, match=message):
         make()
+
+
+@pytest.mark.parametrize(
+    ("make", "message"),
+    [
+        (lambda: Evidence("typo", "byte[14]"), "EvidenceStatus"),
+        (lambda: Evidence(EvidenceStatus.OBSERVED, None), "text"),
+        (
+            lambda: Evidence(EvidenceStatus.CONFIRMED_ON, "byte[14]", ("HOME",)),
+            "AsekoDeviceType",
+        ),
+    ],
+)
+def test_an_evidence_entry_of_the_wrong_type_is_refused(make, message) -> None:
+    """Audit C2: without a type checker a typo still fails at import."""
+    with pytest.raises(TypeError, match=message):
+        make()

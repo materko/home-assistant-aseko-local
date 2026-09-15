@@ -60,9 +60,6 @@ ignore = [
     "TID252",
     # Arrows, dashes and multiplication signs in text are written on purpose
     "RUF001", "RUF002", "RUF003",
-    # noqa for rule groups not switched on yet (PLC0415, SLF001); drop this
-    # once they are
-    "RUF100",
     "ARG001", # "unused-argument"
     "D202", # no-blank-line-after-function
     "D203", # no-blank-line-before-class (incompatible with formatter)

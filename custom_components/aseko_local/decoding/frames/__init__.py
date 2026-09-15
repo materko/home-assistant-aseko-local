@@ -25,7 +25,6 @@ from .values import (
     decode_timestamp,
     flag_or_none,
     flag_when_known,
-    normalize_value,
     time_or_absent,
     word_or_absent,
 )
@@ -57,7 +56,6 @@ __all__ = [
     "decode_timestamp",
     "flag_or_none",
     "flag_when_known",
-    "normalize_value",
     "parse_frame",
     "parse_v7",
     "parse_v8",

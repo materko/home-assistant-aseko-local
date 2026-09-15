@@ -30,7 +30,7 @@ def _entry(hass, entry_id: str, port: int) -> MockConfigEntry:
 
 
 def _server(port: int) -> AsekoDeviceServer | None:
-    return AsekoDeviceServer._instances.get(f"127.0.0.1:{port}")  # noqa: SLF001
+    return AsekoDeviceServer._instances.get(f"127.0.0.1:{port}")
 
 
 async def test_setup_unload_setup_on_the_same_port_listens_again(

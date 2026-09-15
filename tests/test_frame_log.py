@@ -111,7 +111,7 @@ def test_every_chunk_starts_with_an_absolute_time() -> None:
     log = FrameLog(max_bytes=32 * 1024, chunk_bytes=4 * 1024)
     for received, raw in _v8_frames(5000):
         log.append_frame(received, KIND_V8, raw)
-    for chunk in log._chunks:  # noqa: SLF001
+    for chunk in log._chunks:
         first = zlib.decompress(chunk).splitlines()[0]
         assert first.startswith(b'{"t":')
 
@@ -208,7 +208,7 @@ async def test_waiting_for_the_next_frame() -> None:
     assert await waiting is True
 
     assert await coordinator.async_wait_for_frame(0.01) is False
-    assert coordinator._frame_waiters == []  # noqa: SLF001
+    assert coordinator._frame_waiters == []
 
 
 def test_mark_dump_notification_says_whether_the_marker_is_written() -> None:
@@ -284,7 +284,7 @@ def test_open_chunk_is_sealed_by_uncompressed_size_too() -> None:
     frames = list(_v8_frames(43_200))  # five days, one frame every ten seconds
     for received, raw in frames:
         log.append_frame(received, KIND_V8, raw)
-    held = sum(len(line) for line in log._current_lines)  # noqa: SLF001
+    held = sum(len(line) for line in log._current_lines)
     assert held < log.chunk_raw_bytes + 2_000
     assert log.size() <= log.max_bytes
 
@@ -309,11 +309,11 @@ def test_oldest_frame_time_survives_dropping_and_a_restart() -> None:
     for received, raw in _v8_frames(20_000):
         log.append_frame(received, KIND_V8, raw)
     first = datetime.fromisoformat(log.records()[0]["t"])
-    assert log._oldest_time() == first  # noqa: SLF001
+    assert log._oldest_time() == first
 
     restored = FrameLog(max_bytes=64 * 1024)
     restored.load_store(log.to_store())
-    assert restored._oldest_time() == first  # noqa: SLF001
+    assert restored._oldest_time() == first
 
 
 @pytest.mark.parametrize(
@@ -362,7 +362,7 @@ async def test_a_fragment_or_another_unit_does_not_end_the_wait() -> None:
     coordinator.store_v8_frame(REFERENCE_FRAME)  # serial 123456789
     coordinator.devices_update_callback(decode(REFERENCE_FRAME))
     assert await waiting is True
-    assert coordinator._frame_waiters == []  # noqa: SLF001
+    assert coordinator._frame_waiters == []
 
 
 def test_rejected_bytes_are_logged_with_their_reason_and_counted() -> None:
@@ -465,7 +465,7 @@ async def test_a_frame_the_decoder_rejects_does_not_end_the_wait() -> None:
     reader = asyncio.StreamReader()
     reader.feed_data(V8_FULL_FRAME)  # readable serial, header the decoder rejects
     reader.feed_eof()
-    await server._handle_client(reader, DummyWriter("127.0.0.1", 12360))  # noqa: SLF001
+    await server._handle_client(reader, DummyWriter("127.0.0.1", 12360))
     await asyncio.sleep(0)
 
     assert [r["k"] for r in coordinator.frame_log.records()] == ["v8"]

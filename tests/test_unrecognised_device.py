@@ -22,9 +22,10 @@ from .test_decode_v7 import _make_base_bytes
 @pytest.fixture(autouse=True)
 def _quiet_logging() -> Iterator[None]:
     """Silence logging for this module's tests only, and turn it back on."""
+    before = logging.root.manager.disable
     logging.disable(logging.CRITICAL)
     yield
-    logging.disable(logging.NOTSET)
+    logging.disable(before)
 
 
 SERIAL = 1234

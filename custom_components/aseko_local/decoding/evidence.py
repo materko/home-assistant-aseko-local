@@ -43,7 +43,20 @@ class Evidence:
     models: tuple[AsekoDeviceType, ...] = ()
 
     def __post_init__(self) -> None:
-        """Reject an empty note and models on anything but CONFIRMED_ON."""
+        """Reject what the helpers cannot build: a wrong type, no note, stray models.
+
+        Checked here as well as by a type checker, so a typo in a profile
+        fails when the profile is imported.
+        """
+        if not isinstance(self.status, EvidenceStatus):
+            msg = f"evidence status must be an EvidenceStatus, not {self.status!r}"
+            raise TypeError(msg)
+        if not isinstance(self.note, str):
+            msg = f"evidence note must be text, not {self.note!r}"
+            raise TypeError(msg)
+        if not all(isinstance(model, AsekoDeviceType) for model in self.models):
+            msg = f"evidence models must be AsekoDeviceType, not {self.models!r}"
+            raise TypeError(msg)
         if not self.note.strip():
             msg = f"{self.status.value} evidence needs a note"
             raise ValueError(msg)
