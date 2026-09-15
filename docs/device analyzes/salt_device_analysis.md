@@ -54,7 +54,7 @@ No representative hex frame is recorded in this document.
 | 30, 31 | — | varies frame to frame | observed | one of the few bytes left that could carry a live value |
 | 32–36 | — | always 0 | observed | |
 | 37 | settings / routing | bitmask | confirmed | see [§4](#byte37--settings-menu-filtration-mode-and-third-pump-routing) |
-| 38 | settings / state flags | bitmask | — | `0x10` heating linked to filtration → `heating_linked_to_filtration` (confirmed; offered only while heating control is on); `0x01` unknown, see [Open questions](#8-open-questions); `0x20`, `0xA1` around winter mode |
+| 38 | settings / state flags | bitmask | — | `0x10` heating linked to filtration → `heating_linked_to_filtration` (confirmed; offered only while heating control is on, sent cleared while it is off and reported as sent); `0x01` unknown, see [Open questions](#8-open-questions); `0x20`, `0xA1` around winter mode |
 | 39 | — | checksum, 0xAA XOR bytes 0–38 | confirmed | |
 
 ### Bytes 40–79 — setpoints and schedule

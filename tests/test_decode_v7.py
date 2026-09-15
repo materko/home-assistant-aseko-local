@@ -2353,11 +2353,13 @@ def test_a_frame_of_unfilled_bytes_decodes_no_number(unit_type: int) -> None:
     [
         (0xD3 | 0x08, 0x10, True, True),  # heating on, linked to filtration
         (0xD3 | 0x08, 0x01, False, True),  # heating on, not linked (0x01 is unrelated)
-        (0xD3, 0x10, None, False),  # heating off: the setting is not offered
+        (0xD3, 0x00, False, True),  # heating off: the unit sends the bit cleared
+        (0xD3, 0x10, True, True),  # read as sent, whatever heating control says
+        (0xD3, 0xFF, None, True),  # an odd frame: unknown, still present
     ],
 )
 def test_heating_linked_to_filtration(byte37, byte38, expected, present) -> None:
-    """byte[38] 0x10, confirmed on a SALT 2026-09-14; only while heating control is on."""
+    """byte[38] 0x10, confirmed on a SALT 2026-09-14; reported as the unit sends it."""
     data = _make_base_bytes()  # SALT REDOX
     data[37] = byte37
     data[38] = byte38

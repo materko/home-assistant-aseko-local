@@ -228,7 +228,7 @@ SALT = Profile(
             "byte[37] 0x08; confirmed on the own SALT by toggling it on the unit with a frame-log marker after each change, 2026-09-13/14"
         ),
         HeatingLinkedToFiltration: confirmed(
-            "byte[38] 0x10 set and cleared with the setting on the own SALT, heating control on throughout, frame-log markers, 2026-09-14; the unit offers it only while heating control is on"
+            "byte[38] 0x10 set and cleared with the setting on the own SALT, heating control on throughout, frame-log markers, 2026-09-14; the unit offers it only while heating control is on and sends the bit cleared while it is off (6 952 frames)"
         ),
         MaxRefillTime: confirmed(
             'bytes 76-77 in seconds, 1140 s = 19 min "Max. time of filling" on the unit display and in the Aseko Live app, 2026-09-11'
