@@ -119,8 +119,35 @@ The engine walks the profile's plan and calls each reading with the frame and
 the device filled so far. A reading answers:
 
 - a **value**;
-- **None** — the unit has it, this frame cannot say (e.g. `byte[37] = 0xFF` at start-up);
+- **None** — the unit has it, this frame cannot say (e.g. an unfilled setpoint, `0xFF` in a settings byte);
 - **`NOT_PRESENT`** — this unit does not have it (a REDOX probe instead of CLF, the shared pump port routed to the other chemical). The field is stored as None and left out of the frame's features.
+
+### Report what the frame says
+
+A profile reads every value its model has and hands each one to Home
+Assistant as the unit sent it. Whether a value is *useful right now* is not
+the decoder's call:
+
+- A setting stays an entity with its real value while another setting makes
+  it moot. The backwash interval and start time are reported while the
+  backwash schedule is off, the VS pump type while the VS pump is off,
+  "heating linked to filtration" while heating control is off. Hiding,
+  disabling or greying them out when the parent setting is off belongs in
+  the dashboard (a conditional card, a visibility condition), where each user
+  can decide.
+- Do not add a `depends_on` that turns a value into `NOT_PRESENT` because
+  another value makes it meaningless. `depends_on` is for a value that is
+  *encoded* through another one — the shared pump port whose byte means
+  algicide or flocculant depending on `byte[37]`, a setpoint byte whose meaning
+  follows the installed probe.
+- `NOT_PRESENT` is only for what the frame itself says is not on this unit:
+  a probe the unit type byte reports missing, a port routed to the other
+  chemical, a value byte whose `0xFF` / `0xFFFF` means "never configured" or
+  "not fitted", v8 `-500`.
+- A bit of a settings byte is always sent as 0 or 1 by a unit that has the
+  setting, so `0xFF` in that byte is an odd frame: it reads **None** (the
+  entity stays and shows unknown), not `NOT_PRESENT`. Checked on 6 956 frames
+  of an ASIN AQUA Salt: bytes 22, 37, 38 and 78 never carried `0xFF`.
 
 Probe configuration is per unit, not per model, so it is handled this way
 rather than with more profiles: `byte[53]` is one of four setpoints and the

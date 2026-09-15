@@ -63,8 +63,14 @@ the model has but nobody has found.
 2. Add `decoding/features/<field>.py` with a `Feature` subclass: `field`,
    `decode_v7` / `decode_v8` defaults, named readings for model differences,
    `depends_on` / `optional_depends_on` for values it needs first. Return
-   `NOT_PRESENT` when this unit does not have the value, `None` when the frame
-   cannot say right now.
+   `NOT_PRESENT` when the frame says this unit does not have the value, `None`
+   when the frame cannot say right now.
+
+   Report the value as the unit sends it, even when another setting makes it
+   moot (backwash times with the backwash schedule off, the VS pump type with
+   the pump off): hiding it is the dashboard's job, not the decoder's. A bit of
+   a settings byte reads `0xFF` as `None` (`flag_or_none`). See
+   [Report what the frame says](decoding-by-device-profile.md#report-what-the-frame-says).
 3. Add it to `ALL_FEATURES` in `features/__init__.py`, list it in the profiles that have it.
 4. Add the entity description in `sensor.py` / `binary_sensor.py` with
    `feature="<field>"` and the translations in `translations/*.json`. Entities
