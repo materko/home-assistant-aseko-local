@@ -489,7 +489,10 @@ async def test_a_unit_still_reading_its_history_stops_the_service_everywhere(
         ready, reading = reading, ready
     ready.devices_update_callback(_salt_device())
     await hass.async_block_till_done()
-    past = dt_util.now() - timedelta(days=1)
+    # on the unit's clock, which the frames put in 2024: judged there
+    unit_now = ready.unit_clock_now(1234)
+    assert unit_now is not None
+    past = unit_now - timedelta(days=1)
     ready.set_last_scheduled_backwash(past, 1234)
     stored = ready.get_device(1234).last_scheduled_backwash
 
