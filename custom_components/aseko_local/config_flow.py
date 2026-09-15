@@ -249,7 +249,7 @@ class AsekoLocalOptionsFlowHandler(OptionsFlow):
                 ): NumberSelector(
                     NumberSelectorConfig(
                         min=1,
-                        max=30,
+                        max=180,
                         step=1,
                         mode=NumberSelectorMode.BOX,
                         unit_of_measurement="min",

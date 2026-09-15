@@ -9,8 +9,12 @@ That much is observed fact.  Everything else here is derived from it.
 Each recorded cycle is *classified* as scheduled or manual by comparing the
 moment the relay opened against the unit's configured ``backwash_start_time``:
 
-    * within ±``SCHEDULED_MATCH_TOLERANCE`` of the configured time, on a unit
-      whose schedule is enabled  →  SCHEDULED (the unit ran it itself)
+    * within ±``OFFSET_MATCH_TOLERANCE`` (5 min) of the configured time on
+      the unit's clock -- the start moved by the current clock offset, drift
+      and a missed change of summer / winter time together -- on a unit
+      whose schedule is enabled  →  SCHEDULED (the unit ran it itself);
+      ±``SCHEDULED_MATCH_TOLERANCE`` (15 min) on Home Assistant's clock
+      while the offset is not measured yet
     * anything else                                    →  MANUAL
 
 — except on units that report their settings menu (below), where MANUAL
@@ -646,8 +650,10 @@ class BackwashTracker:
 
         A cycle counts as scheduled when the unit could have started it
         itself: the schedule is configured and enabled, and the relay opened
-        within ``SCHEDULED_MATCH_TOLERANCE`` of the configured time of day —
-        whatever the menu did.  Outside that window ``service_menu_observed``
+        within ``OFFSET_MATCH_TOLERANCE`` of the configured time of day on the
+        unit's clock (``_matches_schedule``: drift and summer / winter time
+        taken out; ``SCHEDULED_MATCH_TOLERANCE`` on Home Assistant's clock
+        before the offset is known) — whatever the menu did.  Outside that window ``service_menu_observed``
         decides: on SALT the unit reports somebody at its menu while the valve
         was open (see ``_service_menu_open``), so the cycle is manual; with
         the menu closed it is UNKNOWN on SALT and, by elimination, manual on

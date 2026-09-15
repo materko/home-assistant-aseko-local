@@ -17,7 +17,7 @@ The picture is generated from [`images/src/aseko-architecture.html`](images/src/
 | `decoding/` | Bytes → `AsekoDevice`. No entities, no coordinator; from Home Assistant it uses only the time zone helpers, for the unit's clock and a missing timestamp. |
 | `coordinator.py` | Keeps the latest `AsekoDevice` per serial, merges feature sets, notifies platforms, owns the frame log and consumption store, waits for frames for `mark_dump`. |
 | `entity.py` + platforms | Entities for every value the model can have (see [Entity lifecycle](#entity-lifecycle)). |
-| `trackers/` | State the frame does not carry: backwash history and schedule restarts, chemical consumption (exact ml, HA Store), the unit clock offset split into hours and drift, and its out-of-sync alert (`clock.py`; the coordinator stores the last drift). |
+| `trackers/` | State the frame does not carry: backwash history and schedule restarts, chemical consumption (exact ml, HA Store), the unit clock offset and its out-of-sync alert (`clock.py`, not stored). |
 | `recording/` | Frame log with markers, photos, HTTP views and the test cases card. |
 | `diagnostics.py` | Per unit: annotated raw frame, `profile`, `reading_overrides`, `frame_problems`, `possible_features`, `not_present_now`, frame warnings. For the entry: unrecognised units, rejected frames, `frame_log_enabled`, frame log. |
 

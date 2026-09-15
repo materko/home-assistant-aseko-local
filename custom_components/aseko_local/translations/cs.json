@@ -126,9 +126,6 @@
       },
       "clock_out_of_sync": {
         "name": "Hodiny nesynchronizované"
-      },
-      "clock_hour_shifted": {
-        "name": "Hodiny posunuté o hodinu"
       }
     },
     "sensor": {
@@ -357,12 +354,6 @@
       },
       "clock_offset": {
         "name": "Odchylka hodin"
-      },
-      "clock_hour_shift": {
-        "name": "Posun hodin o hodiny"
-      },
-      "clock_drift": {
-        "name": "Drift hodin"
       }
     },
     "number": {

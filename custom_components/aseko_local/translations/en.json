@@ -126,9 +126,6 @@
       },
       "clock_out_of_sync": {
         "name": "Clock out of sync"
-      },
-      "clock_hour_shifted": {
-        "name": "Clock hour shifted"
       }
     },
     "sensor": {
@@ -357,12 +354,6 @@
       },
       "clock_offset": {
         "name": "Clock offset"
-      },
-      "clock_hour_shift": {
-        "name": "Clock hour shift"
-      },
-      "clock_drift": {
-        "name": "Clock drift"
       }
     },
     "number": {

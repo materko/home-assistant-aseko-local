@@ -189,19 +189,14 @@ If you want to keep sending the data to Aseko Cloud, you had to use a TCP proxy 
 
 ### Unit clock
 
-An ASIN Aqua Home, Salt and Oxygen sends its own clock with each frame as date and time to the second, and an ASIN Aqua Net on firmware v8 as hour and minute; the Profi and a v8 Salt are assumed to do the same (see the [support matrix](docs/support_matrix.md), `unit_clock`). The ASIN Aqua Net on firmware v7 sends none, so it has none of the entities below.
-
-The difference between the unit's clock and Home Assistant's is measured on every frame and split in two parts: **whole hours** — a change between summer and winter time the unit did not follow, or a clock set an hour off — and **drift**, the minutes the clock gained or lost. One number cannot tell them apart (−54.5 minutes is a unit an hour behind that runs 5.5 minutes fast, or one 54.5 minutes slow), but drift moves by seconds a day and a change of time jumps by an hour, so each measurement is split against the last known drift. The first one, with no drift known yet, takes the drift as under 30 minutes; a clock moved by more than 30 minutes at once reads as a change of hours. The last drift is stored, so a restart keeps it.
+An ASIN Aqua Home, Salt and Oxygen sends its own clock with each frame as date and time to the second, and an ASIN Aqua Net on firmware v8 as hour and minute; the Profi and a v8 Salt are assumed to do the same (see the [support matrix](docs/support_matrix.md), `unit_clock`). The ASIN Aqua Net on firmware v7 sends none, so it has neither entity below.
 
 | Entity | What it shows |
 |---|---|
-| `sensor.…_clock_offset` | The whole difference in minutes: how far the unit's clock is **ahead** of Home Assistant's when the frame arrives (negative: behind). The median of the last three frames, so one late frame does not move it. |
-| `sensor.…_clock_hour_shift` | The whole hours of it: `1` a unit an hour ahead (it kept summer time), `-1` an hour behind. |
-| `sensor.…_clock_drift` | The rest, in minutes. |
-| `binary_sensor.…_clock_hour_shifted` | On while the hour shift is not 0. |
-| `binary_sensor.…_clock_out_of_sync` | About the **drift** only. On when the last three frames all drift at least the limit (either way) — also right after a start; off again when all three are under the limit minus a fifth of it, at most 3 minutes (12 minutes for 15, 48 seconds for 1). Anything else keeps the state it had, and is off before it has ever been on. Unknown until three frames have arrived. |
+| `sensor.…_clock_offset` | The whole difference in minutes between the unit's clock and Home Assistant's local time when the frame arrives — drift and a change of summer / winter time the unit did not follow together: positive, the unit is **ahead**; negative, behind. The median of the last three frames, so one late frame does not move it. |
+| `binary_sensor.…_clock_out_of_sync` | On when the last three frames are all at least the limit off (either way) — also right after a start; off again when all three are under the limit minus a fifth of it, at most 3 minutes (12 minutes for 15, 48 seconds for 1). Anything else keeps the state it had, and is off before it has ever been on. Unknown until three frames have arrived. |
 
-The limit is **15 minutes** by default, 1–30; change *Alert when the unit clock is off by (minutes)* in the integration's settings (the same dialog as the forwarder). The entities are diagnostic, so an automation on `clock_out_of_sync` or `clock_hour_shifted` is the way to get a notification.
+The limit is **15 minutes** by default; change *Alert when the unit clock is off by (minutes)* in the integration's settings (the same dialog as the forwarder). A unit that did not follow a change of summer / winter time is an hour off and turns the alert on. Both entities are diagnostic, so an automation on `clock_out_of_sync` is the way to get a notification.
 
 A v8 unit sends no date and only whole minutes: its offset is read to about a minute and within ±12 hours, so a clock a day off is not seen.
 
@@ -372,7 +367,7 @@ For example, with `backwash_time` 08:30 on a unit that did not switch to summer 
 
 **Changing the schedule** restarts it. When a frame shows a new `backwash_time` or `backwash_every_n_days`, or the schedule switched back on (every N days from 0), the unit runs the next backwash **the day after the change** at the (new) time, and counts the interval from that cycle. This was checked on an ASIN Aqua Salt; the Home, Oxygen and Profi are assumed to behave the same. `next_scheduled_backwash` shows that day until the cycle has been seen; switching the schedule off shows unknown. A change made while Home Assistant was not running is noticed on the first frame after it starts, and taken as made then.
 
-The projected time is **the time set on the unit**, exactly as its menu shows it (`backwash_time` on the day the unit counts to). It is not moved by the drift nor by a change of summer / winter time the unit did not follow. When the unit's clock is off, the valve opens that much earlier or later on Home Assistant's clock: `clock_offset` says by how much (`clock_hour_shift` and `clock_drift` split it), so the exact moment is the projected time minus `clock_offset`. Which slot is next is decided on the unit's clock.
+The projected time is **the time set on the unit**, exactly as its menu shows it (`backwash_time` on the day the unit counts to). It is not moved by the drift nor by a change of summer / winter time the unit did not follow. When the unit's clock is off, the valve opens that much earlier or later on Home Assistant's clock: `clock_offset` says by how much, so the exact moment is the projected time minus `clock_offset`. Which slot is next is decided on the unit's clock.
 
 > **Upgrading:** `sensor.next_backwash` was renamed to `sensor.next_scheduled_backwash`. The integration rewrites the entity registry on startup, so the entity keeps its `entity_id`, its recorded history and any automation or dashboard pointing at it — only the displayed name changes.
 

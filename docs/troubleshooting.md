@@ -60,17 +60,17 @@ An entity you disabled yourself stays disabled.
 
 The schedule the unit shows is in **its own** clock. Compare
 **Clock offset** (`devices[].device.clock_offset_minutes`: minutes the unit
-is ahead, negative behind; `clock_hour_shift` and `clock_drift_minutes` split
-it) with the shift you see. `next_scheduled_backwash` shows the time set on the
+is ahead, negative behind; drift and summer / winter time together) with the
+shift you see. `next_scheduled_backwash` shows the time set on the
 unit, not moved by the offset, so a unit that is off runs its backwash that
 much earlier or later on Home Assistant's clock. Recognising a scheduled cycle
 takes the drift and a missed change of summer / winter time out and allows
-±5 minutes around the set time, so it is not affected. **Clock hour shifted** on after a
-change between summer and winter time means the unit did not switch; set its
-clock on the unit. After a change of the
+±5 minutes around the set time, so it is not affected. An offset near ±60 minutes after a
+change between summer and winter time usually means the unit did not switch;
+set its clock on the unit. After a change of the
 backwash time or interval, the next cycle is the day after the change
 (checked on an ASIN Aqua Salt, assumed on the other models). **Clock out of
-sync** turns on when the drift passes the limit set in the integration's
+sync** turns on when the offset passes the limit set in the integration's
 settings (15 minutes by default). See the README,
 *Unit clock*.
 

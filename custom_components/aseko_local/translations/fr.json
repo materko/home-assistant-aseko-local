@@ -126,9 +126,6 @@
       },
       "clock_out_of_sync": {
         "name": "Horloge désynchronisée"
-      },
-      "clock_hour_shifted": {
-        "name": "Horloge décalée d'une heure"
       }
     },
     "sensor": {
@@ -357,12 +354,6 @@
       },
       "clock_offset": {
         "name": "Décalage de l'horloge"
-      },
-      "clock_hour_shift": {
-        "name": "Décalage horaire de l'horloge"
-      },
-      "clock_drift": {
-        "name": "Dérive de l'horloge"
       }
     },
     "number": {

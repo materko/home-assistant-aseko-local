@@ -34,9 +34,6 @@ _LOGGER = logging.getLogger(__name__)
 FRAME_LOG_STORAGE_VERSION = 1
 CONSUMPTION_STORAGE_VERSION = 1
 CONSUMPTION_STORAGE_KEY_PREFIX = "aseko_local_consumption_"
-# the last clock drift per unit, so a restart splits hours and drift alike
-CLOCK_STORAGE_VERSION = 1
-CLOCK_STORAGE_KEY_PREFIX = "aseko_local_clock_"
 # pumps run for seconds at a time: save the exact millilitres at most once a minute
 CONSUMPTION_SAVE_INTERVAL = timedelta(seconds=60)
 FRAME_LOG_STORAGE_KEY_PREFIX = "aseko_local_frame_log_"
@@ -84,9 +81,6 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         self._backwash_trackers: dict[int, BackwashTracker] = {}
         # One clock tracker per device serial number
         self._clock_trackers: dict[int, ClockTracker] = {}
-        self._clock_store: Store[dict[str, Any]] | None = None
-        # drift restored from the store, taken by a unit's tracker when made
-        self._stored_drift: dict[int, float] = {}
         # Last raw frame per device serial number (for diagnostics)
         self._last_raw_frames: dict[int, bytes] = {}
         # Last partial (incomplete) raw frame per serial number
@@ -333,51 +327,12 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
             tracker = ClockTracker(
                 self.config_entry.options.get(
                     CONF_CLOCK_ALERT_MINUTES, DEFAULT_ALERT_MINUTES
-                ),
-                self._stored_drift.get(serial),
+                )
             )
             self._clock_trackers[serial] = tracker
-        split_before = (tracker.hour_shift, tracker.drift_minutes)
         tracker.update(device.unit_clock, received_at)
         device.clock_offset = tracker.offset_minutes
-        device.clock_hour_shift = tracker.hour_shift
-        device.clock_drift = tracker.drift_minutes
         device.clock_out_of_sync = tracker.out_of_sync
-        device.clock_hour_shifted = (
-            None if tracker.hour_shift is None else tracker.hour_shift != 0
-        )
-        if (
-            self._clock_store is not None
-            and (tracker.hour_shift, tracker.drift_minutes) != split_before
-        ):
-            self._clock_store.async_delay_save(self._clock_data, 60)
-
-    async def async_load_clock(self) -> None:
-        """Restore each unit's last clock drift (see ``trackers.clock``)."""
-        self._clock_store = Store(
-            self.hass,
-            CLOCK_STORAGE_VERSION,
-            f"{CLOCK_STORAGE_KEY_PREFIX}{self.config_entry.entry_id}",
-        )
-        data = await self._clock_store.async_load()
-        if not isinstance(data, dict):
-            return
-        for serial, drift in data.items():
-            try:
-                self._stored_drift[int(serial)] = float(drift)
-            except (TypeError, ValueError):
-                continue
-
-    def _clock_data(self) -> dict[str, float]:
-        stored = {str(serial): drift for serial, drift in self._stored_drift.items()}
-        stored.update(
-            {
-                str(serial): tracker.drift_minutes
-                for serial, tracker in self._clock_trackers.items()
-                if tracker.drift_minutes is not None
-            }
-        )
-        return stored
 
     @staticmethod
     def _publish_backwash(

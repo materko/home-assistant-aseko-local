@@ -298,8 +298,6 @@ def _device_state(device: Any) -> dict[str, Any]:
         "unit_clock": _str_or_none(getattr(device, "unit_clock", None)),
         "clock_offset_minutes": getattr(device, "clock_offset", None),
         "clock_out_of_sync": getattr(device, "clock_out_of_sync", None),
-        "clock_hour_shift": getattr(device, "clock_hour_shift", None),
-        "clock_drift_minutes": getattr(device, "clock_drift", None),
         "air_temperature": device.air_temperature,
         "water_temperature": device.water_temperature,
         "ph": device.ph,

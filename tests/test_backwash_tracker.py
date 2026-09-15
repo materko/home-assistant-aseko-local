@@ -1320,3 +1320,64 @@ async def test_schedule_restart_and_offset_survive_a_restart():
     assert restored.next_scheduled_backwash(
         _clocked(False, None, every=7), T0 + timedelta(hours=4)
     ) == T0 + timedelta(days=2)
+
+
+# ── recognition across a change of time, from the frame bytes ────────────────
+
+
+def _unit_bytes(unit: datetime) -> bytes:
+    """A v7 SALT frame whose clock bytes (6-11) read ``unit``."""
+    from .test_decode_v7 import _make_base_bytes
+
+    data = _make_base_bytes()
+    data[6:12] = bytes(
+        (unit.year - 2000, unit.month, unit.day, unit.hour, unit.minute, unit.second)
+    )
+    return bytes(data)
+
+
+def _recognise(zone, ha_start: datetime, unit_ahead: timedelta):
+    """Clock frames and one cycle through the real decoder and both trackers."""
+    from custom_components.aseko_local.decoding import decode
+    from custom_components.aseko_local.trackers.clock import ClockTracker
+
+    clock = ClockTracker()
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    at = time(8, 30)
+    for i, running in enumerate((False, False, False, True, True, False)):
+        received = ha_start + timedelta(seconds=45 * (i - 3))
+        # the unit's wall clock: Home Assistant's wall clock plus the offset
+        unit = (received.replace(tzinfo=None) + unit_ahead).replace(tzinfo=zone)
+        clock.update(decode(_unit_bytes(unit)).unit_clock, received)
+        tracker.update(
+            _clocked(running, clock.offset_minutes, at=at, every=15), received
+        )
+    return clock, tracker
+
+
+def test_a_missed_autumn_change_and_drift_are_taken_out():
+    """25 Oct 2026: HA on winter time, the unit still on summer time, 5.5 min fast."""
+    zone = _in_bratislava()
+    ha_start = datetime(2026, 10, 25, 7, 24, 30, tzinfo=zone)
+    clock, tracker = _recognise(zone, ha_start, timedelta(minutes=65.5))
+
+    assert clock.offset_minutes == 65.5
+    assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
+
+
+def test_a_missed_spring_change_and_drift_are_taken_out():
+    """29 Mar 2026: HA on summer time, the unit still on winter time, 5.5 min fast."""
+    zone = _in_bratislava()
+    ha_start = datetime(2026, 3, 29, 9, 24, 30, tzinfo=zone)
+    clock, tracker = _recognise(zone, ha_start, timedelta(minutes=-54.5))
+
+    assert clock.offset_minutes == -54.5
+    assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
+
+
+def test_six_minutes_past_the_plan_on_the_unit_clock_is_not_scheduled():
+    zone = _in_bratislava()
+    ha_start = datetime(2026, 3, 29, 9, 30, 30, tzinfo=zone)  # unit 08:36
+    _, tracker = _recognise(zone, ha_start, timedelta(minutes=-54.5))
+
+    assert tracker.last_trigger is AsekoBackwashTrigger.MANUAL

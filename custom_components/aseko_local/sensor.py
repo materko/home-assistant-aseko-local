@@ -762,29 +762,6 @@ SENSORS: list[AsekoSensorEntityDescription] = [
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda device: device.clock_offset,
     ),
-    AsekoSensorEntityDescription(
-        # The whole hours of clock_offset: a change of time (summer / winter)
-        # the unit did not follow.
-        key="clock_hour_shift",
-        feature="unit_clock",
-        translation_key="clock_hour_shift",
-        icon="mdi:clock-time-eight-outline",
-        native_unit_of_measurement=UnitOfTime.HOURS,
-        entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda device: device.clock_hour_shift,
-    ),
-    AsekoSensorEntityDescription(
-        # The rest of clock_offset: minutes the unit's clock gained or lost.
-        key="clock_drift",
-        feature="unit_clock",
-        translation_key="clock_drift",
-        icon="mdi:clock-fast",
-        native_unit_of_measurement=UnitOfTime.MINUTES,
-        state_class=SensorStateClass.MEASUREMENT,
-        suggested_display_precision=1,
-        entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda device: device.clock_drift,
-    ),
 ]
 
 # Sensor keys that were renamed after release.  The unique_id is
