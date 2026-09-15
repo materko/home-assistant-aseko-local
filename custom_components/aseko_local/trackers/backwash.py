@@ -118,7 +118,7 @@ _LOGGER = logging.getLogger(__name__)
 def _service_menu_open(device: AsekoDevice) -> bool:
     """Return True if somebody has the unit's settings menu open.
 
-    On SALT, byte[37] bit 0x04 marks that menu — the one filtration and
+    On v7, byte[37] bit 0x04 marks that menu — the one filtration and
     backwash can be started by hand from.  It appears on entering, before
     anything is touched, so on its own it says only that a person is at the
     unit.  Paired with a running backwash it says more: a capture of a
@@ -732,10 +732,11 @@ class BackwashTracker:
         unit's clock (``_matches_schedule``: drift and summer / winter time
         taken out; ``SCHEDULED_MATCH_TOLERANCE`` on Home Assistant's clock
         before the offset is known) — whatever the menu did.  Outside that window ``service_menu_observed``
-        decides: on SALT the unit reports somebody at its menu while the valve
-        was open (see ``_service_menu_open``), so the cycle is manual; with
-        the menu closed it is UNKNOWN on SALT and, by elimination, manual on
-        units that do not report the menu.
+        decides: where the profile carries ``MENU_BIT_IS_PRESENCE_ONLY`` the
+        unit reports somebody at its menu while the valve was open (see
+        ``_service_menu_open``), so the cycle is manual; with the menu closed
+        it is UNKNOWN there and, by elimination, manual on units without the
+        flag.
 
         That part is a guess, not a fact.  The device reports that the valve
         opened, never why, so the start time is all there is to go on.  Known
@@ -776,7 +777,7 @@ class BackwashTracker:
             return AsekoBackwashTrigger.MANUAL
 
         # Neither the schedule nor the menu explains it.  A unit that reports
-        # its menu (SALT) had it closed: not attributed.  Units that do not
+        # its menu (MENU_BIT_IS_PRESENCE_ONLY) had it closed: not attributed.  Units that do not
         # report it keep the elimination rule, or they could never show a
         # manual cycle at all.
         if AsekoProfileFlag.MENU_BIT_IS_PRESENCE_ONLY in device.flags:

@@ -357,7 +357,7 @@ A cycle is **recorded** when the backwash valve stays open for at least 60 secon
 
 The device does **not** report *why* the valve opened.
 
-**ASIN Aqua Salt** reports when its settings menu is open, and a manual backwash is started from that menu:
+A unit whose profile says its menu bit means a person at the unit (the profile flag `MENU_BIT_IS_PRESENCE_ONLY`; today the **ASIN Aqua Salt**) reports when its settings menu is open, and a manual backwash is started from that menu:
 
 | Menu during the cycle | Valve opened within **±5 min** of `backwash_time` on the unit's clock — drift and summer / winter time taken out (schedule enabled) | Otherwise |
 |---|---|---|
@@ -366,7 +366,7 @@ The device does **not** report *why* the valve opened.
 
 A not attributed cycle updates `sensor.last_backwash` only; `last_scheduled_backwash` and `last_manual_backwash` keep their values, and the diagnostics show `last_backwash_trigger: unknown`.
 
-**Other models** (Home, Oxygen, Profi) do not report the menu this way (on HOME the bit is a standing pump override), so only the time decides there: within **±5 minutes** of `backwash_time` on the unit's clock (drift and summer / winter time taken out) on a unit whose schedule is enabled → **scheduled**; anything else, including any cycle with `backwash_every_n_days = 0` → **manual**.
+**Units without that flag** (today Home, Oxygen, Profi: on HOME the bit is a standing pump override, on Oxygen and Profi its meaning is not confirmed) only the time decides: within **±5 minutes** of `backwash_time` on the unit's clock (drift and summer / winter time taken out) on a unit whose schedule is enabled → **scheduled**; anything else, including any cycle with `backwash_every_n_days = 0` → **manual**.
 
 `backwash_time` is set on the **unit's clock**, which runs apart from Home Assistant's ([Unit clock](#unit-clock)). The window is **±5 minutes** of `backwash_time` on the unit's clock: the valve start, taken on Home Assistant's clock, is moved by `clock_offset` as it was **when the valve opened** — drift and a missed change of summer / winter time together, measured from every frame — before it is compared. Until the offset is known (a fresh install, the first frames) the window is ±15 minutes of `backwash_time` on Home Assistant's clock. What is left for the window to absorb is up to one transmit interval (~30 s) of lag before the frame reports the valve as open.
 

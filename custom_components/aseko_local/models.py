@@ -44,7 +44,9 @@ class AsekoProfileFlag(Enum):
     # runs while the bit is on is manual as a matter of observation.  Where
     # not set (HOME, Issue #133) the same bit is a standing pump
     # override that can stay on indefinitely, so it proves nothing about who
-    # started a backwash.  Read by ``trackers.backwash``.
+    # started a backwash.  Read by ``trackers.backwash`` and by
+    # ``AsekoDevice.connection_state`` (the ``service_menu`` state); adding the
+    # flag to a profile turns both on for that model.
     MENU_BIT_IS_PRESENCE_ONLY = "menu_bit_is_presence_only"
 
     # ``startup_delay`` and ``dosing_delay`` are whole minutes (v8 areqs[17] /
@@ -95,8 +97,8 @@ class AsekoBackwashTrigger(Enum):
     SCHEDULED — the cycle started within the tolerance window around the
         configured ``backwash_start_time`` on a device whose backwash schedule is
         enabled, so the unit ran it on its own.
-    MANUAL — somebody started it by hand.  On units that report their
-        settings menu (SALT) only a cycle outside the window run while the
+    MANUAL — somebody started it by hand.  On units whose profile carries
+        ``MENU_BIT_IS_PRESENCE_ONLY`` only a cycle outside the window run while the
         menu was open; on the others, any cycle outside the window or with no
         usable schedule.  In the window a cycle is always SCHEDULED.
     UNKNOWN — a unit that reports its menu ran a cycle outside the window
@@ -425,8 +427,10 @@ class AsekoDevice:
         stop during a filtration run by hand until the menu is closed, which
         can take hours.  Neither can be told from the menu frame, so there is
         no timeout and the state does not claim offline.  Only where the
-        menu bit means a person at the unit (``MENU_BIT_IS_PRESENCE_ONLY``);
-        on HOME the same bit is a standing pump override that keeps sending.
+        menu bit means a person at the unit (``MENU_BIT_IS_PRESENCE_ONLY`` in
+        its profile); no model is named here, the flag decides.  On HOME the
+        same bit is a standing pump override that keeps sending, so its
+        profile does not carry the flag.
         """
         if (
             self.service_menu_open
