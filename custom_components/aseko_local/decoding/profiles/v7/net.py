@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from ....models import AsekoDeviceType
 from ...features import (
-    Redox,
     AlarmMaxDisinfectionDose,
     AlarmNoFlowToProbes,
     AlarmPhDosingIneffective,
@@ -22,6 +21,7 @@ from ...features import (
     PhMinusPumpRunning,
     PhTarget,
     PoolVolume,
+    Redox,
     RedoxTarget,
     SerialNumber,
     StartupDelay,

@@ -4,9 +4,6 @@ from __future__ import annotations
 
 from ....models import AsekoDeviceType
 from ...features import (
-    WaterLevelLowAlarm,
-    WaterLevelRefillStop,
-    WaterLevelHighAlarm,
     AirTemperature,
     AlarmMaxDisinfectionDose,
     AlarmNoFlowToProbes,
@@ -54,7 +51,10 @@ from ...features import (
     VariableSpeedPumpEnabled,
     WaterFlowToProbes,
     WaterLevel,
+    WaterLevelHighAlarm,
+    WaterLevelLowAlarm,
     WaterLevelRefillStart,
+    WaterLevelRefillStop,
     WaterLevelSensorEnabled,
     WaterTemperature,
     WaterTemperatureTarget,
@@ -64,8 +64,8 @@ from ...profile import Profile
 from .common import (
     ALARMS,
     BACKWASH,
-    FILTRATION,
     CLOCK,
+    FILTRATION,
     IDENTITY,
     MEASUREMENTS,
     SETTINGS,

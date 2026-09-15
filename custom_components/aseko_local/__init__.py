@@ -16,6 +16,7 @@ from homeassistant.core import (
     ServiceCall,
     ServiceResponse,
     SupportsResponse,
+    callback,
 )
 from homeassistant.exceptions import ConfigEntryNotReady, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
@@ -254,7 +255,23 @@ async def async_setup_entry(
     rd.mirror = mirror_instance
     rd.mirror_v8 = mirror_v8_instance
 
-    # Register domain service once (shared across all config entries)
+    # domain services, once for all config entries
+    _async_register_services(hass)
+
+    return True
+
+
+@callback
+def _async_register_services(hass: HomeAssistant) -> None:
+    """Register the domain's services once; shared by every config entry."""
+    _async_register_consumption_service(hass)
+    _async_register_backwash_services(hass)
+    _async_register_mark_dump_service(hass)
+
+
+@callback
+def _async_register_consumption_service(hass: HomeAssistant) -> None:
+    """``reset_consumption``."""
     if not hass.services.has_service(DOMAIN, SERVICE_RESET_CONSUMPTION):
 
         async def handle_reset_consumption(call: ServiceCall) -> None:
@@ -274,6 +291,10 @@ async def async_setup_entry(
         )
         _LOGGER.debug("Registered service %s.%s", DOMAIN, SERVICE_RESET_CONSUMPTION)
 
+
+@callback
+def _async_register_backwash_services(hass: HomeAssistant) -> None:
+    """``set_last_scheduled_backwash`` and ``clear_last_scheduled_backwash``."""
     if not hass.services.has_service(DOMAIN, SERVICE_SET_LAST_SCHEDULED_BACKWASH):
 
         async def handle_set_last_scheduled_backwash(call: ServiceCall) -> None:
@@ -363,6 +384,10 @@ async def async_setup_entry(
             "Registered service %s.%s", DOMAIN, SERVICE_CLEAR_LAST_SCHEDULED_BACKWASH
         )
 
+
+@callback
+def _async_register_mark_dump_service(hass: HomeAssistant) -> None:
+    """``mark_dump``: a marker in every recording frame log."""
     if not hass.services.has_service(DOMAIN, SERVICE_MARK_DUMP):
 
         async def handle_mark_dump(call: ServiceCall) -> ServiceResponse:
@@ -468,8 +493,6 @@ async def async_setup_entry(
             supports_response=SupportsResponse.OPTIONAL,
         )
         _LOGGER.debug("Registered service %s.%s", DOMAIN, SERVICE_MARK_DUMP)
-
-    return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

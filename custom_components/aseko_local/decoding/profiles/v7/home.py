@@ -8,9 +8,6 @@ from __future__ import annotations
 
 from ....models import AsekoDeviceType
 from ...features import (
-    Redox,
-    RedoxTarget,
-    ChlorineDoseTarget,
     AirTemperature,
     AlarmMaxDisinfectionDose,
     AlarmNoFlowToProbes,
@@ -24,6 +21,7 @@ from ...features import (
     BackwashRunning,
     BackwashScheduleEnabled,
     BackwashStartTime,
+    ChlorineDoseTarget,
     ChlorineFlowRate,
     ChlorinePumpRunning,
     Configuration,
@@ -53,6 +51,8 @@ from ...features import (
     PhMinusPumpRunning,
     PhTarget,
     PoolVolume,
+    Redox,
+    RedoxTarget,
     Refilling,
     SerialNumber,
     ServiceMenuOpen,
@@ -77,9 +77,9 @@ from .common import (
     ALARMS,
     BACKWASH,
     CHLORINE_PROBES,
+    CLOCK,
     DISINFECTION_SETPOINTS,
     FILTRATION,
-    CLOCK,
     IDENTITY,
     MEASUREMENTS,
     SETTINGS,

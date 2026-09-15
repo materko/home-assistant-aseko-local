@@ -75,9 +75,9 @@ from ...profile import Profile
 from .common import (
     ALARMS,
     BACKWASH,
+    CLOCK,
     DISINFECTION_SETPOINTS,
     FILTRATION,
-    CLOCK,
     IDENTITY,
     MEASUREMENTS,
     SETTINGS,

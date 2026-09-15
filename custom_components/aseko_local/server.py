@@ -2,8 +2,8 @@
 
 import asyncio
 import logging
-from datetime import UTC, datetime
 from collections.abc import Callable
+from datetime import UTC, datetime
 from enum import Enum, auto
 from typing import Any, ClassVar, Optional
 
