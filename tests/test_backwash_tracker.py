@@ -11,6 +11,8 @@ from datetime import datetime, time, timedelta, timezone
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
 from custom_components.aseko_local.models import (
     AsekoBackwashSource,
     AsekoBackwashTrigger,
@@ -29,6 +31,19 @@ T0 = datetime(2026, 6, 14, 21, 0, 0, tzinfo=timezone.utc)
 # starting at T0 counts as the unit's own scheduled run.
 SCHEDULE_AT = time(21, 0)
 SCHEDULE_EVERY_N_DAYS = 3
+
+
+@pytest.fixture(autouse=True)
+def _home_assistant_in_utc(monkeypatch):
+    """These tests state the schedule in UTC; Home Assistant's test zone is not.
+
+    The tracker projects and classifies in Home Assistant's time zone, so pin it
+    to UTC here.  Tests about local time set their own zone on top.
+    """
+    from homeassistant.util import dt as dt_util
+
+    monkeypatch.setattr(dt_util, "get_default_time_zone", lambda: timezone.utc)
+    monkeypatch.setattr(dt_util, "DEFAULT_TIME_ZONE", timezone.utc)
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
