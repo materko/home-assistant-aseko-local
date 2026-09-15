@@ -1436,7 +1436,8 @@ async def test_a_frame_before_the_load_finishes_does_not_wipe_the_history():
     assert tracker.last_manual_backwash == datetime.fromisoformat(
         stored["last_manual_backwash"]
     )
-    assert saves and saves[-1]["last_backwash"] == stored["last_backwash"]
+    assert saves
+    assert saves[-1]["last_backwash"] == stored["last_backwash"]
 
 
 # ── times: UTC durations, the window offset, the unit-clock slot (T1-T3) ─────

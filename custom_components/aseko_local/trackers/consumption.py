@@ -45,10 +45,10 @@ class AsekoConsumptionTracker:
         default_factory=lambda: {k: _PumpCounters() for k in PUMP_KEYS}
     )
     _last_on: dict[str, datetime | None] = field(
-        default_factory=lambda: {k: None for k in PUMP_KEYS}
+        default_factory=lambda: dict.fromkeys(PUMP_KEYS)
     )
     _last_flowrate: dict[str, int | None] = field(
-        default_factory=lambda: {k: None for k in PUMP_KEYS}
+        default_factory=lambda: dict.fromkeys(PUMP_KEYS)
     )
     # Pumps whose counters came from the coordinator's store: their sensors
     # must not overwrite them with rounded litres.  A pump the store had no

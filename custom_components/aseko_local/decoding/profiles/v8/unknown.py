@@ -17,8 +17,7 @@ UNKNOWN = Profile(
     protocol=Protocol.V8,
     model=None,
     features=FEATURES,
-    evidence={
-        feature: "unverified: unknown header type, read with the common v8 layout"
-        for feature in FEATURES
-    },
+    evidence=dict.fromkeys(
+        FEATURES, "unverified: unknown header type, read with the common v8 layout"
+    ),
 )

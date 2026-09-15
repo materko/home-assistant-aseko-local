@@ -175,7 +175,7 @@ async def test_implausible_frame_is_decoded_and_reported(monkeypatch) -> None:
 async def test_issue_61_shifted_frame(monkeypatch) -> None:
     """Test: Shifted frame from issue 61."""
 
-    BYTE_FRAME = hexstr_to_bytes(
+    byte_frame = hexstr_to_bytes(
         "0f0f1e14ffbf02970690cafe0301190a12103232000402cb015201520152a3fe700099fe00080000"
         "00000000001302670690cafe0303190a121032324842011d080f122d15001737027600a9000c1e0a"
         "012801e00e10a2020690cafe0302190a12103232002d003c003c003c000a1e3c6e9600f00802580f"
@@ -190,7 +190,7 @@ async def test_issue_61_shifted_frame(monkeypatch) -> None:
         # Simulate a connection with valid data
         reader = asyncio.StreamReader()
         writer = DummyWriter("127.0.0.1", 12347)
-        reader.feed_data(BYTE_FRAME)
+        reader.feed_data(byte_frame)
         reader.feed_eof()
         await handler(reader, writer)
         return DummyServer()
@@ -340,7 +340,7 @@ async def test_sync_frame_binary_shifted() -> None:
 
     # This is the issue-61 frame: 8 bytes of a previous frame's tail precede
     # the actual aligned frame content.
-    SHIFTED_BINARY = hexstr_to_bytes(
+    shifted_binary = hexstr_to_bytes(
         "0f0f1e14ffbf02970690cafe0301190a12103232000402cb015201520152a3fe700099fe00080000"
         "00000000001302670690cafe0303190a121032324842011d080f122d15001737027600a9000c1e0a"
         "012801e00e10a2020690cafe0302190a12103232002d003c003c003c000a1e3c6e9600f00802580f"
@@ -349,7 +349,7 @@ async def test_sync_frame_binary_shifted() -> None:
     server = AsekoDeviceServer.__new__(AsekoDeviceServer)
     reader = asyncio.StreamReader()
 
-    frame, offset, frame_type = await server._sync_frame(reader, SHIFTED_BINARY)
+    frame, offset, frame_type = await server._sync_frame(reader, shifted_binary)
 
     assert frame_type == FrameType.BINARY
     assert offset == 8

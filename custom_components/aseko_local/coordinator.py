@@ -46,7 +46,7 @@ OTHER_WARNING_REASONS = "other reasons (list full)"
 FRAME_LOG_SAVE_INTERVAL = timedelta(minutes=10)
 
 
-class RecordingOff(Exception):
+class RecordingOffError(Exception):
     """A marker was asked for while the frame log is off."""
 
 
@@ -621,7 +621,7 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
                 {**extra, "serial_number": serial_number, "waited_for_frame": waited},
                 generation=generation,
             )
-        except RecordingOff:
+        except RecordingOffError:
             return None
         return {**marker, "waited_for_frame": waited}
 
@@ -635,17 +635,17 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
 
         The marker records how many seconds ago each unit's last frame
         arrived, so a reader can tell whether the change it marks could
-        already be in that frame.  Raises ``RecordingOff`` while the frame log
+        already be in that frame.  Raises ``RecordingOffError`` while the frame log
         is off: a marker with no frames around it says nothing.
 
         ``generation`` is ``recording_generation`` from before a wait: when
         recording was stopped or deleted since, the mark raises
-        ``RecordingOff`` instead of landing in a different recording.
+        ``RecordingOffError`` instead of landing in a different recording.
         """
         if not self.frame_log.enabled or (
             generation is not None and generation != self.recording_generation
         ):
-            raise RecordingOff
+            raise RecordingOffError
         received = dt_util.utcnow()
         since = self.seconds_since_last_frame(received)
         number = self.frame_log.append_marker(
@@ -673,7 +673,7 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         self.frame_log.mark_exported(through)
         self._request_frame_log_save(delay=5)
 
-    def set_recording(self, enabled: bool) -> None:
+    def set_recording(self, *, enabled: bool) -> None:
         """Turn the frame log on or off; what it holds stays."""
         if not enabled:
             self.recording_generation += 1
@@ -745,7 +745,7 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
     def _consumption_data(self) -> dict[str, Any]:
         return {str(serial): t.to_store() for serial, t in self._trackers.items()}
 
-    def _request_consumption_save(self, now: bool = False) -> None:
+    def _request_consumption_save(self, *, now: bool = False) -> None:
         """Save the counters soon; at most once a minute while pumps run."""
         if self._consumption_store is None:
             return

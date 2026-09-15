@@ -86,7 +86,8 @@ def test_unrecognised_unit_is_kept_aside_not_stored() -> None:
     coordinator.devices_update_callback(decode(_unknown_frame()))
 
     assert coordinator.get_devices() == []
-    assert discovered == [] and grown == []
+    assert discovered == []
+    assert grown == []
     unrecognised = coordinator.get_unrecognised_devices()
     assert [d.serial_number for d in unrecognised] == [SERIAL]
 

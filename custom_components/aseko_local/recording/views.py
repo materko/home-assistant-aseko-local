@@ -352,7 +352,7 @@ class AsekoRecordingView(HomeAssistantView):
         if not isinstance(enabled, bool):
             return self.json_message('Expected {"enabled": true|false}', 400)
         for entry in _loaded_entries(hass):
-            entry.runtime_data.coordinator.set_recording(enabled)
+            entry.runtime_data.coordinator.set_recording(enabled=enabled)
         return self.json({"enabled": enabled})
 
 

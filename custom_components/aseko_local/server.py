@@ -1,6 +1,7 @@
 """robust server for Aseko devices with forwarder."""
 
 import asyncio
+import contextlib
 import logging
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -104,11 +105,10 @@ class AsekoDeviceServer:
 
         if self._server:
             for w in list(self._clients):
-                try:
+                # a client that is gone already needs no closing
+                with contextlib.suppress(Exception):
                     w.close()
                     await w.wait_closed()
-                except Exception:
-                    pass
             self._clients.clear()
             self._server.close()
             await self._server.wait_closed()
@@ -129,7 +129,7 @@ class AsekoDeviceServer:
             try:
                 await self._maybe_await(self._raw_sink(data))
             except Exception:
-                _LOGGER.error("Raw sink raised an exception", exc_info=True)
+                _LOGGER.exception("Raw sink raised an exception")
 
     @staticmethod
     def _implausible_values(frame: bytes) -> list[str]:
@@ -167,9 +167,7 @@ class AsekoDeviceServer:
                 try:
                     await self._maybe_await(self._frame_warning_sink(serial, reason))
                 except Exception:
-                    _LOGGER.error(
-                        "Frame warning sink raised an exception", exc_info=True
-                    )
+                    _LOGGER.exception("Frame warning sink raised an exception")
 
     async def _report_frame_problems(self, device: AsekoDevice, addr: Any) -> None:
         """Log and count values the parser could not read; the frame still counts."""
@@ -188,9 +186,7 @@ class AsekoDeviceServer:
                 try:
                     await self._maybe_await(self._frame_warning_sink(serial, reason))
                 except Exception:
-                    _LOGGER.error(
-                        "Frame warning sink raised an exception", exc_info=True
-                    )
+                    _LOGGER.exception("Frame warning sink raised an exception")
 
     async def _report_rejected_v8(self, frame: bytes, reason: str) -> None:
         """Count a v8 frame the decoder rejected, under its serial if readable."""
@@ -207,21 +203,21 @@ class AsekoDeviceServer:
                 self._frame_warning_sink(serial, f"v8 frame rejected: {reason}")
             )
         except Exception:
-            _LOGGER.error("Frame warning sink raised an exception", exc_info=True)
+            _LOGGER.exception("Frame warning sink raised an exception")
 
     async def _call_rejected_sink(self, data: bytes, reason: str) -> None:
         if self._rejected_sink:
             try:
                 await self._maybe_await(self._rejected_sink(data, reason))
             except Exception:
-                _LOGGER.error("Rejected sink raised an exception", exc_info=True)
+                _LOGGER.exception("Rejected sink raised an exception")
 
     async def _call_v8_raw_sink(self, data: bytes) -> None:
         if self._v8_raw_sink:
             try:
                 await self._maybe_await(self._v8_raw_sink(data))
             except Exception:
-                _LOGGER.error("v8 raw sink raised an exception", exc_info=True)
+                _LOGGER.exception("v8 raw sink raised an exception")
 
     async def _call_forward_cb(self, data: bytes) -> None:
         if self._forward_cb:
@@ -229,7 +225,7 @@ class AsekoDeviceServer:
                 _LOGGER.debug("Forward callback called with %d bytes", len(data))
                 await self._maybe_await(self._forward_cb(data))
             except Exception:
-                _LOGGER.error("Forward callback raised an exception", exc_info=True)
+                _LOGGER.exception("Forward callback raised an exception")
 
     async def _call_forward_v8_cb(self, data: bytes) -> None:
         if self._forward_v8_cb:
@@ -237,14 +233,14 @@ class AsekoDeviceServer:
                 _LOGGER.debug("v8 forward callback called with %d bytes", len(data))
                 await self._maybe_await(self._forward_v8_cb(data))
             except Exception:
-                _LOGGER.error("v8 forward callback raised an exception", exc_info=True)
+                _LOGGER.exception("v8 forward callback raised an exception")
 
     async def _maybe_call_on_data(self, device: AsekoDevice) -> None:
         if self.on_data:
             try:
                 await self._maybe_await(self.on_data(device))
             except Exception:
-                _LOGGER.error("on_data callback raised an exception", exc_info=True)
+                _LOGGER.exception("on_data callback raised an exception")
 
     async def _handle_client(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
@@ -323,10 +319,8 @@ class AsekoDeviceServer:
                     received_at = datetime.now(UTC)
                     carry = b"".join(rest)
                 except Exception as exc:
-                    _LOGGER.error(
-                        "Frame sync error from %s → closing connection",
-                        addr,
-                        exc_info=True,
+                    _LOGGER.exception(
+                        "Frame sync error from %s → closing connection", addr
                     )
                     # Keep the bytes: they are what a new layout would look like.
                     await self._call_rejected_sink(
@@ -351,10 +345,8 @@ class AsekoDeviceServer:
                         await self._report_rejected_v8(frame, str(exc))
                         break
                     except Exception:
-                        _LOGGER.error(
-                            "v8 decode error from %s → closing connection",
-                            addr,
-                            exc_info=True,
+                        _LOGGER.exception(
+                            "v8 decode error from %s → closing connection", addr
                         )
                         break
                     await self._report_frame_problems(device, addr)
@@ -384,7 +376,7 @@ class AsekoDeviceServer:
                     break
 
                 except Exception:
-                    _LOGGER.error(
+                    _LOGGER.exception(
                         "Decoding error for data from %s → closing connection", addr
                     )
                     break
@@ -409,11 +401,9 @@ class AsekoDeviceServer:
         finally:
             # Clean up and close connection
             self._clients.discard(writer)
-            try:
+            with contextlib.suppress(Exception):
                 writer.close()
                 await writer.wait_closed()
-            except Exception:
-                pass
 
     # Set Forwarder
     def set_forward_callback(self, callback: Callable[[bytes], Any] | None) -> None:

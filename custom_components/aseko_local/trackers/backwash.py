@@ -500,7 +500,10 @@ class BackwashTracker:
         # Step 3: relay just went off.  Evaluate the previous "on" window.
         if self._relay_on_since is not None:
             self._record_window(
-                device, self._relay_on_since, now, self._service_menu_in_window
+                device,
+                self._relay_on_since,
+                now,
+                service_menu_observed=self._service_menu_in_window,
             )
             self._relay_on_since = None
             self._service_menu_in_window = False
@@ -628,6 +631,7 @@ class BackwashTracker:
         device: AsekoDevice,
         started_at: datetime,
         ended_at: datetime,
+        *,
         service_menu_observed: bool = False,
     ) -> None:
         """Record a completed relay-on window if it is long enough to be real."""
@@ -654,7 +658,12 @@ class BackwashTracker:
         # configured schedule.  The midpoint is shifted by half the cycle
         # duration and would bias every comparison.
         offset = self._window_offset_minutes
-        trigger = self._classify(device, started_at, service_menu_observed, offset)
+        trigger = self._classify(
+            device,
+            started_at,
+            service_menu_observed=service_menu_observed,
+            offset_minutes=offset,
+        )
 
         self._last_backwash = recorded_at
         self._last_trigger = trigger
@@ -706,6 +715,7 @@ class BackwashTracker:
         self,
         device: AsekoDevice,
         started_at: datetime,
+        *,
         service_menu_observed: bool = False,
         offset_minutes: float | None = None,
     ) -> AsekoBackwashTrigger:

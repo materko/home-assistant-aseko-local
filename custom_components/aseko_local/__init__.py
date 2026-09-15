@@ -102,7 +102,7 @@ class AsekoLocalRuntimeData:
     server: AsekoDeviceServer | None = None
 
 
-def _mark_dump_message(markers: list[dict], wait: bool, label: str) -> str:
+def _mark_dump_message(markers: list[dict], label: str, *, wait: bool) -> str:
     """Say which markers were written and how they relate to the frames."""
     lines = []
     for m in markers:
@@ -471,7 +471,7 @@ def _async_register_mark_dump_service(hass: HomeAssistant) -> None:
                 )
             persistent_notification.async_create(
                 hass,
-                _mark_dump_message(markers, wait, label),
+                _mark_dump_message(markers, label, wait=wait),
                 title=(
                     "Aseko mark: no frame arrived"
                     if wait and not all(m["waited_for_frame"] for m in markers)

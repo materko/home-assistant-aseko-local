@@ -195,10 +195,7 @@ def _annotated_v8_section(
 
 def _parse_v8_frame(raw: bytes) -> dict[str, Any] | None:
     """Parse a v8 text frame into annotated sections. Returns None on failure."""
-    try:
-        text = raw.decode("ascii", errors="replace").strip()
-    except Exception:
-        return None
+    text = raw.decode("ascii", errors="replace").strip()
 
     if not text.startswith("{") or not text.endswith("}"):
         return None

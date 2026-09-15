@@ -116,7 +116,7 @@ def _setup(tmp_path: Path, entries: int = 1) -> tuple[MagicMock, list[MagicMock]
         entry.data = {"host": "0.0.0.0", "port": 47524 + index}
         entry.options = {}
         entry.runtime_data.coordinator = AsekoLocalDataUpdateCoordinator(hass, entry)
-        entry.runtime_data.coordinator.set_recording(True)
+        entry.runtime_data.coordinator.set_recording(enabled=True)
         loaded.append(entry)
     hass.config_entries.async_entries.return_value = loaded
     return hass, loaded
@@ -382,7 +382,7 @@ async def test_recording_refuses_a_malformed_request(tmp_path, body) -> None:
 @pytest.mark.asyncio
 async def test_no_photo_is_stored_while_recording_is_off(tmp_path) -> None:
     hass, (entry,) = _setup(tmp_path)
-    entry.runtime_data.coordinator.set_recording(False)
+    entry.runtime_data.coordinator.set_recording(enabled=False)
 
     response = await views.AsekoPhotoView().post(
         FakeRequest(hass, parts={"wait": b"0", "photo": _jpeg()})
@@ -453,7 +453,7 @@ async def test_stopping_or_deleting_cancels_a_waiting_photo(tmp_path, action) ->
         await views.AsekoRecordingView().post(
             FakeRequest(hass, body={"enabled": False})
         )
-        coordinator.set_recording(True)  # and on again before the frame comes
+        coordinator.set_recording(enabled=True)  # and on again before the frame comes
     else:
         await views.AsekoDeleteRecordingView().post(FakeRequest(hass))
     _frame_arrives(entry)

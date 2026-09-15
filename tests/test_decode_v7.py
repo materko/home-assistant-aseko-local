@@ -322,7 +322,7 @@ def test_decode_filtration_period2_real_dtpugh_frames() -> None:
         expected_schedule,
         expected_menu,
     ) in scenarios.items():
-        with open(diag_dir / filename) as f:
+        with (diag_dir / filename).open() as f:
             frame = bytes.fromhex(_first_frame(json.load(f)))
         assert frame[37] == expected_b37, f"{filename}: byte 37 mismatch"
 
@@ -843,7 +843,7 @@ def test_normalize_value_edge_cases() -> None:
     assert normalize_value(42, int) == 42
     assert normalize_value("42", str) == "42"
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Unsupported type"):
         normalize_value(0xFF, float)
 
 

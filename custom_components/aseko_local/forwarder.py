@@ -63,7 +63,7 @@ class AsekoCloudMirror:
                 _ = self._queue.get_nowait()
             try:
                 self._queue.put_nowait(bytes(frame))
-            except Exception:
+            except asyncio.QueueFull:
                 _LOGGER.error("Mirror queue overflow; frame dropped.")
 
     async def _worker(self) -> None:
@@ -109,7 +109,7 @@ class AsekoCloudMirror:
                             self._drain_cloud_reader(reader),
                             name="AsekoCloudMirrorReader",
                         )
-                    except Exception as e:
+                    except OSError as e:  # refused, unreachable, timed out
                         _LOGGER.error("Mirror connect failed: %s", e)
                         # keep the frame as pending: it goes out first next time
                         await asyncio.sleep(min(backoff, 10.0))
@@ -128,7 +128,7 @@ class AsekoCloudMirror:
                     await self._writer.drain()
                     pending = None
                     backoff = 1.0
-                except Exception as e:
+                except OSError as e:  # reset, broken pipe
                     _LOGGER.error("Mirror write failed: %s", e)
                     await self._close_writer()
                     # keep the frame as pending: it goes out first next time,
@@ -139,7 +139,7 @@ class AsekoCloudMirror:
             except asyncio.CancelledError:
                 break
             except Exception:
-                _LOGGER.error("Mirror worker loop error.", exc_info=True)
+                _LOGGER.exception("Mirror worker loop error.")
                 await asyncio.sleep(0.1)
 
     async def _drain_cloud_reader(self, reader: asyncio.StreamReader) -> None:
@@ -150,26 +150,22 @@ class AsekoCloudMirror:
                 if not data:
                     _LOGGER.debug("Mirror: cloud server closed the connection.")
                     break
-                try:
-                    text = data.decode("ascii", errors="replace")
-                except Exception:
-                    text = data.hex(" ", 1)
+                text = data.decode("ascii", errors="replace")
                 _LOGGER.debug(
                     "Mirror: cloud server sent %d bytes back:\n%s", len(data), text
                 )
         except asyncio.CancelledError:
             raise
-        except Exception:
+        except Exception:  # noqa: BLE001 -- whatever ended the read ends only the read
             _LOGGER.debug("Mirror reader closed.", exc_info=False)
 
     async def _close_writer(self) -> None:
         if self._writer:
             try:
-                self._writer.close()
+                # a connection that is gone already needs no closing
                 with contextlib.suppress(Exception):
+                    self._writer.close()
                     await self._writer.wait_closed()
-            except Exception:
-                pass
             finally:
                 self._writer = None
                 _LOGGER.debug("Mirror connection closed.")

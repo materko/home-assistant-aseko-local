@@ -15,5 +15,5 @@ def test_a_picked_or_typed_port_becomes_a_number(value, port) -> None:
 
 @pytest.mark.parametrize("value", ["", "abc", "0", "65536", "-1"])
 def test_anything_else_is_refused(value) -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="invalid literal|out of range"):
         parse_port(value)

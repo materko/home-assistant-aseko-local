@@ -20,7 +20,6 @@ from __future__ import annotations
 import io
 import json
 import logging
-import os
 import re
 import threading
 import zipfile
@@ -81,7 +80,7 @@ class PhotoStore:
             path = self._reserve(stem, suffix)
             temporary = path.with_name(f".{path.name}.part")
             temporary.write_bytes(image)
-            os.replace(temporary, path)
+            temporary.replace(path)
             self._enforce_cap()
         return SavedPhoto(file=path.name, bytes=len(image), captured=captured)
 
@@ -92,7 +91,7 @@ class PhotoStore:
             name = f"{stem}{suffix}" if counter == 1 else f"{stem}_{counter}{suffix}"
             path = self.directory / name
             try:
-                with open(path, "xb"):
+                with path.open("xb"):
                     return path
             except FileExistsError:
                 counter += 1

@@ -161,7 +161,7 @@ def test_export_blob_decodes_to_the_same_records() -> None:
 
 
 def test_chunk_size_must_leave_room_under_the_cap() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="at most half"):
         FrameLog(max_bytes=10_000, chunk_bytes=6_000)
 
 
@@ -169,7 +169,7 @@ def test_coordinator_logs_every_frame_and_numbers_markers() -> None:
     from .test_entity_growth import _coordinator
 
     coordinator = _coordinator()
-    coordinator.set_recording(True)
+    coordinator.set_recording(enabled=True)
     coordinator.store_v8_frame(REFERENCE_FRAME)
     coordinator.store_raw_frame(bytes(120))
     coordinator.store_raw_frame(bytes(40))  # partial frame
@@ -225,10 +225,10 @@ def test_mark_dump_notification_says_whether_the_marker_is_written() -> None:
     assert "change the unit again" in text
 
     timed_out = {**written, "waited_for_frame": False}
-    assert "No frame within 60 s" in _mark_dump_message([timed_out], True, "")
+    assert "No frame within 60 s" in _mark_dump_message([timed_out], "", wait=True)
 
     immediate = {**written, "waited_for_frame": None}
-    assert "last frame 0.2 s before" in _mark_dump_message([immediate], False, "")
+    assert "last frame 0.2 s before" in _mark_dump_message([immediate], "", wait=False)
 
 
 def test_cases_list_survives_restart_and_tracks_downloads() -> None:
@@ -372,7 +372,7 @@ def test_rejected_bytes_are_logged_with_their_reason_and_counted() -> None:
     from .test_entity_growth import _coordinator
 
     coordinator = _coordinator()
-    coordinator.set_recording(True)
+    coordinator.set_recording(enabled=True)
     coordinator.store_rejected_frame(bytes(range(120)), "frame sync failed: IndexError")
     coordinator.store_rejected_frame(bytes(range(120)), "frame sync failed: IndexError")
 
@@ -389,7 +389,7 @@ def test_rejected_bytes_are_logged_with_their_reason_and_counted() -> None:
 
 
 def test_recording_is_off_until_turned_on_and_nothing_is_logged() -> None:
-    from custom_components.aseko_local.coordinator import RecordingOff
+    from custom_components.aseko_local.coordinator import RecordingOffError
 
     from .test_entity_growth import _coordinator
 
@@ -401,15 +401,15 @@ def test_recording_is_off_until_turned_on_and_nothing_is_logged() -> None:
     # the frame age and the rejection count still work while off
     assert 123456789 in coordinator.seconds_since_last_frame(dt_util.utcnow())
     assert coordinator.get_rejected_frames()["frame sync failed"]["count"] == 1
-    with pytest.raises(RecordingOff):
+    with pytest.raises(RecordingOffError):
         coordinator.mark_dump("no frames around it")
 
-    coordinator.set_recording(True)
+    coordinator.set_recording(enabled=True)
     coordinator.store_v8_frame(REFERENCE_FRAME)
     coordinator.mark_dump("now")
     assert [r["k"] for r in coordinator.frame_log.records()] == ["v8", "mark"]
 
-    coordinator.set_recording(False)  # what was recorded stays
+    coordinator.set_recording(enabled=False)  # what was recorded stays
     coordinator.store_v8_frame(REFERENCE_FRAME)
     assert [r["k"] for r in coordinator.frame_log.records()] == ["v8", "mark"]
 
@@ -465,7 +465,7 @@ async def test_a_frame_the_decoder_rejects_does_not_end_the_wait() -> None:
     from .test_server import V8_FULL_FRAME, DummyWriter
 
     coordinator = _coordinator()
-    coordinator.set_recording(True)
+    coordinator.set_recording(enabled=True)
     coordinator.hass.loop = asyncio.get_running_loop()
     server = AsekoDeviceServer(
         host="127.0.0.1",
