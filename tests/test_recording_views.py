@@ -17,6 +17,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.exceptions import Unauthorized
 from homeassistant.helpers.http import KEY_HASS
 from PIL import Image
@@ -33,9 +34,10 @@ from .test_decode_v7 import _make_base_bytes
 @pytest.fixture(autouse=True)
 def _quiet_logging() -> Iterator[None]:
     """Silence logging for this module's tests only, and turn it back on."""
+    before = logging.root.manager.disable
     logging.disable(logging.CRITICAL)
     yield
-    logging.disable(logging.NOTSET)
+    logging.disable(before)
 
 
 SERIAL = 1234  # the serial number of the base frame
@@ -117,6 +119,7 @@ def _setup(tmp_path: Path, entries: int = 1) -> tuple[MagicMock, list[MagicMock]
         entry.unique_id = f"u{index}"
         entry.data = {"host": "0.0.0.0", "port": 47524 + index}
         entry.options = {}
+        entry.state = ConfigEntryState.LOADED
         entry.runtime_data.coordinator = AsekoLocalDataUpdateCoordinator(hass, entry)
         entry.runtime_data.coordinator.set_recording(enabled=True)
         loaded.append(entry)
@@ -295,7 +298,7 @@ async def test_photo_file_serves_a_stored_photo(tmp_path) -> None:
         )
     )
     response = await views.AsekoPhotoFileView().get(FakeRequest(hass), body["photo"])
-    assert Path(response._path).name == body["photo"]  # noqa: SLF001
+    assert Path(response._path).name == body["photo"]
 
 
 # ── export, confirmation, clear list ─────────────────────────────────────────

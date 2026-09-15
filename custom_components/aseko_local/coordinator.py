@@ -249,7 +249,9 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
             stored.last_seen = received_at
 
         # Update consumption tracker for this device
-        tracker = self._trackers.setdefault(serial, AsekoConsumptionTracker())
+        tracker = self._trackers.get(serial)
+        if tracker is None:
+            tracker = self._trackers[serial] = AsekoConsumptionTracker()
         tracker.update(device, received_at)
         self._request_consumption_save()
 
@@ -311,6 +313,11 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         if serial is None:
             return
 
+        if not self._has_backwash(device):
+            # no backwash valve on this model (NET, the v8 profiles): no
+            # history to keep, and no target for the backwash services
+            return
+
         if serial not in self._backwash_trackers:
             new_tracker = BackwashTracker(self.hass, serial)
             self._backwash_trackers[serial] = new_tracker
@@ -319,6 +326,15 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         tracker = self._backwash_trackers[serial]
         tracker.update(device, now)
         self._publish_backwash(device, tracker, now)
+
+    @staticmethod
+    def _has_backwash(device: AsekoDevice) -> bool:
+        """Whether the unit's profile reads a backwash valve.
+
+        The profile says so, not one frame: a unit with the valve keeps its
+        tracker through a frame whose relay bit is unknown.
+        """
+        return "backwash_running" in device.possible_features
 
     def _update_clock(self, device: AsekoDevice, received_at: datetime) -> None:
         """Compare the unit's clock with Home Assistant's; publish the result."""
@@ -357,8 +373,9 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         run a cycle Home Assistant has not reached, one behind has not.  With
         several units (no ``serial_number``) the earliest of them counts, so
         the value is in the past for every unit it is written to.  A unit
-        whose clock is not measured counts as Home Assistant's clock.  None
-        when this entry has no such unit.
+        whose clock is not measured counts as Home Assistant's clock.  Only
+        units with a backwash valve count (``_has_backwash``: they are the ones
+        with a tracker).  None when this entry has no such unit.
         """
         now = dt_util.now()
         times = [
@@ -796,7 +813,11 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
             return
         for device in self.data.get_all():
             serial = device.serial_number
-            if serial is None or serial in self._backwash_trackers:
+            if (
+                serial is None
+                or serial in self._backwash_trackers
+                or not self._has_backwash(device)
+            ):
                 continue
             tracker = BackwashTracker(self.hass, serial)
             self._backwash_trackers[serial] = tracker

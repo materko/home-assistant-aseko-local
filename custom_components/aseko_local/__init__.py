@@ -354,7 +354,7 @@ def _async_register_backwash_services(hass: HomeAssistant) -> None:
 
             if not matched:
                 raise ServiceValidationError(
-                    f"No Aseko device found for serial_number {serial}"
+                    f"No Aseko device with a backwash valve has serial_number {serial}"
                     if serial is not None
                     else "No Aseko device with a backwash valve has been seen yet"
                 )
@@ -387,7 +387,7 @@ def _async_register_backwash_services(hass: HomeAssistant) -> None:
 
             if not matched:
                 raise ServiceValidationError(
-                    f"No Aseko device found for serial_number {serial}"
+                    f"No Aseko device with a backwash valve has serial_number {serial}"
                     if serial is not None
                     else "No Aseko device with a backwash valve has been seen yet"
                 )

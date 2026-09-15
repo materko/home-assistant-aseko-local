@@ -1512,3 +1512,116 @@ def test_last_manual_stays_on_home_assistant_time() -> None:
 
     assert tracker.last_trigger is AsekoBackwashTrigger.MANUAL
     assert tracker.last_manual_backwash == start + timedelta(seconds=45)
+
+
+# ── the offset in the frame that opened the valve (audit A1) ─────────────────
+
+
+def _clock_frames(
+    zone,
+    frames: list[tuple[datetime, timedelta, bool]],
+    *,
+    at: time,
+) -> tuple[ClockTracker, BackwashTracker, list[float | None]]:
+    """Feed (UTC receive time, unit ahead of HA's wall clock, relay) frames.
+
+    Both trackers in the coordinator's order, the unit's clock as the decoder
+    gives it.  Returns the published offset at every frame too.
+    """
+    clock = ClockTracker()
+    tracker = BackwashTracker(_hass(), serial_number=110071590)
+    published: list[float | None] = []
+    for received_utc, unit_ahead, running in frames:
+        wall = received_utc.astimezone(zone).replace(tzinfo=None)
+        unit_clock = (wall + unit_ahead).replace(tzinfo=zone)
+        clock.update(unit_clock, received_utc)
+        published.append(clock.offset_minutes)
+        device = _clocked(running, clock.offset_minutes, at=at, every=1)
+        device.unit_clock = unit_clock
+        tracker.update(device, received_utc)
+    return clock, tracker, published
+
+
+def _jump_then_cycle(
+    change_utc: datetime, before: timedelta, after: timedelta
+) -> list[tuple[datetime, timedelta, bool]]:
+    """Frames every 10 s up to ``change_utc``, then a 90 s cycle opening at it."""
+    frames = [
+        (change_utc - timedelta(seconds=s), before, False) for s in (40, 30, 20, 10)
+    ]
+    frames += [
+        (change_utc + timedelta(seconds=s), after, True) for s in range(0, 90, 10)
+    ]
+    frames.append((change_utc + timedelta(seconds=90), after, False))
+    return frames
+
+
+def test_a_cycle_in_the_first_frame_after_spring_forward_is_scheduled() -> None:
+    """29 Mar 2026 01:00 UTC: HA jumps to 03:00, the unit stays on 02:00 and runs its 02:00."""
+    zone = _in_bratislava()
+    change = datetime(2026, 3, 29, 1, 0, tzinfo=UTC)
+    _, tracker, published = _clock_frames(
+        zone,
+        _jump_then_cycle(change, timedelta(0), timedelta(hours=-1)),
+        at=time(2, 0),
+    )
+
+    assert published[4] == 0.0  # the median has not seen the jump yet
+    assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
+    assert tracker.last_scheduled_backwash == datetime(2026, 3, 29, 2, 0, tzinfo=zone)
+
+
+def test_a_cycle_in_the_first_frame_after_fall_back_is_scheduled() -> None:
+    """25 Oct 2026 01:00 UTC: HA goes back to 02:00, the unit stays on 03:00 and runs its 03:00."""
+    zone = _in_bratislava()
+    change = datetime(2026, 10, 25, 1, 0, tzinfo=UTC)
+    _, tracker, published = _clock_frames(
+        zone,
+        _jump_then_cycle(change, timedelta(0), timedelta(hours=1)),
+        at=time(3, 0),
+    )
+
+    assert published[4] == 0.0
+    assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
+
+
+def test_a_unit_that_follows_the_change_of_time_is_scheduled_too() -> None:
+    zone = _in_bratislava()
+    change = datetime(2026, 3, 29, 1, 0, tzinfo=UTC)
+    _, tracker, _ = _clock_frames(
+        zone, _jump_then_cycle(change, timedelta(0), timedelta(0)), at=time(3, 0)
+    )
+
+    assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
+
+
+def test_a_cycle_right_after_the_unit_clock_is_set_by_hand_is_scheduled() -> None:
+    """An hour fast until just now, then set right: its 21:00 is HA's 21:00."""
+    _, tracker, published = _clock_frames(
+        UTC, _jump_then_cycle(T0, timedelta(hours=1), timedelta(0)), at=SCHEDULE_AT
+    )
+
+    assert published[4] == 60.0
+    assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
+
+
+def test_the_unit_clock_set_by_hand_mid_cycle_does_not_reclassify_it() -> None:
+    frames = _jump_then_cycle(T0, timedelta(0), timedelta(0))
+    # set an hour fast from the third frame of the cycle on
+    frames = frames[:6] + [(t, timedelta(hours=1), r) for t, _, r in frames[6:]]
+    _, tracker, _ = _clock_frames(UTC, frames, at=SCHEDULE_AT)
+
+    assert tracker.last_trigger is AsekoBackwashTrigger.SCHEDULED
+    assert tracker.last_scheduled_backwash == T0
+
+
+def test_a_cycle_out_of_the_window_on_the_unit_clock_of_its_frame_is_manual() -> None:
+    """The median would still say on time; the opening frame's clock says 30 min late."""
+    _, tracker, published = _clock_frames(
+        UTC,
+        _jump_then_cycle(T0, timedelta(0), timedelta(minutes=30)),
+        at=SCHEDULE_AT,
+    )
+
+    assert published[4] == 0.0
+    assert tracker.last_trigger is AsekoBackwashTrigger.MANUAL

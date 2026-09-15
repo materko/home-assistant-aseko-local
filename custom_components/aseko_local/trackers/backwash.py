@@ -10,11 +10,12 @@ Each recorded cycle is *classified* as scheduled or manual by comparing the
 moment the relay opened against the unit's configured ``backwash_start_time``:
 
     * within ±``OFFSET_MATCH_TOLERANCE`` (5 min) of the configured time on
-      the unit's clock -- the start moved by the current clock offset, drift
-      and a missed change of summer / winter time together -- on a unit
-      whose schedule is enabled  →  SCHEDULED (the unit ran it itself);
+      the unit's clock -- the start moved by the clock offset in the frame
+      that opened the valve, drift and a missed change of summer / winter
+      time together -- on a unit whose schedule is enabled  →  SCHEDULED
+      (the unit ran it itself);
       ±``SCHEDULED_MATCH_TOLERANCE`` (15 min) on Home Assistant's clock
-      while the offset is not measured yet
+      while no offset is known
     * anything else                                    →  MANUAL
 
 — except on units that report their settings menu (below), where MANUAL
@@ -108,6 +109,7 @@ from ..models import (
     AsekoBackwashTrigger,
     AsekoProfileFlag,
 )
+from .clock import offset_seconds
 
 if TYPE_CHECKING:
     from ..models import AsekoDevice
@@ -206,10 +208,12 @@ class BackwashTracker:
         # time the window is recorded it has usually gone again.
         self._service_menu_in_window = False
 
-        # The clock offset when the current window opened: the cycle is
+        # The clock offset when the current window opened, read from the
+        # frame that opened it (``_offset_when_opened``): the cycle is
         # recognised against it, so a later change of the offset (Home
-        # Assistant switching to summer / winter time mid-cycle) does not
-        # change what the start was on the unit's clock.
+        # Assistant switching to summer / winter time mid-cycle, the unit's
+        # clock set by hand) does not change what the start was on the
+        # unit's clock.
         self._window_offset_minutes: float | None = None
 
         # Last frame timestamp we processed — used to detect dropped connections.
@@ -494,7 +498,7 @@ class BackwashTracker:
         if device.backwash_running:
             if self._relay_on_since is None:
                 self._relay_on_since = now
-                self._window_offset_minutes = self._clock_offset_minutes
+                self._window_offset_minutes = self._offset_when_opened(device, now)
                 self._service_menu_in_window = False
             self._service_menu_in_window |= _service_menu_open(device)
             return
@@ -509,6 +513,21 @@ class BackwashTracker:
             )
             self._relay_on_since = None
             self._service_menu_in_window = False
+
+    def _offset_when_opened(self, device: AsekoDevice, now: datetime) -> float | None:
+        """Minutes the unit's clock is ahead in the frame that opened the valve.
+
+        Taken from that frame's own clock, not from the published offset: that
+        is the median of the last few frames, so right after the clock jumps
+        (Home Assistant changing to summer / winter time, the unit's clock set
+        by hand) it still holds the old value for a frame or two, and a cycle
+        starting then would be compared an hour off.  A frame without the
+        unit's clock falls back to the published offset.
+        """
+        unit_clock = getattr(device, "unit_clock", None)
+        if isinstance(unit_clock, datetime | time):
+            return offset_seconds(unit_clock, now) / 60
+        return self._clock_offset_minutes
 
     def _on_unit_clock(
         self, moment: datetime, offset_minutes: float | None = None

@@ -14,6 +14,7 @@ import pytest
 from homeassistant.util import dt as dt_util
 
 from custom_components.aseko_local import coordinator as coordinator_module
+from custom_components.aseko_local.const import UNIT_TYPE_HOME_CLF, UNIT_TYPE_NET
 from custom_components.aseko_local.coordinator import (
     CONSUMPTION_SAVE_INTERVAL,
     FRAME_LOG_SAVE_INTERVAL,
@@ -22,6 +23,7 @@ from custom_components.aseko_local.decoding import decode
 from custom_components.aseko_local.models import AsekoDevice, AsekoDeviceType
 from custom_components.aseko_local.trackers.consumption import AsekoConsumptionTracker
 
+from .test_decode_v7 import _make_base_bytes
 from .test_entity_growth import SERIAL, _coordinator, _salt_frame
 
 T0 = datetime(2026, 9, 1, 12, 0, tzinfo=UTC)
@@ -184,7 +186,13 @@ async def test_backwash_trackers_are_warmed_up_for_known_devices(monkeypatch) ->
 
     coordinator = _coordinator_with_salt()
     known = coordinator._backwash_trackers[SERIAL]
-    coordinator.data.set(42, AsekoDevice(serial_number=42))
+    coordinator.data.set(
+        42,
+        AsekoDevice(
+            serial_number=42, possible_features=frozenset({"backwash_running"})
+        ),
+    )
+    coordinator.data.set(43, AsekoDevice(serial_number=43))  # no valve
     coordinator.data.set(0, AsekoDevice())
     monkeypatch.setattr(coordinator_module, "BackwashTracker", FakeTracker)
 
@@ -192,6 +200,79 @@ async def test_backwash_trackers_are_warmed_up_for_known_devices(monkeypatch) ->
 
     assert loaded == [42]
     assert coordinator._backwash_trackers[SERIAL] is known
+
+
+# -- units without a backwash valve (audit A2) ------------------------------------
+
+NET_SERIAL = 5678
+NET_CLF = UNIT_TYPE_NET + 1  # a NET with a CLF probe
+
+
+def _frame(unit_type: int, serial: int) -> AsekoDevice:
+    data = _make_base_bytes()
+    data[0:4] = serial.to_bytes(4, "big")
+    data[4] = unit_type
+    return decode(bytes(data))
+
+
+def test_a_net_gets_no_backwash_tracker_and_is_no_service_target() -> None:
+    coordinator = _coordinator()
+    coordinator.config_entry.options = {}
+    coordinator.devices_update_callback(_frame(NET_CLF, NET_SERIAL))
+
+    assert coordinator._backwash_trackers == {}
+    assert coordinator.unit_clock_now() is None
+    assert (
+        coordinator.set_last_scheduled_backwash(T0, serial_number=NET_SERIAL) is False
+    )
+    assert coordinator.clear_last_scheduled_backwash(serial_number=NET_SERIAL) is False
+    assert coordinator.set_last_scheduled_backwash(T0) is False
+
+
+def test_with_a_home_and_a_net_only_the_home_clock_counts(monkeypatch) -> None:
+    now = datetime(2026, 9, 15, 10, 0, tzinfo=UTC)
+    monkeypatch.setattr(dt_util, "now", lambda: now)
+    coordinator = _coordinator()
+    coordinator.config_entry.options = {}
+    coordinator.devices_update_callback(_frame(UNIT_TYPE_HOME_CLF, SERIAL))
+    coordinator.devices_update_callback(_frame(NET_CLF, NET_SERIAL))
+    coordinator.get_device(SERIAL).clock_offset = 60.0
+    coordinator.get_device(NET_SERIAL).clock_offset = 0.0
+
+    assert set(coordinator._backwash_trackers) == {SERIAL}
+    assert coordinator.unit_clock_now() == now + timedelta(hours=1)
+    assert coordinator.set_last_scheduled_backwash(now + timedelta(minutes=30))
+    assert (
+        coordinator.set_last_scheduled_backwash(now, serial_number=NET_SERIAL) is False
+    )
+
+
+def test_a_frame_with_an_unknown_relay_keeps_the_tracker() -> None:
+    coordinator = _coordinator_with_salt()
+    tracker = coordinator._backwash_trackers[SERIAL]
+    device = decode(_salt_frame(0xD3))
+    device.backwash_running = None
+
+    coordinator.devices_update_callback(device)
+
+    assert coordinator._backwash_trackers[SERIAL] is tracker
+
+
+def test_a_known_unit_reuses_its_consumption_tracker(monkeypatch) -> None:
+    coordinator = _coordinator_with_salt()
+    built: list[None] = []
+
+    class CountingTracker(AsekoConsumptionTracker):
+        def __init__(self) -> None:
+            built.append(None)
+            super().__init__()
+
+    monkeypatch.setattr(coordinator_module, "AsekoConsumptionTracker", CountingTracker)
+    for _ in range(5):
+        coordinator.devices_update_callback(decode(_salt_frame(0xD3)))
+
+    assert built == []
+    assert list(coordinator._trackers) == [SERIAL]
 
 
 # -- frame log store ----------------------------------------------------------------
