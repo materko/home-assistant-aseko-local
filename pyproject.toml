@@ -8,6 +8,7 @@ target-version = "py313"  # the oldest Python a supported Home Assistant runs on
 # (Home Assistant core's setting) is where this is heading.
 select = [
     "A",    # flake8-builtins
+    "ASYNC", # async
     "B",    # flake8-bugbear
     "BLE",  # blind except
     "C4",   # flake8-comprehensions
@@ -15,13 +16,20 @@ select = [
     "DTZ",  # datetimes with a time zone
     "E",    # pycodestyle errors
     "ERA",  # commented-out code
+    "EXE",  # executable files
+    "FLY",  # f-strings
+    "FURB", # refurb
     "F",    # pyflakes
     "FBT",  # boolean positional arguments
     "G",    # logging format
     "I",    # isort
+    "ICN",  # import conventions
+    "INP",  # implicit namespace packages
+    "ISC",  # implicit string concatenation
     "LOG",  # logging
     "N",    # pep8-naming
     "PERF", # performance
+    "PGH",  # pygrep hooks
     "PIE",  # flake8-pie
     "PT",   # pytest style
     "PTH",  # pathlib
@@ -29,11 +37,16 @@ select = [
     "RUF",  # ruff
     "S",    # bandit
     "SIM",  # flake8-simplify
+    "T20",  # print
+    "TID",  # tidy imports
     "UP",   # pyupgrade
     "W",    # pycodestyle warnings
+    "YTT",  # sys.version
 ]
 
 ignore = [
+    # Home Assistant integrations import their own modules relatively
+    "TID252",
     # Arrows, dashes and multiplication signs in text are written on purpose
     "RUF001", "RUF002", "RUF003",
     # noqa for rule groups not switched on yet (PLC0415, SLF001); drop this
@@ -79,6 +92,10 @@ keep-runtime-typing = true
 max-complexity = 25
 
 [tool.ruff.lint.per-file-ignores]
+"scripts/**/*.py" = [
+    "T201", # command-line tools print their output
+    "INP001", # standalone scripts, not a package
+]
 "tests/**/*.py" = [
     # at least this three should be fine in tests:
     "S101", # asserts allowed in tests...

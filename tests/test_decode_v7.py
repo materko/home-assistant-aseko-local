@@ -693,7 +693,6 @@ def test_decode_issue_61() -> None:
     )
 
     device = decode(bytes(data))
-    print(device)
     assert device.device_type == AsekoDeviceType.HOME
     assert device.configuration == {AsekoProbeType.PH, AsekoProbeType.REDOX}
     assert device.ph is not None
@@ -1062,7 +1061,6 @@ def test_decode_issue_99_home() -> None:
     )
 
     device = decode(bytes(data))
-    print(device)
     assert device.device_type == AsekoDeviceType.HOME
     assert device.configuration == {AsekoProbeType.PH, AsekoProbeType.CLF}
     assert device.free_chlorine is not None

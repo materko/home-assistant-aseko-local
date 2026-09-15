@@ -550,7 +550,7 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
             self._request_frame_log_save()
 
     async def async_wait_for_frame(
-        self, timeout: float, serial_number: int | None = None
+        self, seconds: float, serial_number: int | None = None
     ) -> bool:
         """Wait for the next whole frame; False if none came in time.
 
@@ -561,7 +561,7 @@ class AsekoLocalDataUpdateCoordinator(DataUpdateCoordinator[AsekoData]):
         item = (waiter, serial_number)
         self._frame_waiters.append(item)
         try:
-            await asyncio.wait_for(waiter, timeout)
+            await asyncio.wait_for(waiter, seconds)
         except TimeoutError:
             return False
         finally:

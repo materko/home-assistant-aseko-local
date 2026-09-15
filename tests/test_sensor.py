@@ -266,17 +266,13 @@ async def test_async_setup_salt_redox(hass) -> None:
     await async_setup_entry(hass, dummy_entry, mock_add_entities)
     await binary_async_setup_entry(hass, dummy_entry, mock_add_entities)
 
-    print(device.device_type)
-
+    # every entity can be read without raising
     for entity in added_entities:
-        name = getattr(entity.entity_description, "key", "unknown")
-        value = (
+        _ = (
             entity.is_on
             if isinstance(entity, AsekoLocalBinarySensorEntity)
             else entity.native_value
         )
-        status = "enabled" if getattr(entity, "enabled", True) else "disabled"
-        print(f"Sensor: {name}, Status: {status}, Value: {value}")
 
     assert device.device_type == AsekoDeviceType.SALT
     assert any(isinstance(e, AsekoLocalSensorEntity) for e in added_entities)
@@ -414,17 +410,13 @@ async def test_async_setup_salt_clf(hass) -> None:
     await async_setup_entry(hass, dummy_entry, mock_add_entities)
     await binary_async_setup_entry(hass, dummy_entry, mock_add_entities)
 
+    # every entity can be read without raising
     for entity in added_entities:
-        name = getattr(entity.entity_description, "key", "unknown")
-        value = (
+        _ = entity.available
+        _ = (
             entity.is_on
             if isinstance(entity, AsekoLocalBinarySensorEntity)
             else entity.native_value
-        )
-        available = entity.available
-        status = "enabled" if getattr(entity, "enabled", True) else "disabled"
-        print(
-            f"Sensor: {name}, Available: {available}, Status: {status}, Value: {value}"
         )
 
     assert device.device_type == AsekoDeviceType.SALT
@@ -546,17 +538,13 @@ async def test_async_setup_net_clf(hass) -> None:
     await async_setup_entry(hass, dummy_entry, mock_add_entities)
     await binary_async_setup_entry(hass, dummy_entry, mock_add_entities)
 
-    print(device.device_type)
-
+    # every entity can be read without raising
     for entity in added_entities:
-        name = getattr(entity.entity_description, "key", "unknown")
-        value = (
+        _ = (
             entity.is_on
             if isinstance(entity, AsekoLocalBinarySensorEntity)
             else entity.native_value
         )
-        status = "enabled" if getattr(entity, "enabled", True) else "disabled"
-        print(f"Sensor: {name}, Status: {status}, Value: {value}")
 
     assert device.device_type == AsekoDeviceType.NET
     assert any(isinstance(e, AsekoLocalSensorEntity) for e in added_entities)
@@ -694,17 +682,13 @@ async def test_async_setup_profi_clf_redox(hass) -> None:
     await async_setup_entry(hass, dummy_entry, mock_add_entities)
     await binary_async_setup_entry(hass, dummy_entry, mock_add_entities)
 
-    print(device.device_type)
-
+    # every entity can be read without raising
     for entity in added_entities:
-        name = getattr(entity.entity_description, "key", "unknown")
-        value = (
+        _ = (
             entity.is_on
             if isinstance(entity, AsekoLocalBinarySensorEntity)
             else entity.native_value
         )
-        status = "enabled" if getattr(entity, "enabled", True) else "disabled"
-        print(f"Sensor: {name}, Status: {status}, Value: {value}")
 
     assert device.device_type == AsekoDeviceType.PROFI
     assert any(isinstance(e, AsekoLocalSensorEntity) for e in added_entities)
