@@ -43,10 +43,20 @@ _DAY = 24 * 3600
 
 
 def offset_seconds(unit_clock: datetime | time, received: datetime) -> float:
-    """Seconds the unit's clock is ahead of ``received`` (negative: behind)."""
-    if isinstance(unit_clock, datetime):
-        return (unit_clock - received).total_seconds()
+    """Seconds the unit's clock is ahead of ``received`` (negative: behind).
+
+    The unit sends its clock as wall-clock numbers with no zone, so the
+    difference is taken between those numbers and Home Assistant's local wall
+    clock at ``received`` -- not between two instants.  ``received`` may be
+    in any zone (the server stamps UTC); only its local reading counts.  On
+    the night of a change of time an instant comparison would be an hour
+    off: the second 02:30 in autumn on both clocks is no offset at all.
+    """
     local = dt_util.as_local(received)
+    if isinstance(unit_clock, datetime):
+        return (
+            unit_clock.replace(tzinfo=None) - local.replace(tzinfo=None)
+        ).total_seconds()
     unit = unit_clock.hour * 3600 + unit_clock.minute * 60 + 30  # middle of the minute
     ha = local.hour * 3600 + local.minute * 60 + local.second + local.microsecond / 1e6
     return (unit - ha + _HALF_DAY) % _DAY - _HALF_DAY

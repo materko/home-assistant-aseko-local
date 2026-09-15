@@ -194,3 +194,54 @@ def test_two_units_are_tracked_apart():
     _feed(ahead, [30.0] * SAMPLES)
     _feed(fine, [0.5] * SAMPLES)
     assert (ahead.out_of_sync, fine.out_of_sync) == (True, False)
+
+
+# ── offset from a UTC receive time across a change of time (audit B1) ────────
+
+
+@pytest.mark.parametrize(
+    ("received_utc", "unit_wall", "offset"),
+    [
+        # 25 Oct 2026: 01:30 UTC is the second 02:30 (+01); the unit shows 02:30
+        (datetime(2026, 10, 25, 1, 30, tzinfo=UTC), datetime(2026, 10, 25, 2, 30), 0.0),
+        # the first 02:30 (+02), 00:30 UTC; the unit in step
+        (datetime(2026, 10, 25, 0, 30, tzinfo=UTC), datetime(2026, 10, 25, 2, 30), 0.0),
+        # 29 Mar 2026: 01:30 UTC is 03:30 (+02); the unit stayed on winter time
+        (datetime(2026, 3, 29, 1, 30, tzinfo=UTC), datetime(2026, 3, 29, 2, 30), -60.0),
+        # 25 Oct after the change, the unit still on summer time
+        (
+            datetime(2026, 10, 25, 7, 0, tzinfo=UTC),
+            datetime(2026, 10, 25, 9, 5, 30),
+            65.5,
+        ),
+    ],
+)
+def test_offset_compares_wall_clocks_from_a_utc_receive_time(
+    received_utc, unit_wall, offset
+):
+    """What the server hands over (UTC) through the real v7 decoder."""
+    from zoneinfo import ZoneInfo
+
+    from homeassistant.util import dt as dt_util
+
+    zone = ZoneInfo("Europe/Bratislava")
+    dt_util.set_default_time_zone(zone)
+    data = _make_base_bytes()
+    data[6:12] = bytes(
+        (
+            unit_wall.year - 2000,
+            unit_wall.month,
+            unit_wall.day,
+            unit_wall.hour,
+            unit_wall.minute,
+            unit_wall.second,
+        )
+    )
+    tracker = ClockTracker()
+    for i in range(SAMPLES):
+        received = received_utc + timedelta(seconds=10 * i)
+        unit = decode(bytes(data)).unit_clock + timedelta(seconds=10 * i)
+        tracker.update(unit, received)
+
+    assert tracker.offset_minutes == offset
+    assert tracker.out_of_sync is (abs(offset) >= DEFAULT_ALERT_MINUTES)
