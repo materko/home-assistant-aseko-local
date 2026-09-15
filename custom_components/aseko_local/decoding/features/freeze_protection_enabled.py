@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, override
 
-from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
+from ..frames import flag_or_none
 
 if TYPE_CHECKING:
     from ...models import AsekoDevice
@@ -30,10 +30,7 @@ class FreezeProtectionEnabled(Feature):
 
     @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool | None:
-        b = frame[37]
-        if b == UNSPECIFIED_VALUE:
-            return None
-        return bool(b & ANTIFREEZE)
+        return flag_or_none(frame[37], ANTIFREEZE)
 
     def decode_v7_winter_mode(self, frame: V7Frame, device: AsekoDevice) -> bool | None:
         """SALT: "Winter mode" is byte[22] bit 0x04.
@@ -43,7 +40,4 @@ class FreezeProtectionEnabled(Feature):
         the setpoint bytes switched to the winter program (water 2 C,
         algicide 2 ml, filtration 12:00-12:15, backwash off).
         """
-        b = frame[22]
-        if b == UNSPECIFIED_VALUE:
-            return None
-        return bool(b & WINTER_MODE)
+        return flag_or_none(frame[22], WINTER_MODE)

@@ -64,6 +64,17 @@ def byte_or_absent(value: int) -> int | NotPresent:
     return NOT_PRESENT if value == UNSPECIFIED_VALUE else value
 
 
+def flag_or_none(flags: int, mask: int) -> bool | None:
+    """Return whether ``mask`` is set in ``flags``, or None when ``flags`` is 0xFF.
+
+    For a settings byte 0xFF means this frame does not say, e.g. while the
+    unit starts; a clear bit is a real False.
+    """
+    if flags == UNSPECIFIED_VALUE:
+        return None
+    return bool(flags & mask)
+
+
 def byte_when_flags(
     value: int, flags: int, mask: int, expected: int
 ) -> int | NotPresent:

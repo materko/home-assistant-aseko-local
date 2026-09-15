@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, override
 
-from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
+from ..frames import flag_or_none
 
 if TYPE_CHECKING:
     from ...models import AsekoDevice
@@ -28,7 +28,4 @@ class HeatingControlEnabled(Feature):
 
     @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool | None:
-        b = frame[37]
-        if b == UNSPECIFIED_VALUE:
-            return None
-        return bool(b & HEATING_CONTROL)
+        return flag_or_none(frame[37], HEATING_CONTROL)

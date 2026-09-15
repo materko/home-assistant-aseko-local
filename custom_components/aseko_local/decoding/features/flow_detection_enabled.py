@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, override
 
-from ...const import UNSPECIFIED_VALUE
 from ..feature import Feature
+from ..frames import flag_or_none
 
 if TYPE_CHECKING:
     from ...models import AsekoDevice
@@ -27,6 +27,4 @@ class FlowDetectionEnabled(Feature):
 
     @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool | None:
-        if frame[37] == UNSPECIFIED_VALUE:
-            return None  # this frame does not say
-        return bool(frame[37] & MASK)
+        return flag_or_none(frame[37], MASK)
