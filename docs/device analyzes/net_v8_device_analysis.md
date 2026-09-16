@@ -1,5 +1,7 @@
 # ASIN AQUA NET (v8) — Device Analysis
 
+[Documentation](../README.md) / [Device analyses](README.md)
+
 > **Status:** core readings confirmed against the Aseko Live app from two frames of one unit (Sep 2025, Apr 2026); pump outputs and most `areqs`/`reqs`/`fncs`/`mods`/`flags` slots still unknown.
 > **Profile:** [`profiles/v8/net.py`](../../custom_components/aseko_local/decoding/profiles/v8/net.py) (Salt NET: [`profiles/v8/salt.py`](../../custom_components/aseko_local/decoding/profiles/v8/salt.py)) · **Support:** [support matrix](../support_matrix.md)
 > **Evidence words** (`confirmed`, `confirmed on X`, `observed`, `assumed`, `not located`): see [evidence rules](../evidence-rules.md).

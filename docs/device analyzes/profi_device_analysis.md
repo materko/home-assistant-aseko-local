@@ -1,5 +1,7 @@
 # ASIN AQUA Profi (v7) — Device Analysis
 
+[Documentation](../README.md) / [Device analyses](README.md)
+
 > **Status:** no real PROFI frame captured yet; everything except the serial number is assumed from the Aseko Profi manuals, the other v7 models and a synthetic test fixture.
 > **Profile:** [`profiles/v7/profi.py`](../../custom_components/aseko_local/decoding/profiles/v7/profi.py) · **Support:** [support matrix](../support_matrix.md)
 > **Evidence words** (`confirmed`, `confirmed on X`, `observed`, `assumed`, `not located`): see [evidence rules](../evidence-rules.md).

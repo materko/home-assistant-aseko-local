@@ -1,5 +1,7 @@
 # ASIN AQUA Salt (v7) — Device Analysis
 
+[Documentation](../README.md) / [Device analyses](README.md)
+
 > **Status:** well understood — almost every field confirmed on the maintainer's two units (37 diagnostics dumps Aug 2026, an app and display comparison 2026-09-11, marked test cases 2026-09-13/14); the alarm bits, the pH− pump bit, the heating relay and the DOSE setpoint are still unconfirmed on SALT.
 > **Profile:** [`profiles/v7/salt.py`](../../custom_components/aseko_local/decoding/profiles/v7/salt.py) · **Support:** [support matrix](../support_matrix.md)
 > **Evidence words** (`confirmed`, `confirmed on X`, `observed`, `assumed`, `not located`): see [evidence rules](../evidence-rules.md).

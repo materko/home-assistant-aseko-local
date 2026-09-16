@@ -1,5 +1,18 @@
 # Adding a model or a value
 
+[Documentation](README.md) / For contributors
+
+<details>
+<summary>On this page</summary>
+
+- [1. Collect frames](#1-collect-frames)
+- [2. Find the bytes](#2-find-the-bytes)
+- [3. Profile](#3-profile)
+- [4. A new value (feature)](#4-a-new-value-feature)
+- [5. Tests and matrix](#5-tests-and-matrix)
+
+</details>
+
 A short recipe. The design behind it is in
 [Decoding by device profile](decoding-by-device-profile.md); what counts as
 proof is in [Evidence rules](evidence-rules.md).
@@ -11,7 +24,7 @@ decodes with the *unknown* profile: it gets **no entities**, a warning is
 logged, and the diagnostics download lists it under `unrecognised_devices`
 with the annotated raw frame and the generic values.
 
-Ask for (or record) marked test cases with the test cases card — one change on
+Ask for (or record) marked test cases with the [test-cases card](guides/recording.md) — one change on
 the unit per marker — and the zip from **Download new**. The frame next to each
 marker is the evidence. `python scripts/frame_log_tool.py DIAGNOSTICS.json --around N`
 prints the frames around marker N. For one frame, `python scripts/hex_tools.py HEX --table`

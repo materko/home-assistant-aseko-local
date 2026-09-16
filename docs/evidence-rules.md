@@ -1,5 +1,7 @@
 # Evidence rules
 
+[Documentation](README.md) / For contributors
+
 Every feature a profile lists carries one `Evidence` entry
 (`decoding/evidence.py`), written with a helper that names its status:
 
@@ -53,7 +55,7 @@ fails before any frame is decoded:
   after it.  Do not do this for a model with real captures: there every entry
   needs its own proof, and a feature added later must fail the test until it
   has one.
-- Upgrade a mark only with a capture: a marked test case (see the README) or a
+- Upgrade a mark only with a capture: a [marked test case](guides/recording.md) or a
   diagnostics download plus what the unit showed at that moment.
 - A setting being present in the frame does not mean the hardware is fitted —
   water level, heating and the variable-speed pump can be enabled without the

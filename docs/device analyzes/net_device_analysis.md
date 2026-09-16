@@ -1,5 +1,7 @@
 # ASIN AQUA NET (v7) — Device Analysis
 
+[Documentation](../README.md) / [Device analyses](README.md)
+
 > **Status:** live values, pump states and probe configuration decoded from the Issue #66 frames and a 2026-04-07 mode-switch capture; setpoints seen but not compared with the app, REDOX variant never captured.
 > **Profile:** [`profiles/v7/net.py`](../../custom_components/aseko_local/decoding/profiles/v7/net.py) · **Support:** [support matrix](../support_matrix.md)
 > **Evidence words** (`confirmed`, `confirmed on X`, `observed`, `assumed`, `not located`): see [evidence rules](../evidence-rules.md).

@@ -1,5 +1,17 @@
 # Maintenance rules
 
+[Documentation](README.md) / For contributors
+
+## Before you edit
+
+Read the rules for the area you are changing:
+
+- [The backwash history is checked and written in one synchronous stretch](#the-backwash-history-is-checked-and-written-in-one-synchronous-stretch)
+- [Nothing is saved while a tracker is loading its store](#nothing-is-saved-while-a-tracker-is-loading-its-store)
+- [An offset of `None` means "was not known", not "use the current one"](#an-offset-of-none-means-was-not-known-not-use-the-current-one)
+- [Entity identity does not change](#entity-identity-does-not-change)
+- [A profile reports what the frame says](#a-profile-reports-what-the-frame-says)
+
 Invariants that are not visible in the line being edited, each one written
 down because breaking it cost real data or a wrong reading once.  They are
 enforced by tests, but a test only fails after the rule is broken -- read

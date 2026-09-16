@@ -1,5 +1,7 @@
 # ASIN AQUA Home (v7) — Device Analysis
 
+[Documentation](../README.md) / [Device analyses](README.md)
+
 > **Status:** core values checked against the Aseko Live app on one CLF unit (2026-04-28) plus settings bits from REDOX-unit diagnostics (Issues #110–#151); pump running bits, heating running and the algicide flow rate are still open.
 > **Profile:** [`profiles/v7/home.py`](../../custom_components/aseko_local/decoding/profiles/v7/home.py) · **Support:** [support matrix](../support_matrix.md)
 > **Evidence words** (`confirmed`, `confirmed on X`, `observed`, `assumed`, `not located`): see [evidence rules](../evidence-rules.md).

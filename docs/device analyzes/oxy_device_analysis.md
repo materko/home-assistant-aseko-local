@@ -1,5 +1,7 @@
 # ASIN AQUA Oxygen (v7) — Device Analysis
 
+[Documentation](../README.md) / [Device analyses](README.md)
+
 > **Status:** decoded from logs of one unit (Winnetoux, 2026-04-02, 04-11, 04-12); pump bits, dose targets and flow rates checked against the Aseko Live app, most settings only observed, alarms and level/heating bits assumed from other models.
 > **Profile:** [`profiles/v7/oxy.py`](../../custom_components/aseko_local/decoding/profiles/v7/oxy.py) · **Support:** [support matrix](../support_matrix.md)
 > **Evidence words** (`confirmed`, `confirmed on X`, `observed`, `assumed`, `not located`): see [evidence rules](../evidence-rules.md).

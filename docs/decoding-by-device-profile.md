@@ -1,5 +1,19 @@
 # Decoding by device profile
 
+[Documentation](README.md) / For contributors
+
+<details>
+<summary>On this page</summary>
+
+- [Overview](#overview)
+- [The decoding package](#the-decoding-package)
+- [Entity lifecycle](#entity-lifecycle)
+- [Recording](#recording)
+- [Support matrix](#support-matrix)
+- [History](#history)
+
+</details>
+
 How frames from Aseko pool units become Home Assistant entities. The
 [support matrix](support_matrix.md), generated from the profiles, says which
 values are read on which model. Short guides: [Troubleshooting](troubleshooting.md), [Adding a model or a value](adding-a-model.md),
@@ -227,6 +241,9 @@ and 🔍 is a concrete request for a capture.
 
 ## History
 
+<details>
+<summary>Background: how the profile design replaced the earlier decoder</summary>
+
 The profile design replaced a single v7 decoder (939 lines, ~80 tests) and a
 separate v8 decoder. Kept here for context.
 
@@ -261,3 +278,5 @@ old and new implementations with no differing field. Steps: add `Feature` and
 presence and the SALT check out of the entity layer; cut `_fill_*` and the v8
 decoder into feature files. `AsekoDecoder.decode(bytes)` was then replaced by
 `decoding.decode(raw, protocol=None)`.
+
+</details>
