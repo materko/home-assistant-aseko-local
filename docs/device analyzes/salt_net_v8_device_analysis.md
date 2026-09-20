@@ -58,10 +58,31 @@ this model rather than taken over:
 | `unit_clock`, `timestamp` | `ins[16]` hour, `ins[17]` minute | 18:25 and 08:01 in captures their owner timestamped 18:22:49 and 07:58:59 — the unit ran about two minutes ahead |
 | `startup_delay`, `dosing_delay` | `areqs[17]`, `areqs[18]` | 5, the 5 min the unit is set to; a NET v8 sends 2 for its 2 min |
 
-**No date is read.** `ins[13-15]` look like year, month and day but read
-`24 7 9` on 15 July and `24 6 1` on 19 July, so `timestamp` takes its date
-from Home Assistant and `unit_clock` is an hour and a minute only. The clock
-offset entity therefore works to about a minute and within ±12 hours.
+**`ins[13-15]` is the unit's own calendar date** -- year + 2000, month, day,
+as in v7 bytes 6-8 -- **and no unit sends the right one**, so it is not read.
+The field runs correctly, one day per day; only its absolute value is wrong,
+by a different amount on every unit:
+
+| Unit | Real date | Sent | Behind |
+|---|---|---|---|
+| NET v8 | 2025-09-16 | 2024-06-29 | 444 days |
+| NET v8 | 2026-04-13 | 2025-01-24 | **444 days** |
+| Salt NET 100 | 2026-07-15 | 2024-07-09 | 736 days |
+| Salt NET 100 | 2026-07-16 | 2024-07-10 | **736 days** |
+| Salt NET 100 | 2026-07-19 | 2024-06-01 | 778 days |
+| Salt NET 106 | 2026-09-13 | 2024-09-13 | 730 days |
+
+The same offset after 209 days of real time on the NET unit is what settles
+it as a running calendar rather than a counter. The Salt NET dropped to
+2024-06-01 between 16 and 19 July, while its owner was reconfiguring the
+third pump -- that reads like the date a unit falls back to after losing
+power. On the 106 unit the offset happens to be two years, so its month and
+day look right.
+
+The time of day is a different matter: it was about two minutes ahead of Home
+Assistant, so the clock is set and only the year is not. `timestamp`
+therefore takes its date from Home Assistant, `unit_clock` is an hour and a
+minute, and the clock offset entity works to about a minute within +/-12 h.
 
 Still taken over unverified, because no capture separates them: the
 filtration relay (`outs[2]`, which reads 2 here and 1 on a NET), water flow to

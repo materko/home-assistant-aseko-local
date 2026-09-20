@@ -97,11 +97,17 @@ Positions are section indices (`section[n]`); values quoted as Sep / Apr.
 | `ins[1–3]` | — | `-500` → `None` | confirmed | absent probes |
 | `ins[8]` | `water_flow_to_probes` | bool | confirmed | 1 / 1 |
 | `ins[9–11]` | — | `-500` | observed | |
-| `ins[13]` | unknown | — | observed | 24 / 25 |
-| `ins[14]` | unknown | — | observed | 6 / 1 |
-| `ins[15]` | unknown | — | observed | 29 / 24 |
+| `ins[13]` | unit calendar year + 2000 | not read | observed | 24 / 25 |
+| `ins[14]` | unit calendar month | not read | observed | 6 / 1 |
+| `ins[15]` | unit calendar day | not read | observed | 29 / 24 |
 | `ins[16]` | `timestamp` hour | local hour | confirmed | 22 / 12; matches HA log timestamps |
 | `ins[17]` | `timestamp` minute | local minute | confirmed | 27 / 27; date is taken from HA |
+
+`ins[13-15]` is a date that runs correctly but is set wrong: both frames of
+this unit are **444 days** behind the moment they were captured (2024-06-29
+on 2025-09-16, 2025-01-24 on 2026-04-13), 209 days apart. Salt NET units are
+730 and 736 days behind (see [SALT NET v8](salt_net_v8_device_analysis.md)).
+The date is therefore taken from Home Assistant on every v8 model.
 
 ### `ains` — analog inputs (probe measurements)
 

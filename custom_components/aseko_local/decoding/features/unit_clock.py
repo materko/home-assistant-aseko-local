@@ -6,7 +6,10 @@ is off.  This field keeps only what the unit sent, for ``trackers.clock``:
 
 * v7: bytes 6-11 as a ``datetime`` (year offset 2000) in Home Assistant's
   time zone -- the unit sends wall-clock time with no zone of its own;
-* v8: ``ins[16]`` / ``ins[17]`` as a ``time`` -- hour and minute, no date.
+* v8: ``ins[16]`` / ``ins[17]`` as a ``time`` -- hour and minute.  The frame
+  does carry a date in ``ins[13:16]``, but it runs 444 to 736 days behind on
+  every unit captured so far, so it is not read (see the v8 device
+  analyses).
 
 None when the bytes are unset or not a valid date.  A model that never
 sends its clock (v7 NET: 0xFF on every frame) does not list the feature.
