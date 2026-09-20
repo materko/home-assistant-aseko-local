@@ -23,6 +23,9 @@ from ...features import (
     ChlorinePumpRunning,
     ElectrodePolarity,
     ElectrolysisRunning,
+    FiltrationPeriod1End,
+    FiltrationPeriod1Start,
+    FiltrationSchedule,
     FlocculantDoseTarget,
     FlocculantPumpRunning,
     Salinity,
@@ -48,6 +51,9 @@ _SALT_ONLY = (
     FlocculantDoseTarget,
     AlarmNoFlowToProbes,
     AlarmMaxDisinfectionDose,
+    FiltrationPeriod1Start,
+    FiltrationPeriod1End,
+    FiltrationSchedule,
 )
 
 _THIRD_PUMP = observed(
@@ -102,6 +108,18 @@ SALT = Profile(
         AlarmNoFlowToProbes: derived(
             "ins[12] bit 0x100, the flag the v8 decoder has always read; no "
             "capture shows it set"
+        ),
+        FiltrationPeriod1Start: observed(
+            "reqs[5] = 8 on a unit its owner set to a timer from 08:00, 0 on "
+            "one running nonstop (Issue #131)"
+        ),
+        FiltrationPeriod1End: observed(
+            "reqs[7] = 20 on a unit its owner set to a timer until 20:00, 24 "
+            "on one running nonstop (Issue #131)"
+        ),
+        FiltrationSchedule: derived(
+            "reqs[5] to reqs[7]: 0 to 24 is the nonstop setting, anything "
+            "else the timer; a v8 unit offers one period only"
         ),
         AlarmMaxDisinfectionDose: observed(
             "ins[12] bit 0x80 flipped 0 -> 128 while the unit showed 'Maximum "

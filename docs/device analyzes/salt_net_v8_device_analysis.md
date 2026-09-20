@@ -33,6 +33,8 @@ shows a chlorine pump it does not have (the complaint in Issue #131).
 | `algaecide_pump_running` / `flocculant_pump_running` | `outs[11]`, the chemical from `fncs[6]` | observed: `fncs[6]` read **10** with algicide configured and **18** after the port was switched to flocculant on 2026-07-19; `outs[11] = 1` in the capture labelled "algicide pump running" |
 | `algaecide_dose_target` | `areqs[4]` while `fncs[6] = 10` | observed: **5** with the unit set to 5 ml/m³/day, 0 after the switch |
 | `flocculant_dose_target` | `areqs[3]` while `fncs[6] = 18` | observed: **10** with the unit set to flocculant 10 ml/h |
+| `filtration_period_1_start` / `_end` | `reqs[5]` / `reqs[7]`, whole hours | observed: **8** and **20** on a unit its owner set to a timer from 08:00 to 20:00, **0** and **24** on one running nonstop |
+| `filtration_schedule` | the same two hours: 0 to 24 nonstop, anything else the timer | derived from them; a v8 unit offers one period only |
 | `alarm_no_flow_to_probes` | `ins[12]` bit `0x100` | derived: the flag the v8 decoder has always read; no capture shows it set |
 | `alarm_max_disinfection_dose` | `ins[12]` bit `0x80` | observed: the value flipped 0 → 128 while the unit showed "Maximum disinfection dose exceeded" (Issue #151) |
 
@@ -43,10 +45,9 @@ the same rule the v7 SALT profile follows with its byte[37] routing bit.
 
 ## 3. Open questions
 
-- **`reqs[5]` / `reqs[7]`.** One unit set to a timer from 08:00 to 20:00 sends
-  `reqs[5] = 8`, `reqs[7] = 20`; the other, in 24 h mode, sends 0 and 24. That
-  fits a start and a stop hour rather than "hours per day". Not decoded until
-  a capture with a changed timer settles it.
+- **A changed timer.** The hours are read as start and stop (see above). A
+  capture from a unit whose timer was changed to, say, 09:00-17:00 would
+  confirm `reqs[5] = 9`, `reqs[7] = 17` directly.
 - **`fncs[2]`.** 1 on the first unit, 3 on the second, same hardware. It is not
   read, and the profile does not gate anything on it.
 - **The shared NET values** (pH, redox, temperature, setpoints, pump bits) are

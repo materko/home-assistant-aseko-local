@@ -1,6 +1,7 @@
 """Tests for AsekoV8Decoder."""
 
 import logging
+from datetime import time
 
 import pytest
 
@@ -10,6 +11,7 @@ from custom_components.aseko_local.models import (
     AsekoDevice,
     AsekoDeviceType,
     AsekoElectrodePolarity,
+    AsekoFiltrationSchedule,
     AsekoProbeType,
     AsekoProfileFlag,
 )
@@ -527,6 +529,7 @@ def _salt_net_frame(  # noqa: PLR0913 - one argument per labelled position
     algicide_dose: int = 5,
     flocculant_dose: int = 0,
     alarms: int = 0,
+    filtration: tuple[int, int] = (8, 20),
 ) -> bytes:
     """Return a Salt NET frame with the labelled positions filled in."""
     outs = [0] * 19
@@ -539,6 +542,8 @@ def _salt_net_frame(  # noqa: PLR0913 - one argument per labelled position
     ins = [346, -500, -500, -500, 0, 0, 0, 0, 1, -500, -500, -500, alarms]
     ins += [24, 7, 9, 18, 25, 0]
     fncs = [0, 0, 1, 0, 0, 0, third_pump_code, 0]
+    reqs = [0] * 10
+    reqs[5], reqs[7] = filtration
 
     def part(name: str, values: list[int]) -> str:
         return name + ": " + " ".join(str(v) for v in values) + " "
@@ -549,6 +554,7 @@ def _salt_net_frame(  # noqa: PLR0913 - one argument per labelled position
         + part("ains", ains)
         + part("outs", outs)
         + part("areqs", areqs)
+        + part("reqs", reqs)
         + part("fncs", fncs)
         + "crc16: FA37}\n"
     )
@@ -638,3 +644,25 @@ def test_a_salt_net_has_no_chlorine_pump() -> None:
 
     assert "chlorine_pump_running" not in device.possible_features
     assert "chlorine_flow_rate" not in device.possible_features
+
+
+@pytest.mark.parametrize(
+    ("start", "stop", "reads", "schedule"),
+    [
+        (8, 20, (time(8, 0), time(20, 0)), AsekoFiltrationSchedule.TIMER_PERIOD_1),
+        (0, 24, (time(0, 0), time(0, 0)), AsekoFiltrationSchedule.NONSTOP_24H),
+        (9, 17, (time(9, 0), time(17, 0)), AsekoFiltrationSchedule.TIMER_PERIOD_1),
+    ],
+)
+def test_the_filtration_timer_is_whole_hours_in_reqs_5_and_7(
+    start, stop, reads, schedule
+) -> None:
+    """Issue #131: 8 / 20 on a unit set to 08:00-20:00, 0 / 24 on one running nonstop."""
+    device = decode(_salt_net_frame(filtration=(start, stop)))
+
+    assert (device.filtration_period_1_start, device.filtration_period_1_end) == reads
+    assert device.filtration_schedule is schedule
+
+
+def test_an_hour_outside_the_day_is_not_a_time() -> None:
+    assert decode(_salt_net_frame(filtration=(0, 25))).filtration_period_1_end is None

@@ -106,7 +106,10 @@ Further profiles exist that no unit is meant to decode with and that the tables 
 | `dosing_delay` | ✅ | ❓ |
 | `electrode_polarity` | — | ✅ |
 | `electrolysis_running` | — | ✅ |
+| `filtration_period_1_end` | — | 👁 |
+| `filtration_period_1_start` | — | 👁 |
 | `filtration_running` | ✅ | ❓ |
+| `filtration_schedule` | — | ✅ |
 | `flocculant_dose_target` | — | 👁 |
 | `flocculant_pump_running` | — | 👁 |
 | `ph` | ✅ | ❓ |
@@ -320,6 +323,8 @@ Values captured from real units that nobody has yet checked against the unit dis
 - `alarm_max_disinfection_dose` — observed: ins[12] bit 0x80 flipped 0 -> 128 while the unit showed 'Maximum disinfection dose exceeded' (Issue #151)
 - `algaecide_dose_target` — observed: areqs[4] = 5 with the port set to algicide 5 ml/m3/day, 0 after it was switched to flocculant (Issue #131)
 - `algaecide_pump_running` — observed: outs[11] with the chemical from fncs[6] (10 algicide, 18 flocculant): the same unit read 10 with algicide configured and 18 after its owner switched the port on 2026-07-19 (Issue #131)
+- `filtration_period_1_end` — observed: reqs[7] = 20 on a unit its owner set to a timer until 20:00, 24 on one running nonstop (Issue #131)
+- `filtration_period_1_start` — observed: reqs[5] = 8 on a unit its owner set to a timer from 08:00, 0 on one running nonstop (Issue #131)
 - `flocculant_dose_target` — observed: areqs[3] = 10 with the port set to flocculant 10 ml/h, 0 while it was algicide (Issue #131)
 - `flocculant_pump_running` — observed: outs[11] with the chemical from fncs[6] (10 algicide, 18 flocculant): the same unit read 10 with algicide configured and 18 after its owner switched the port on 2026-07-19 (Issue #131)
 
@@ -334,5 +339,5 @@ Fields that exist on `AsekoDevice` but that nothing knows how to read yet.
 
 - features known: 73
 - with a v7 reading: 71
-- with a v8 reading: 28
+- with a v8 reading: 31
 - profiles: 9

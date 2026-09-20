@@ -114,10 +114,11 @@ def test_every_frame_derived_field_has_a_feature() -> None:
 
 
 def test_default_and_named_readings() -> None:
-    assert FiltrationSchedule.default_reading(Protocol.V7) == "decode_v7"
-    assert FiltrationSchedule.default_reading(Protocol.V8) is None
-    assert FiltrationSchedule.readings(Protocol.V7) == ("decode_v7",)
-    assert FiltrationSchedule.protocols() == (Protocol.V7,)
+    # the settings menu bit is v7 only; pH is read on both protocols
+    assert ServiceMenuOpen.default_reading(Protocol.V7) == "decode_v7"
+    assert ServiceMenuOpen.default_reading(Protocol.V8) is None
+    assert ServiceMenuOpen.readings(Protocol.V7) == ("decode_v7",)
+    assert ServiceMenuOpen.protocols() == (Protocol.V7,)
     assert Ph.protocols() == (Protocol.V7, Protocol.V8)
 
 
@@ -186,7 +187,7 @@ def test_profile_rejects_a_feature_without_a_reading_for_its_protocol() -> None:
             name="broken",
             protocol=Protocol.V8,
             model=AsekoDeviceType.NET,
-            features=(FiltrationSchedule,),
+            features=(ServiceMenuOpen,),
         )
 
 
