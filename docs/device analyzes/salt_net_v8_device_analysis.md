@@ -88,7 +88,20 @@ Still taken over unverified, because no capture separates them: the
 filtration relay (`outs[2]`, which reads 2 here and 1 on a NET), water flow to
 the probes (`ins[8]`, never seen 0) and the pH− pump (`outs[8]`).
 
-## 4. Open questions
+## 4. Not taken over from the v1.9.1 decoder
+
+hopkins-tk#162 built the same unit into the pre-2.0.0 decoder. Its readings
+are all here, read from the same captures, except two:
+
+- **`installed_pumps` from `fncs`.** It decided which pumps a unit has from
+  `fncs[2]` and `fncs[6]` against a table of known combinations. The second
+  unit (firmware 106) sends `fncs[2] = 3` with the same hardware, which that
+  table rejects, so the question is open; here a pump is part of the model's
+  profile and `fncs[6]` only routes the third port.
+- **`filtration_hours_per_day` from `reqs[7]`.** The same byte is read as the
+  stop hour instead (section 2), which is what both captured units show.
+
+## 5. Open questions
 
 - **A changed timer.** The hours are read as start and stop (see above). A
   capture from a unit whose timer was changed to, say, 09:00-17:00 would
