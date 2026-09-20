@@ -127,6 +127,9 @@
       "ph_minus_concentration": {
         "name": "Koncentrace pH-"
       },
+      "max_ph_doses": {
+        "name": "Max. počet dávek pH"
+      },
       "air_temperature": {
         "name": "Teplota vzduchu"
       },

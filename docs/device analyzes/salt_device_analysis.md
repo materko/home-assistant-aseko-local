@@ -306,11 +306,35 @@ overrides a wrong answer — that case is still the 2026-08-11 capture's.
 | `[99]` | Flowrate chlorine pump (ml/min) | Not applicable on SALT (no CL pump) |
 | `[101]` | Flowrate third-pump slot (ml/min) | 60 ml/min in all captured frames |
 | `[103]` | Flowrate third-pump slot (duplicate?) | Also 60 ml/min; does not flip with algicide/floc switch |
+| `[115]` | Max. number of pH doses | Safety setting — confirmed, see §Max. number of pH doses |
 
 **Note on byte[101] vs byte[103]**: Both bytes carry the same flowrate (60 ml/min)
 regardless of whether algicide or flocculant is configured. The third pump slot does NOT
 split its flowrate across different bytes when switching chemicals — see
 [byte37_algicide_floc_analysis.md](../temp/byte37_algicide_floc_analysis.md).
+
+---
+
+## Max. number of pH doses — byte `[115]`
+
+The unit's Safety Functions setting **"Max. number of doses of pH"**: how many
+pH doses the unit may give without the pH moving before it stops dosing and
+raises "Too many doses of pH". Decoded as `max_ph_doses`.
+
+**Evidence** — the setting was changed on the unit and a diagnostics download
+taken in each state:
+
+| Setting on the unit | byte `[115]` |
+|---|---|
+| 20 | `0x14` = 20 |
+| 17 | `0x11` = 17 |
+
+The byte followed the change exactly, and 17 appears nowhere else in the
+120-byte frame, so the offset is unambiguous. A second SALT reads 40.
+
+`0xFF` means the setting is not set and is reported as `None`. NET sends `0xFF`
+in byte `[115]` in every captured frame and is not decoded, the same as the
+pH− concentration in byte `[112]`.
 
 ---
 
