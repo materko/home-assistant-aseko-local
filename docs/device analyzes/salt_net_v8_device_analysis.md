@@ -48,6 +48,15 @@ the same rule the v7 SALT profile follows with its byte[37] routing bit.
 - **A changed timer.** The hours are read as start and stop (see above). A
   capture from a unit whose timer was changed to, say, 09:00-17:00 would
   confirm `reqs[5] = 9`, `reqs[7] = 17` directly.
+- **The temperature setting is not captured.** The controller offers a third
+  filtration setting next to nonstop and the timer, which runs the pump for
+  water temperature / 2 + 2 hours a day (Issue #131; the manual, per
+  hopkins-tk#162). No frame of a unit in it has been seen, so nothing decodes
+  it: `filtration_schedule` knows only nonstop and the timer, and a unit in
+  the temperature setting would most likely be reported as the timer, with
+  whatever hours the unit computed for the day. A capture with the setting on,
+  and a second one the next day at a different water temperature, would settle
+  both where it is flagged and whether the hours move.
 - **`fncs[2]`.** 1 on the first unit, 3 on the second, same hardware. It is not
   read, and the profile does not gate anything on it.
 - **The shared NET values** (pH, redox, temperature, setpoints, pump bits) are
