@@ -3,7 +3,7 @@
 This module defines the **protocol-agnostic target schema** (``AsekoDevice``)
 that the entity layer (sensors, binary sensors, buttons, …) consumes.  It
 also defines the device-type enum, the probe-type enum, the electrolyser
-direction enum, and the filtration-mode enum.
+direction enum, and the filtration-schedule enum.
 
 Decoder-specific byte-level knowledge (v7 ``byte[29]`` masks, v8 ``fncs:``
 capability codes, ``byte[37]`` routing constants, etc.) lives in
@@ -28,6 +28,7 @@ class AsekoDeviceType(Enum):
     OXY = "ASIN AQUA Oxygen"
     PROFI = "ASIN AQUA Profi"
     SALT = "ASIN AQUA Salt"
+    SALT_NET = "ASIN AQUA Salt NET"
 
 
 class AsekoProbeType(Enum):
@@ -112,6 +113,16 @@ class AsekoFiltrationSchedule(Enum):
     TIMER_PERIOD_1_AND_2 = "timer_period_1_and_2"
 
 
+# Canonical list of dosing-pump types that any Aseko device may carry.
+# Single source of truth: the consumption tracker (consumption_tracker.py)
+# and the sensor-registration code (sensor.py) both import this. The
+# `AsekoDevice.installed_pumps` field is a subset of this set, populated
+# by the decoder based on what the device actually has installed.
+INSTALLED_PUMPS: frozenset[str] = frozenset(
+    {"cl", "ph_minus", "ph_plus", "algicide", "floc", "oxy"}
+)
+
+
 # ---------------------------------------------------------------------------
 # Re-exports for backwards compatibility
 # ---------------------------------------------------------------------------
@@ -170,6 +181,13 @@ class AsekoDevice:
     oxy_pump_running: bool | None = (
         None  # byte 29 bit unconfirmed – OXY Pure device only
     )
+
+    # Subset of INSTALLED_PUMPS that the decoder determined to be physically
+    # present on this unit.  Populated from the protocol-specific capability
+    # tables (v7 ACTUATOR_MASKS / byte[37] routing, v8 fncs[2] capability
+    # gate).  None when the decoder cannot tell, so the entity layer can
+    # suppress phantom "off" sensors for pumps that are not physically there.
+    installed_pumps: frozenset[str] = field(default_factory=frozenset)
 
     # NEW: flow rates (bytes 95, 97, 99, 101)
     flowrate_chlor: int | None = None
@@ -248,6 +266,11 @@ class AsekoDevice:
     # Only the bit-flag firmware encodes it.  Left None on firmware A, where
     # bit 0x04 belongs to the transitional edit states, and on NET.
     service_menu_open: bool | None = None
+
+    # Filtration hours per day (best guess) — reqs[7] on v8 SALT NET
+    # (NET v8 also reports it at the same position, but typically 24 h).
+    # Unconfirmed by user. See docs/device analyzes/salt_net_v8_device_analysis.md §8.
+    filtration_hours_per_day: int | None = None
 
     # Alarm/error bitmasks — bytes [12] (HOME dosing warnings) and [13]
     # byte [12] 0x20 = chlorine/disinfection dosing warning (HOME ✅, issue #134)
