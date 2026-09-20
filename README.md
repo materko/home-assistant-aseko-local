@@ -61,7 +61,7 @@ Support is tracked **per model and per value**. A profile being available does n
 | **ASIN Aqua SALT** | ≤ 7.x | ✅ | ✅ filtration, electrolyzer, algicide, flocculant<br>❓ pH− | ✅ algicide, flocculant<br>❓ pH− |
 | **ASIN Aqua OXY** | ≤ 7.x | 👁 pH, temperature | ✅ filtration, oxy, algicide, flocculant, pH− | ✅ oxy, algicide, flocculant, pH− |
 | **ASIN Aqua HOME** | ≤ 7.x | ✅ | ✅ filtration<br>❓ chlorine, algicide, flocculant, pH− | ❓ chlorine, flocculant, pH−<br>🔍 algicide — not calculated |
-| **ASIN Aqua Salt NET** | 8.x | ✅ salinity<br>❓ pH, redox, temperature | ✅ electrolyzer<br>👁 algicide or flocculant<br>❓ filtration, pH− | 👁 algicide or flocculant<br>❓ pH− |
+| **ASIN Aqua Salt NET** | 8.x | ✅ salinity, pH, redox, temperature | ✅ electrolyzer<br>👁 algicide or flocculant<br>❓ filtration, pH− | 👁 algicide or flocculant<br>❓ pH− |
 | **ASIN Aqua PROFI** | ≤ 7.x | ❓ no real frame yet | ❓ filtration, chlorine, flocculant, pH− | ❓ chlorine, flocculant, pH− |
 
 **Consumption is always an estimate** from pump runtime and flow rate, not a measured volume sent by the unit. The marks above describe confidence in the underlying mappings.
