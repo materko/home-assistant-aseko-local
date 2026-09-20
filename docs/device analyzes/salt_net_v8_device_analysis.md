@@ -43,7 +43,31 @@ is set up for, and the value for the other one is reported as not present, so
 a unit dosing algicide gets no flocculant entities and the other way round —
 the same rule the v7 SALT profile follows with its byte[37] routing bit.
 
-## 3. Open questions
+## 3. Shared values checked on this model
+
+The rest of the frame is the NET v8 layout. These entries were checked against
+this model rather than taken over:
+
+| Value | Position | Evidence |
+|---|---|---|
+| `ph` | `ains[0]` / 100 | 7.09 while the display read pH 7.1 in the same minute (firmware 106) |
+| `redox` | `ains[6]` | 542 mV, matching the display |
+| `water_temperature` | `ins[0]` / 10 | 29.5 °C, matching the display |
+| `ph_target` / `redox_target` | `areqs[0]` / 10, `areqs[1]` × 10 | 7.1 and 720 mV, matching the setpoints on the display |
+| `pool_volume` | `areqs[14]` | 55 m³ on the unit whose owner gave its pool as 55 m³ |
+| `unit_clock`, `timestamp` | `ins[16]` hour, `ins[17]` minute | 18:25 and 08:01 in captures their owner timestamped 18:22:49 and 07:58:59 — the unit ran about two minutes ahead |
+| `startup_delay`, `dosing_delay` | `areqs[17]`, `areqs[18]` | 5, the 5 min the unit is set to; a NET v8 sends 2 for its 2 min |
+
+**No date is read.** `ins[13-15]` look like year, month and day but read
+`24 7 9` on 15 July and `24 6 1` on 19 July, so `timestamp` takes its date
+from Home Assistant and `unit_clock` is an hour and a minute only. The clock
+offset entity therefore works to about a minute and within ±12 hours.
+
+Still taken over unverified, because no capture separates them: the
+filtration relay (`outs[2]`, which reads 2 here and 1 on a NET), water flow to
+the probes (`ins[8]`, never seen 0) and the pH− pump (`outs[8]`).
+
+## 4. Open questions
 
 - **A changed timer.** The hours are read as start and stop (see above). A
   capture from a unit whose timer was changed to, say, 09:00-17:00 would
