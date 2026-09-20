@@ -32,14 +32,23 @@ from ..feature import Feature
 
 if TYPE_CHECKING:
     from ...models import AsekoDevice
-    from ..frames import V7Frame
+    from ..frames import V7Frame, V8Frame
+
+
+# v8 keeps both dosing faults in ins[12]
+V8_NO_FLOW = 0x100
 
 
 class AlarmNoFlowToProbes(Feature):
-    """v7: byte[13] bit 0x04."""
+    """v7: byte[13] bit 0x04.  v8: ins[12] bit 0x100."""
 
     field = "alarm_no_flow_to_probes"
 
     @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool:
         return bool(frame[13] & 0x04)
+
+    @override
+    def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> bool | None:
+        alarms = frame.value("ins", 12)
+        return None if alarms is None else bool(alarms & V8_NO_FLOW)

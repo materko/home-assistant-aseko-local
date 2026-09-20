@@ -95,11 +95,20 @@ Further profiles exist that no unit is meant to decode with and that the tables 
 
 | field | NET | SALT |
 |---|---|---|
+| `alarm_max_disinfection_dose` | — | 👁 |
+| `alarm_no_flow_to_probes` | — | ✅ |
+| `algaecide_dose_target` | — | 👁 |
+| `algaecide_pump_running` | — | 👁 |
 | `chlorine_flow_rate` | ❓ | — |
+| `chlorine_production` | — | ✅ |
 | `chlorine_pump_running` | ❓ | — |
 | `configuration` | ✅ | ❓ |
 | `dosing_delay` | ✅ | ❓ |
+| `electrode_polarity` | — | ✅ |
+| `electrolysis_running` | — | ✅ |
 | `filtration_running` | ✅ | ❓ |
+| `flocculant_dose_target` | — | 👁 |
+| `flocculant_pump_running` | — | 👁 |
 | `ph` | ✅ | ❓ |
 | `ph_minus_flow_rate` | ❓ | ❓ |
 | `ph_minus_pump_running` | ❓ | ❓ |
@@ -107,6 +116,7 @@ Further profiles exist that no unit is meant to decode with and that the tables 
 | `pool_volume` | ✅ | ❓ |
 | `redox` | ✅ | ❓ |
 | `redox_target` | ✅ | ❓ |
+| `salinity` | — | ✅ |
 | `serial_number` | ✅ | ✅ |
 | `startup_delay` | ✅ | ❓ |
 | `timestamp` | ✅ | ❓ |
@@ -237,21 +247,21 @@ Every entry below is read today without a confirming capture.  If you own one of
 
 ### v8 SALT
 
-- `configuration` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
-- `dosing_delay` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
-- `filtration_running` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
-- `ph` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
-- `ph_minus_flow_rate` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
-- `ph_minus_pump_running` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
-- `ph_target` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
-- `pool_volume` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
-- `redox` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
-- `redox_target` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
-- `startup_delay` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
-- `timestamp` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
-- `unit_clock` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
-- `water_flow_to_probes` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
-- `water_temperature` — assumed: only the header type (105) says SALT; the NET layout is taken over unverified
+- `configuration` — assumed: only the header type (1xx) says SALT; the NET layout is taken over unverified
+- `dosing_delay` — assumed: only the header type (1xx) says SALT; the NET layout is taken over unverified
+- `filtration_running` — assumed: only the header type (1xx) says SALT; the NET layout is taken over unverified
+- `ph` — assumed: only the header type (1xx) says SALT; the NET layout is taken over unverified
+- `ph_minus_flow_rate` — assumed: only the header type (1xx) says SALT; the NET layout is taken over unverified
+- `ph_minus_pump_running` — assumed: only the header type (1xx) says SALT; the NET layout is taken over unverified
+- `ph_target` — assumed: only the header type (1xx) says SALT; the NET layout is taken over unverified
+- `pool_volume` — assumed: only the header type (1xx) says SALT; the NET layout is taken over unverified
+- `redox` — assumed: only the header type (1xx) says SALT; the NET layout is taken over unverified
+- `redox_target` — assumed: only the header type (1xx) says SALT; the NET layout is taken over unverified
+- `startup_delay` — assumed: only the header type (1xx) says SALT; the NET layout is taken over unverified
+- `timestamp` — assumed: only the header type (1xx) says SALT; the NET layout is taken over unverified
+- `unit_clock` — assumed: only the header type (1xx) says SALT; the NET layout is taken over unverified
+- `water_flow_to_probes` — assumed: only the header type (1xx) says SALT; the NET layout is taken over unverified
+- `water_temperature` — assumed: only the header type (1xx) says SALT; the NET layout is taken over unverified
 
 ## Not located yet
 
@@ -305,6 +315,14 @@ Values captured from real units that nobody has yet checked against the unit dis
 - `free_chlorine_target` — observed: byte[53] / 10 on the Issue #66 NET; not compared with the app
 - `pool_volume` — observed: bytes 92-93 on the Issue #66 NET; not compared with the app
 
+### v8 SALT
+
+- `alarm_max_disinfection_dose` — observed: ins[12] bit 0x80 flipped 0 -> 128 while the unit showed 'Maximum disinfection dose exceeded' (Issue #151)
+- `algaecide_dose_target` — observed: areqs[4] = 5 with the port set to algicide 5 ml/m3/day, 0 after it was switched to flocculant (Issue #131)
+- `algaecide_pump_running` — observed: outs[11] with the chemical from fncs[6] (10 algicide, 18 flocculant): the same unit read 10 with algicide configured and 18 after its owner switched the port on 2026-07-19 (Issue #131)
+- `flocculant_dose_target` — observed: areqs[3] = 10 with the port set to flocculant 10 ml/h, 0 while it was algicide (Issue #131)
+- `flocculant_pump_running` — observed: outs[11] with the chemical from fncs[6] (10 algicide, 18 flocculant): the same unit read 10 with algicide configured and 18 after its owner switched the port on 2026-07-19 (Issue #131)
+
 ## Not mapped on any protocol
 
 Fields that exist on `AsekoDevice` but that nothing knows how to read yet.
@@ -316,5 +334,5 @@ Fields that exist on `AsekoDevice` but that nothing knows how to read yet.
 
 - features known: 73
 - with a v7 reading: 71
-- with a v8 reading: 18
+- with a v8 reading: 28
 - profiles: 9

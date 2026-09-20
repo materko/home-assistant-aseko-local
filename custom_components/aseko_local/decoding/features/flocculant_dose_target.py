@@ -4,6 +4,9 @@ Independent ports (OXY, HOME): byte[54].  Confirmed on OXY (2026-04-11,
     value 10) and HOME (2026-04-28, serial 110128063, value 10).
 Shared port (SALT, NET): byte[54] as well, but ours only while byte[37] bit
     0x80 is clear; see flocculant_flow_rate for the routing.
+v8: areqs[3], ours only while fncs[6] says the third port is flocculant (18).
+    An ASIN Aqua Salt NET switched to flocculant 10 ml/h sent areqs[3] = 10,
+    and 0 while the port was algicide (Issue #131).
 """
 
 from __future__ import annotations
@@ -11,11 +14,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, override
 
 from ..feature import Feature
-from ..frames import byte_or_absent, byte_when_flags
+from ..frames import THIRD_PUMP_FLOCCULANT, byte_or_absent, byte_when_flags
+from ..presence import NOT_PRESENT
 
 if TYPE_CHECKING:
     from ...models import AsekoDevice
-    from ..frames import V7Frame
+    from ..frames import V7Frame, V8Frame
     from ..presence import NotPresent
 
 
@@ -42,3 +46,10 @@ class FlocculantDoseTarget(Feature):
         return byte_when_flags(
             frame[54], frame[37], SHARED_PORT_ROUTING, ROUTED_TO_FLOCCULANT
         )
+
+    @override
+    def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> int | NotPresent | None:
+        ours = frame.third_pump_is(THIRD_PUMP_FLOCCULANT)
+        if ours is None:
+            return None
+        return frame.value("areqs", 3) if ours else NOT_PRESENT

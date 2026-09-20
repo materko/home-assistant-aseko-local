@@ -32,14 +32,24 @@ from ..feature import Feature
 
 if TYPE_CHECKING:
     from ...models import AsekoDevice
-    from ..frames import V7Frame
+    from ..frames import V7Frame, V8Frame
+
+
+# v8 keeps both dosing faults in ins[12]; 0x80 is this one (Issue #151: the
+# value flipped 0 -> 128 while the unit showed the fault)
+V8_MAX_DISINFECTION_DOSE = 0x80
 
 
 class AlarmMaxDisinfectionDose(Feature):
-    """v7: byte[13] bit 0x01 or byte[12] bit 0x20."""
+    """v7: byte[13] bit 0x01 or byte[12] bit 0x20.  v8: ins[12] bit 0x80."""
 
     field = "alarm_max_disinfection_dose"
 
     @override
     def decode_v7(self, frame: V7Frame, device: AsekoDevice) -> bool:
         return bool(frame[13] & 0x01) or bool(frame[12] & 0x20)
+
+    @override
+    def decode_v8(self, frame: V8Frame, device: AsekoDevice) -> bool | None:
+        alarms = frame.value("ins", 12)
+        return None if alarms is None else bool(alarms & V8_MAX_DISINFECTION_DOSE)

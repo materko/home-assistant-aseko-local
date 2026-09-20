@@ -12,6 +12,7 @@ Per-model byte maps, observations and open questions. These pages explain the ev
 | ASIN Aqua Oxy · v7 | [OXY](oxy_device_analysis.md) |
 | ASIN Aqua Profi · v7 | [PROFI](profi_device_analysis.md) |
 | ASIN Aqua Salt · v7 | [SALT](salt_device_analysis.md) |
+| ASIN Aqua Salt NET · v8 | [SALT NET v8](salt_net_v8_device_analysis.md) |
 
 Read each page's status before using a mapping. **Confirmed**, **observed**, **assumed** and **not located** have distinct meanings defined in [Evidence rules](../evidence-rules.md).
 

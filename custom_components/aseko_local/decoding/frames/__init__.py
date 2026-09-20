@@ -15,7 +15,12 @@ from .v7 import (
     parse_v7,
     v7_bad_checksum_segments,
 )
-from .v8 import V8Frame, parse_v8
+from .v8 import (
+    THIRD_PUMP_ALGICIDE,
+    THIRD_PUMP_FLOCCULANT,
+    V8Frame,
+    parse_v8,
+)
 from .values import (
     UNSPECIFIED_WORD,
     byte_or_absent,
@@ -42,6 +47,8 @@ def parse_frame(raw: bytes, protocol: Protocol | None = None) -> V7Frame | V8Fra
 
 
 __all__ = [
+    "THIRD_PUMP_ALGICIDE",
+    "THIRD_PUMP_FLOCCULANT",
     "UNSPECIFIED_WORD",
     "V7_CHECKSUM_SEED",
     "V7_SEGMENT_LENGTH",

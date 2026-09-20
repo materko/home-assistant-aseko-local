@@ -9,6 +9,7 @@ from custom_components.aseko_local.decoding.frames import parse_v8
 from custom_components.aseko_local.models import (
     AsekoDevice,
     AsekoDeviceType,
+    AsekoElectrodePolarity,
     AsekoProbeType,
     AsekoProfileFlag,
 )
@@ -507,3 +508,133 @@ def test_bad_values_in_unknown_sections_are_one_problem() -> None:
         for i in range(50)
     }
     assert problems == {("unexpected section",)}
+
+
+# ---------------------------------------------------------------------------
+# ASIN Aqua Salt NET (Issue #131): frames an owner captured and labelled with
+# what the app showed at that moment.  Serial numbers redacted.
+# ---------------------------------------------------------------------------
+
+
+def _salt_net_frame(  # noqa: PLR0913 - one argument per labelled position
+    *,
+    header: int = 100,
+    salinity: int = 53,
+    production: int = 19,
+    electrolyser: int = 2,
+    third_pump: int = 0,
+    third_pump_code: int = 10,
+    algicide_dose: int = 5,
+    flocculant_dose: int = 0,
+    alarms: int = 0,
+) -> bytes:
+    """Return a Salt NET frame with the labelled positions filled in."""
+    outs = [0] * 19
+    outs[2] = 1  # filtration
+    outs[11] = third_pump
+    outs[14] = electrolyser
+    ains = [740, 740, 715, 7200, 0, 0, 720, 720, salinity, production, 401] + [0] * 5
+    areqs = [74, 72, 4, flocculant_dose, algicide_dose, 33, 33, 0, 0, 0]
+    areqs += [33, 33, 33, 0, 55, 255, 255, 5, 5, 10, 0, 15, 0, 0, 0, 3]
+    ins = [346, -500, -500, -500, 0, 0, 0, 0, 1, -500, -500, -500, alarms]
+    ins += [24, 7, 9, 18, 25, 0]
+    fncs = [0, 0, 1, 0, 0, 0, third_pump_code, 0]
+
+    def part(name: str, values: list[int]) -> str:
+        return name + ": " + " ".join(str(v) for v in values) + " "
+
+    body = (
+        f"{{v1 123456789 {header} 0 31 "
+        + part("ins", ins)
+        + part("ains", ains)
+        + part("outs", outs)
+        + part("areqs", areqs)
+        + part("fncs", fncs)
+        + "crc16: FA37}\n"
+    )
+    return body.encode()
+
+
+@pytest.mark.parametrize("header", [100, 105, 106])
+def test_every_salt_net_firmware_reads_the_salt_values(header) -> None:
+    """The product line picks the profile, not the firmware version in the header."""
+    device = decode(_salt_net_frame(header=header))
+
+    assert device.device_type == AsekoDeviceType.SALT
+    assert device.salinity == 5.3
+    assert device.chlorine_production == 19
+
+
+def test_salinity_matches_the_display() -> None:
+    """Issue #131: the second unit's display read 10.1 with ains[8] = 101."""
+    assert decode(_salt_net_frame(salinity=101)).salinity == 10.1
+
+
+@pytest.mark.parametrize(
+    ("outs14", "running", "polarity"),
+    [
+        (0, False, AsekoElectrodePolarity.WAITING),
+        (2, True, AsekoElectrodePolarity.RIGHT),
+        (3, True, AsekoElectrodePolarity.LEFT),
+    ],
+)
+def test_the_electrolyser_state_and_direction_come_from_outs_14(
+    outs14, running, polarity
+) -> None:
+    device = decode(_salt_net_frame(electrolyser=outs14))
+
+    assert device.electrolysis_running is running
+    assert device.electrode_polarity is polarity
+
+
+def test_the_electrolyser_output_is_reported_as_sent() -> None:
+    off = decode(_salt_net_frame(electrolyser=0, production=0))
+
+    assert off.chlorine_production == 0
+    assert decode(_salt_net_frame(production=20)).chlorine_production == 20
+
+
+def test_the_third_pump_is_algicide_while_fncs_6_says_so() -> None:
+    """outs[11] is the port; fncs[6] = 10 algicide, 18 flocculant (Issue #131)."""
+    idle = decode(_salt_net_frame(third_pump=0))
+    dosing = decode(_salt_net_frame(third_pump=1))
+
+    assert idle.algaecide_pump_running is False
+    assert dosing.algaecide_pump_running is True
+    assert dosing.algaecide_dose_target == 5
+    # the port is not flocculant, so that unit has no flocculant entities
+    assert "flocculant_pump_running" not in dosing.features
+    assert "flocculant_dose_target" not in dosing.features
+
+
+def test_the_same_port_switched_to_flocculant() -> None:
+    device = decode(
+        _salt_net_frame(
+            third_pump=1, third_pump_code=18, algicide_dose=0, flocculant_dose=10
+        )
+    )
+
+    assert device.flocculant_pump_running is True
+    assert device.flocculant_dose_target == 10
+    assert "algaecide_pump_running" not in device.features
+    assert "algaecide_dose_target" not in device.features
+
+
+@pytest.mark.parametrize(
+    ("alarms", "no_flow", "max_dose"),
+    [(0, False, False), (0x100, True, False), (0x80, False, True)],
+)
+def test_the_v8_alarms_are_bits_of_ins_12(alarms, no_flow, max_dose) -> None:
+    """Issue #151: ins[12] flipped 0 -> 128 with 'maximum disinfection dose'."""
+    device = decode(_salt_net_frame(alarms=alarms))
+
+    assert device.alarm_no_flow_to_probes is no_flow
+    assert device.alarm_max_disinfection_dose is max_dose
+
+
+def test_a_salt_net_has_no_chlorine_pump() -> None:
+    """A salt unit makes its chlorine; the NET's canister entities do not apply."""
+    device = decode(_salt_net_frame())
+
+    assert "chlorine_pump_running" not in device.possible_features
+    assert "chlorine_flow_rate" not in device.possible_features

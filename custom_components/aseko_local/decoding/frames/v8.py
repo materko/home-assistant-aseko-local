@@ -20,6 +20,14 @@ EXPECTED_SECTIONS = ("ins", "ains", "outs", "areqs")
 # a new kind of problem with every frame.
 KNOWN_SECTIONS = (*EXPECTED_SECTIONS, "reqs", "fncs", "mods", "flags", "crc16")
 
+# ``fncs[6]`` names the chemical the third pump port is set up for: the same
+# unit read 10 with algicide configured and 18 after it was switched to
+# flocculant (Issue #131, 2026-07-19).
+THIRD_PUMP_ALGICIDE = 10
+THIRD_PUMP_FLOCCULANT = 18
+THIRD_PUMP_SECTION = "fncs"
+THIRD_PUMP_INDEX = 6
+
 # Matches "sectionname: <values>" up to the next section keyword or the end.
 _SECTION_RE = re.compile(r"(\w+):\s*(.*?)(?=\s+\w+:|$)", re.DOTALL)
 _HEADER_RE = re.compile(r"v1\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)")
@@ -74,6 +82,15 @@ class V8Frame:
         """Return ``get`` as a bool (non-zero is on), or None when it is unreadable or not sent."""
         v = self.get(section, index)
         return None if v is None else bool(v)
+
+    def third_pump_is(self, chemical: int) -> bool | None:
+        """Whether the third pump port is set up for ``chemical`` (``fncs[6]``).
+
+        None while the unit did not send the section, so a reading can tell
+        "another chemical" from "not said".
+        """
+        code = self.get(THIRD_PUMP_SECTION, THIRD_PUMP_INDEX)
+        return None if code is None else code == chemical
 
     def measurement(
         self, section: str, index: int, divisor: int

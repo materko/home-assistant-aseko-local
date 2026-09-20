@@ -1,21 +1,59 @@
 """v8 profile: ASIN AQUA Salt NET.
 
-Takes over the NET layout minus the chlorine pump: a SALT makes its chlorine
-by electrolysis, and the Aseko Live app gives its Salt units a pH- and an
-algicide canister and an electrode, but no chlorine canister.
+Takes over the NET layout minus the chlorine pump -- a SALT makes its
+chlorine by electrolysis -- and adds what only a salt unit sends: salinity,
+the electrolyser, and the third pump port, whose chemical ``fncs[6]`` names.
+
+The salt readings come from Issue #131, where an owner labelled captures
+with what the app showed at that moment, and from a second unit (Issue #131,
+firmware 106) whose display was compared with one frame.
 """
 
 from __future__ import annotations
 
 from ....models import AsekoDeviceType, AsekoProfileFlag
-from ...evidence import assumed, confirmed
-from ...features import ChlorineFlowRate, ChlorinePumpRunning, SerialNumber
+from ...evidence import assumed, confirmed, derived, observed
+from ...features import (
+    AlarmMaxDisinfectionDose,
+    AlarmNoFlowToProbes,
+    AlgaecideDoseTarget,
+    AlgaecidePumpRunning,
+    ChlorineFlowRate,
+    ChlorineProduction,
+    ChlorinePumpRunning,
+    ElectrodePolarity,
+    ElectrolysisRunning,
+    FlocculantDoseTarget,
+    FlocculantPumpRunning,
+    Salinity,
+    SerialNumber,
+)
 from ...frames import Protocol
 from ...profile import Profile
 from .common import FEATURES
 
-_SALT_FEATURES = tuple(
+_NET_FEATURES = tuple(
     f for f in FEATURES if f not in (ChlorinePumpRunning, ChlorineFlowRate)
+)
+
+#: What a salt unit sends on top of the NET layout.
+_SALT_ONLY = (
+    Salinity,
+    ChlorineProduction,
+    ElectrolysisRunning,
+    ElectrodePolarity,
+    AlgaecidePumpRunning,
+    AlgaecideDoseTarget,
+    FlocculantPumpRunning,
+    FlocculantDoseTarget,
+    AlarmNoFlowToProbes,
+    AlarmMaxDisinfectionDose,
+)
+
+_THIRD_PUMP = observed(
+    "outs[11] with the chemical from fncs[6] (10 algicide, 18 flocculant): "
+    "the same unit read 10 with algicide configured and 18 after its owner "
+    "switched the port on 2026-07-19 (Issue #131)"
 )
 
 
@@ -23,18 +61,51 @@ SALT = Profile(
     name="v8 SALT",
     protocol=Protocol.V8,
     model=AsekoDeviceType.SALT,
-    features=_SALT_FEATURES,
+    features=(*_NET_FEATURES, *_SALT_ONLY),
     flags=frozenset({AsekoProfileFlag.DELAYS_IN_MINUTES}),
     evidence={
-        # only the header type says SALT: every entry is the NET layout,
-        # taken over, except what the header itself carries
+        # the shared part is the NET layout, taken over unverified
         **dict.fromkeys(
-            _SALT_FEATURES,
+            _NET_FEATURES,
             assumed(
-                "only the header type (105) says SALT; the NET layout is taken "
+                "only the header type (1xx) says SALT; the NET layout is taken "
                 "over unverified"
             ),
         ),
         SerialNumber: confirmed("header token 2 on every captured frame"),
+        Salinity: confirmed(
+            "ains[8] / 10 = 10.1 kg/m3 while the unit's display read 10.1 in "
+            "the same minute (Issue #131, firmware 106)"
+        ),
+        ChlorineProduction: confirmed(
+            "ains[9] = 19 and 20 g/h in captures their owner labelled 19 and "
+            "20 g/h from the app, 0 with the electrolyser off (Issue #131)"
+        ),
+        ElectrolysisRunning: confirmed(
+            "outs[14] is 0 in the captures labelled 'electrolyzer off' and 2 "
+            "or 3 in those labelled on (Issue #131)"
+        ),
+        ElectrodePolarity: confirmed(
+            "outs[14] = 2 in the captures labelled 'right' and 3 in those "
+            "labelled 'left' (Issue #131)"
+        ),
+        AlgaecidePumpRunning: _THIRD_PUMP,
+        FlocculantPumpRunning: _THIRD_PUMP,
+        AlgaecideDoseTarget: observed(
+            "areqs[4] = 5 with the port set to algicide 5 ml/m3/day, 0 after "
+            "it was switched to flocculant (Issue #131)"
+        ),
+        FlocculantDoseTarget: observed(
+            "areqs[3] = 10 with the port set to flocculant 10 ml/h, 0 while "
+            "it was algicide (Issue #131)"
+        ),
+        AlarmNoFlowToProbes: derived(
+            "ins[12] bit 0x100, the flag the v8 decoder has always read; no "
+            "capture shows it set"
+        ),
+        AlarmMaxDisinfectionDose: observed(
+            "ins[12] bit 0x80 flipped 0 -> 128 while the unit showed 'Maximum "
+            "disinfection dose exceeded' (Issue #151)"
+        ),
     },
 )

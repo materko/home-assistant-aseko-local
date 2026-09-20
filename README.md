@@ -61,12 +61,12 @@ Support is tracked **per model and per value**. A profile being available does n
 | **ASIN Aqua SALT** | ≤ 7.x | ✅ | ✅ filtration, electrolyzer, algicide, flocculant<br>❓ pH− | ✅ algicide, flocculant<br>❓ pH− |
 | **ASIN Aqua OXY** | ≤ 7.x | 👁 pH, temperature | ✅ filtration, oxy, algicide, flocculant, pH− | ✅ oxy, algicide, flocculant, pH− |
 | **ASIN Aqua HOME** | ≤ 7.x | ✅ | ✅ filtration<br>❓ chlorine, algicide, flocculant, pH− | ❓ chlorine, flocculant, pH−<br>🔍 algicide — not calculated |
-| **ASIN Aqua Salt NET** | 8.x | ❓ | ❓ filtration, pH− | ❓ pH− |
+| **ASIN Aqua Salt NET** | 8.x | ✅ salinity<br>❓ pH, redox, temperature | ✅ electrolyzer<br>👁 algicide or flocculant<br>❓ filtration, pH− | 👁 algicide or flocculant<br>❓ pH− |
 | **ASIN Aqua PROFI** | ≤ 7.x | ❓ no real frame yet | ❓ filtration, chlorine, flocculant, pH− | ❓ chlorine, flocculant, pH− |
 
 **Consumption is always an estimate** from pump runtime and flow rate, not a measured volume sent by the unit. The marks above describe confidence in the underlying mappings.
 
-Firmware ≤ 7.x uses 120-byte binary frames; firmware 8.x uses text frames. **PROFI and Salt NET v8 are provisional profiles**, not fully verified devices.
+Firmware ≤ 7.x uses 120-byte binary frames; firmware 8.x uses text frames. **PROFI is a provisional profile**, not a verified device; on the **Salt NET** the salt values are checked against an owner's display and the rest is the NET v8 layout taken over (see [SALT NET v8](docs/device%20analyzes/salt_net_v8_device_analysis.md)).
 
 ### Not supported yet
 
