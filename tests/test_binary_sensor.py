@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -17,6 +19,7 @@ from custom_components.aseko_local.binary_sensor import (
 from custom_components.aseko_local.decoding import decode
 from custom_components.aseko_local.models import AsekoDevice
 
+from .test_decode_v8 import SALT_NET_106_FRAME
 from .test_entity_growth import SERIAL, _coordinator, _salt_frame
 
 
@@ -123,3 +126,30 @@ def test_every_description_reads_its_own_field() -> None:
         assert description.value_fn(device) is True, description.key
         setattr(device, field, None)
         assert description.value_fn(device) is None, description.key
+
+
+def test_a_salt_net_names_its_algicide_port_for_algicide_or_aco() -> None:
+    """The Salt NET port doses ALGICID or the ACO stabiliser ("Alg/Aco")."""
+    description = next(d for d in BINARY_SENSORS if d.key == "algicide_pump_running")
+    salt_net = AsekoLocalBinarySensorEntity(
+        decode(SALT_NET_106_FRAME), _coordinator(), description
+    )
+    salt_v7 = AsekoLocalBinarySensorEntity(
+        decode(_salt_frame(0xD3)), _coordinator(), description
+    )
+
+    assert salt_net.translation_key == "algaecide_pump_running_or_aco"
+    assert salt_v7.translation_key == "algaecide_pump_running"
+    # only the name changes; the unique id, and so the entity, stays
+    assert salt_net.unique_id == "123456789algicide_pump_running"
+
+
+@pytest.mark.parametrize("language", ["en", "cs", "de", "fr"])
+def test_every_algicide_or_aco_name_is_translated(language) -> None:
+    path = Path(entity_module.__file__).parent / "translations" / f"{language}.json"
+    entities = json.loads(path.read_text(encoding="utf-8"))["entity"]
+    keys = {key for platform in entities.values() for key in platform}
+
+    for key in entity_module.ALGICIDE_TRANSLATION_KEYS:
+        assert key in keys, key
+        assert f"{key}_or_aco" in keys, key

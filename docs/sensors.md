@@ -126,7 +126,7 @@ Every pump in `AsekoDevice.installed_pumps` produces a pair of sensors:
 | CL pump running | `cl_pump_running` | ✅ | ❌ | V7 only. V8 SALT_NET has `fncs[2]=1` → CL pump structurally absent (decoder returns `None`). |
 | pH− pump running | `ph_minus_pump_running` | ✅ | ✅ | V7: byte 29 bit 7. V8: `outs[8]`. Universally present — never gated. |
 | pH+ pump running | `ph_plus_pump_running` | ✅ | ❌ | Not installed on any known v8 device. |
-| Algicide pump running | `algicide_pump_running` | ✅ | ✅ | V7: byte 29 bit 4 (SALT). V8: `outs[11]` for SALT_NET with fncs[6]=10. |
+| Algicide pump running | `algicide_pump_running` | ✅ | ✅ | V7: byte 29 bit 4 (SALT). V8: `outs[11]` for SALT_NET with fncs[6]=10. A Salt NET names the algicide entities "Algicide / ACO": its port doses Aseko ALGICID or the ACO stabiliser alike. |
 | Flocculant pump running | `floc_pump_running` | ✅ | ✅ | V8: `outs[11]` for SALT_NET with fncs[6]=18. Same physical port as algicide (decoder routes by `fncs[6]`). |
 | OXY pump running | `oxy_pump_running` | ✅ | ❌ | V7 OXY only. |
 | Water filling active | `water_filling_active` | ✅ | ❌ | V7 HOME/SALT only — byte 29 bit 0x02. |

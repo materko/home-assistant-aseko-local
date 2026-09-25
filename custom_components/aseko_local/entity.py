@@ -28,7 +28,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, MANUFACTURER
 from .coordinator import AsekoLocalDataUpdateCoordinator
-from .models import AsekoDevice
+from .models import AsekoDevice, AsekoProfileFlag
 
 if TYPE_CHECKING:
     from homeassistant.const import Platform
@@ -47,6 +47,18 @@ type EntityBuilder = Callable[
 
 # ``feature`` left at this default is read off the entity description.
 _FROM_DESCRIPTION = object()
+
+#: The algicide port's entities, named "Algicide / ACO" on a unit whose port
+#: doses either (AsekoProfileFlag.ALGICIDE_OR_ACO) under ``<key>_or_aco``.
+ALGICIDE_TRANSLATION_KEYS = frozenset(
+    {
+        "algaecide_pump_running",
+        "algaecide_dose_target",
+        "algicide_consumed",
+        "algicide_total_consumed",
+        "algicide_refill_reset",
+    }
+)
 
 
 class AsekoLocalEntity(CoordinatorEntity[AsekoLocalDataUpdateCoordinator]):
@@ -77,6 +89,11 @@ class AsekoLocalEntity(CoordinatorEntity[AsekoLocalDataUpdateCoordinator]):
         )
 
         self.device = unit
+        if (
+            AsekoProfileFlag.ALGICIDE_OR_ACO in unit.flags
+            and description.translation_key in ALGICIDE_TRANSLATION_KEYS
+        ):
+            self._attr_translation_key = f"{description.translation_key}_or_aco"
         self._attr_unique_id = (
             f"{self.device.serial_number}{self.entity_description.key}"
         )

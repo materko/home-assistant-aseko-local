@@ -82,6 +82,9 @@
       "algaecide_pump_running": {
         "name": "Čerpadlo algicidu běží"
       },
+      "algaecide_pump_running_or_aco": {
+        "name": "Čerpadlo algicidu / ACO běží"
+      },
       "flocculant_pump_running": {
         "name": "Čerpadlo flokulantu běží"
       },
@@ -221,6 +224,10 @@
         "name": "Požadovaná dávka algicidu",
         "unit_of_measurement": "ml/m³/den"
       },
+      "algaecide_dose_target_or_aco": {
+        "name": "Požadovaná dávka algicidu / ACO",
+        "unit_of_measurement": "ml/m³/den"
+      },
       "oxygen_dose_target": {
         "name": "Požadovaná dávka OXY Pure",
         "unit_of_measurement": "ml/m³/den"
@@ -315,8 +322,14 @@
       "algicide_consumed": {
         "name": "Spotřeba algicidu (od doplnění)"
       },
+      "algicide_consumed_or_aco": {
+        "name": "Spotřeba algicidu / ACO (od doplnění)"
+      },
       "algicide_total_consumed": {
         "name": "Spotřeba algicidu (celkem)"
+      },
+      "algicide_total_consumed_or_aco": {
+        "name": "Spotřeba algicidu / ACO (celkem)"
       },
       "algicide_remaining": {
         "name": "Zbývající algicid"
@@ -386,6 +399,9 @@
       },
       "algicide_refill_reset": {
         "name": "Doplnění algicidu"
+      },
+      "algicide_refill_reset_or_aco": {
+        "name": "Doplnění algicidu / ACO"
       },
       "floc_refill_reset": {
         "name": "Doplnění flokulantu"

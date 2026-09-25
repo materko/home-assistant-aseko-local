@@ -82,6 +82,9 @@
       "algaecide_pump_running": {
         "name": "Pompe algicide en marche"
       },
+      "algaecide_pump_running_or_aco": {
+        "name": "Pompe algicide / ACO en marche"
+      },
       "flocculant_pump_running": {
         "name": "Pompe floculant en marche"
       },
@@ -221,6 +224,10 @@
         "name": "Dose algicide requise",
         "unit_of_measurement": "ml/m³/jour"
       },
+      "algaecide_dose_target_or_aco": {
+        "name": "Dose algicide / ACO requise",
+        "unit_of_measurement": "ml/m³/jour"
+      },
       "oxygen_dose_target": {
         "name": "Dose OXY Pure requise",
         "unit_of_measurement": "ml/m³/jour"
@@ -315,8 +322,14 @@
       "algicide_consumed": {
         "name": "Algicide consommé (depuis le remplissage)"
       },
+      "algicide_consumed_or_aco": {
+        "name": "Algicide / ACO consommé (depuis le remplissage)"
+      },
       "algicide_total_consumed": {
         "name": "Algicide consommé (total)"
+      },
+      "algicide_total_consumed_or_aco": {
+        "name": "Algicide / ACO consommé (total)"
       },
       "algicide_remaining": {
         "name": "Algicide restant"
@@ -386,6 +399,9 @@
       },
       "algicide_refill_reset": {
         "name": "Remplir algicide"
+      },
+      "algicide_refill_reset_or_aco": {
+        "name": "Remplir algicide / ACO"
       },
       "floc_refill_reset": {
         "name": "Remplir floculant"

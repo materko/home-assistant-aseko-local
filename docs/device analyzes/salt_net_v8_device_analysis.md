@@ -49,8 +49,10 @@ The entities follow the port's **mode**, not the product in the canister. The
 (EN 2025-01) names the port "Algicid / ACO": a daily dose in ml/m³ of Aseko
 ALGICID (typically 10) or of the ACO chlorine stabilizer (typically 3). The
 header 106 unit runs its port in that mode (`fncs[6] = 10`, dose in `areqs[4]`)
-with a flocculant connected, so it shows algicide entities; that is the unit's
-setting read right, not a decoding error (Issue #169).
+with a flocculant connected, so it shows the algicide entities; that is the
+unit's setting read right, not a decoding error (Issue #169). The entities of
+this port are named "Algicide / ACO" on a Salt NET (profile flag
+`ALGICIDE_OR_ACO`); their keys and unique IDs are the algicide ones.
 
 The algicide dose is **ml/m³ per day**. The Dutch controller texts show it as
 "ml/m³ per uur"; with the display set to English the same unit shows per day,

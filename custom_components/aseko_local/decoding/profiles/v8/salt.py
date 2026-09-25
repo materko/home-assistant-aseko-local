@@ -81,7 +81,9 @@ SALT = Profile(
     protocol=Protocol.V8,
     model=AsekoDeviceType.SALT,
     features=(*_NET_FEATURES, *_SALT_ONLY),
-    flags=frozenset({AsekoProfileFlag.DELAYS_IN_MINUTES}),
+    flags=frozenset(
+        {AsekoProfileFlag.DELAYS_IN_MINUTES, AsekoProfileFlag.ALGICIDE_OR_ACO}
+    ),
     evidence={
         # the shared part is the NET layout, taken over unverified
         **dict.fromkeys(

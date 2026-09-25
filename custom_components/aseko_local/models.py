@@ -54,6 +54,12 @@ class AsekoProfileFlag(Enum):
     # kept as sent; ``sensor.py`` reads this flag for the unit.
     DELAYS_IN_MINUTES = "delays_in_minutes"
 
+    # The algicide port doses by the day in ml/m3, Aseko ALGICID or the ACO
+    # chlorine stabiliser alike: the Salt NET display labels it "Alg/Aco" and
+    # its manual "Algicid / ACO".  The entities keep their keys and are named
+    # for both (``entity.py``).
+    ALGICIDE_OR_ACO = "algicide_or_aco"
+
 
 class AsekoProbeType(Enum):
     """Enumeration of Aseko Probes."""

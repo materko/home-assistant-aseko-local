@@ -82,6 +82,9 @@
       "algaecide_pump_running": {
         "name": "Algizid-Pumpe läuft"
       },
+      "algaecide_pump_running_or_aco": {
+        "name": "Algizid-/ACO-Pumpe läuft"
+      },
       "flocculant_pump_running": {
         "name": "Flockungsmittel-Pumpe läuft"
       },
@@ -224,6 +227,10 @@
         "name": "Benötigte Dosis Algizid",
         "unit_of_measurement": "ml/m³/Tag"
       },
+      "algaecide_dose_target_or_aco": {
+        "name": "Benötigte Dosis Algizid / ACO",
+        "unit_of_measurement": "ml/m³/Tag"
+      },
       "oxygen_dose_target": {
         "name": "Benötigte Dosis OXY Pure",
         "unit_of_measurement": "ml/m³/Tag"
@@ -318,8 +325,14 @@
       "algicide_consumed": {
         "name": "Algizid verbraucht (seit Nachfüllung)"
       },
+      "algicide_consumed_or_aco": {
+        "name": "Algizid / ACO verbraucht (seit Nachfüllung)"
+      },
       "algicide_total_consumed": {
         "name": "Algizid verbraucht (gesamt)"
+      },
+      "algicide_total_consumed_or_aco": {
+        "name": "Algizid / ACO verbraucht (gesamt)"
       },
       "algicide_remaining": {
         "name": "Algizid verbleibend"
@@ -389,6 +402,9 @@
       },
       "algicide_refill_reset": {
         "name": "Algizid nachfüllen"
+      },
+      "algicide_refill_reset_or_aco": {
+        "name": "Algizid / ACO nachfüllen"
       },
       "floc_refill_reset": {
         "name": "Flockungsmittel nachfüllen"
