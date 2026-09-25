@@ -6,7 +6,9 @@ the electrolyser, and the third pump port, whose chemical ``fncs[6]`` names.
 
 The salt readings come from Issue #131, where an owner labelled captures
 with what the app showed at that moment, and from a second unit (Issue #131,
-firmware 106) whose display was compared with one frame.
+firmware 106) whose display was compared with one frame.  That unit's owner
+ran it for days on the v1.9.x decoder patched for header 106 (Issue #169) and
+timed a real algicide dose against ``outs[11]``.
 """
 
 from __future__ import annotations
@@ -114,7 +116,8 @@ SALT = Profile(
         ),
         PoolVolume: confirmed(
             "areqs[14] = 55 m3 on the unit whose owner gave its pool as 55 m3 "
-            "(Issue #131)"
+            "(Issue #131); 49 matching the display on the firmware 106 unit "
+            "(Issue #169)"
         ),
         StartupDelay: observed(
             "areqs[17] = 5, the 5 min the unit is set to (Issue #131); the "
@@ -148,11 +151,16 @@ SALT = Profile(
             "outs[14] = 2 in the captures labelled 'right' and 3 in those "
             "labelled 'left' (Issue #131)"
         ),
-        AlgaecidePumpRunning: _THIRD_PUMP,
+        AlgaecidePumpRunning: confirmed(
+            "outs[11] went 1 and back to 0 exactly over the unit's algicide "
+            "dose 00:03:47-00:06:24 on 2026-09-22, fncs[6] = 10 (Issue #169, "
+            "firmware 106); fncs[6] routes the port as in Issue #131"
+        ),
         FlocculantPumpRunning: _THIRD_PUMP,
-        AlgaecideDoseTarget: observed(
+        AlgaecideDoseTarget: confirmed(
             "areqs[4] = 5 with the port set to algicide 5 ml/m3/day, 0 after "
-            "it was switched to flocculant (Issue #131)"
+            "it was switched to flocculant (Issue #131); 2 matching the "
+            "display and the app on the firmware 106 unit (Issue #169)"
         ),
         FlocculantDoseTarget: observed(
             "areqs[3] = 10 with the port set to flocculant 10 ml/h, 0 while "
@@ -162,17 +170,18 @@ SALT = Profile(
             "ins[12] bit 0x100, the flag the v8 decoder has always read; no "
             "capture shows it set"
         ),
-        FiltrationPeriod1Start: observed(
-            "reqs[5] = 8 on a unit its owner set to a timer from 08:00, 0 on "
-            "one running nonstop (Issue #131)"
+        FiltrationPeriod1Start: confirmed(
+            "reqs[5] = 8 while the app showed 'Filtration time 1' starting "
+            "08:00; 0 on the firmware 106 unit (Issue #131)"
         ),
-        FiltrationPeriod1End: observed(
-            "reqs[7] = 20 on a unit its owner set to a timer until 20:00, 24 "
-            "on one running nonstop (Issue #131)"
+        FiltrationPeriod1End: confirmed(
+            "reqs[7] = 20 while the app showed it stopping 20:00; 24 on the "
+            "firmware 106 unit, whose app showed 24:00 (Issue #131)"
         ),
-        FiltrationSchedule: derived(
-            "reqs[5] to reqs[7]: 0 to 24 is the nonstop setting, anything "
-            "else the timer; a v8 unit offers one period only"
+        FiltrationSchedule: confirmed(
+            "reqs[5] to reqs[7]: 0 to 24 while the app showed 'FILTRATION "
+            "NONSTOP 24H' and the display 'Timer 24dag', 8 to 20 while the "
+            "app showed the timer (Issue #131); a v8 unit offers one period only"
         ),
         AlarmMaxDisinfectionDose: observed(
             "ins[12] bit 0x80 flipped 0 -> 128 while the unit showed 'Maximum "

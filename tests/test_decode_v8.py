@@ -571,6 +571,54 @@ def test_every_salt_net_firmware_reads_the_salt_values(header) -> None:
     assert device.chlorine_production == 19
 
 
+# Issues #131 and #169: the firmware 106 unit's frame as its owner posted it
+# (serial redacted).  fncs[2] = 3 where the header 100 unit sends 1, with the
+# same hardware.
+SALT_NET_106_FRAME = (
+    b"{v1 123456789 106 0 31 "
+    b"ins: 295 -500 -500 -500 0 0 0 0 1 -500 -500 -500 0 24 9 13 12 14 0 "
+    b"ains: 709 709 537 5420 0 0 542 542 101 12 459 0 0 0 0 0 "
+    b"outs: 0 0 2 0 0 0 0 0 0 0 0 0 0 0 2 0 0 0 0 "
+    b"areqs: 71 72 4 0 2 33 33 0 0 0 33 33 33 0 49 255 255 5 5 10 0 15 0 0 0 0 "
+    b"reqs: 0 0 0 0 0 0 0 24 0 2 "
+    + b"0 " * 23
+    + b"10 10 "
+    + b"0 " * 25
+    + b"fncs: 0 0 3 0 0 0 10 0 mods: 2 1 0 1 1 0 0 0 flags: 2 0 0 0 0 0 0 0 "
+    b"crc16: 07AF}\n"
+)
+
+
+def test_the_firmware_106_frame_reads_as_its_display_showed() -> None:
+    """Issue #169: the values its owner compared with the display and the app."""
+    device = decode(SALT_NET_106_FRAME)
+
+    assert device.device_type == AsekoDeviceType.SALT
+    assert device.frame_problems == ()
+    assert device.salinity == 10.1
+    assert device.chlorine_production == 12
+    assert device.electrolysis_running is True
+    assert device.electrode_polarity is AsekoElectrodePolarity.RIGHT
+    assert device.algaecide_dose_target == 2
+    assert device.pool_volume == 49
+    # reqs[7] = 24 while the display read "Timer 24dag" (Issue #131)
+    assert device.filtration_schedule is AsekoFiltrationSchedule.NONSTOP_24H
+    # pH- and the algicide port, whatever fncs[2] says; no chlorine pump
+    assert {"ph_minus_pump_running", "algaecide_pump_running"} <= device.features
+    assert "chlorine_pump_running" not in device.possible_features
+    assert "flocculant_pump_running" not in device.features
+
+
+def test_the_firmware_106_algicide_dose_is_outs_11() -> None:
+    """Issue #169: outs[11] went on and off with the unit's algicide dose."""
+    dosing = SALT_NET_106_FRAME.replace(
+        b"outs: 0 0 2 0 0 0 0 0 0 0 0 0", b"outs: 0 0 2 0 0 0 0 0 0 0 0 1", 1
+    )
+
+    assert decode(SALT_NET_106_FRAME).algaecide_pump_running is False
+    assert decode(dosing).algaecide_pump_running is True
+
+
 def test_salinity_matches_the_display() -> None:
     """Issue #131: the second unit's display read 10.1 with ains[8] = 101."""
     assert decode(_salt_net_frame(salinity=101)).salinity == 10.1
